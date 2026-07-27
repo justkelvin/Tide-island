@@ -2,12 +2,14 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import IslandBackend
+import "qml/notifications"
 
 Scope {
     id: shellRoot
 
     readonly property bool screenRecordingActive: SystemServices.screenRecordingActive
-    property bool focusEnabled: false
+    readonly property var notificationService: tideNotificationService
+    readonly property bool focusEnabled: tideNotificationService.dndEnabled
     property bool nightLightEnabled: false
     property bool shuttingDown: false
     property bool islandAutoHideRuntimeEnabled: true
@@ -23,13 +25,10 @@ Scope {
         }
     }
 
-    function showNotificationAll(appName, summary, body) {
-        if (focusEnabled)
-            return;
-
-        shellRoot.forEachWindow((window) => {
-            if (window && window.showNotification)
-                window.showNotification(appName, summary, body);
+    function routeNotificationPopup(notificationId) {
+        shellRoot.forFocusedWindow((window) => {
+            if (window && window.showNotificationEntry)
+                window.showNotificationEntry(notificationId);
         });
     }
 
@@ -243,6 +242,18 @@ Scope {
             shellRoot.forFocusedWindow((window) => window.toggleNotificationCenterWindow());
         }
 
+        function toggleDoNotDisturb() {
+            tideNotificationService.setDndEnabled(!tideNotificationService.dndEnabled);
+        }
+
+        function enableDoNotDisturb() {
+            tideNotificationService.setDndEnabled(true);
+        }
+
+        function disableDoNotDisturb() {
+            tideNotificationService.setDndEnabled(false);
+        }
+
         function toggleWallpaperPicker() {
             shellRoot.forFocusedWindow((window) => window.toggleWallpaperPickerWindow());
         }
@@ -252,12 +263,11 @@ Scope {
         }
     }
 
-    Connections {
-        target: SystemServices
+    TideNotificationService {
+        id: tideNotificationService
+        nativeEnabled: UserConfig.nativeNotificationsEnabled
 
-        function onNotificationReceived(appName, summary, body) {
-            shellRoot.showNotificationAll(appName, summary, body);
-        }
+        onPopupRequested: notificationId => shellRoot.routeNotificationPopup(notificationId)
     }
 
     Component.onDestruction: {

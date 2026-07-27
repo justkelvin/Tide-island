@@ -12,6 +12,7 @@
     "islandPositionX": 50,
     "islandTopMargin": 3,
     "islandWidth": 140,
+    "nativeNotificationsEnabled": true,
     "timeFontFamily": "SF Pro Rounded",
     "textFontFamily": "Inter Display"
 }

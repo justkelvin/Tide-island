@@ -58,6 +58,22 @@ target_link_libraries(application_search_tests PRIVATE
 
 add_test(NAME application_search COMMAND application_search_tests)
 
+add_executable(notification_logic_tests
+    tests/notification_logic_tests.cpp
+)
+
+target_compile_definitions(notification_logic_tests PRIVATE
+    NOTIFICATION_LOGIC_SOURCE="${CMAKE_CURRENT_SOURCE_DIR}/qml/notifications/NotificationLogic.js"
+)
+
+target_link_libraries(notification_logic_tests PRIVATE
+    Qt6::Core
+    Qt6::Qml
+    Qt6::Test
+)
+
+add_test(NAME notification_logic COMMAND notification_logic_tests)
+
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/lyricsmpris_core_tests.cpp")
     add_executable(lyricsmpris_tests
         tests/lyricsmpris_core_tests.cpp

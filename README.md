@@ -96,7 +96,12 @@ The main QML files can also be checked with:
 
 ```bash
 qmllint -I build -I /usr/lib/qt6/qml \
+  shell.qml \
   DynamicIslandWindow.qml \
+  qml/notifications/TideNotificationService.qml \
+  qml/island/NotificationLayer.qml \
+  qml/island/NotificationHistory.qml \
+  qml/controlcenter/NotificationCenterLayer.qml \
   qml/island/ExpandedPlayerLayer.qml \
   qml/island/IslandMprisController.qml \
   qml/island/IslandSystemState.qml \
@@ -212,25 +217,91 @@ available for Tide's separate overlay surface.
 
 ## Notifications and Dunst
 
-Tide observes desktop notification calls and presents them in its pill and
-notification centre. Running normal Dunst presentation at the same time
-therefore produces duplicate visual notifications.
+Tide is the native `org.freedesktop.Notifications` server. It receives
+structured notifications through Quickshell instead of scraping
+`dbus-monitor`, so literal newlines, replacement IDs, actions, images,
+urgency, close reasons, timeouts, resident notifications, transient
+notifications, and inline replies remain available to the UI.
 
-Keep Dunst running as the desktop notification service, but pause its visual
-presentation while Tide handles the UI:
+Native mode is controlled by `nativeNotificationsEnabled` in
+`~/.config/tide-island/userconfig.json` and defaults to `true` in this fork:
 
-```bash
-dunstctl set-paused true
+```json
+{
+  "nativeNotificationsEnabled": true
+}
 ```
 
-Restore Dunst presentation with:
+Only one process can own the freedesktop notification D-Bus name. Pausing
+Dunst is not enough; stop Dunst completely before starting Tide in native
+mode:
 
 ```bash
-dunstctl set-paused false
+systemctl --user stop dunst.service dunst.socket
+pkill -x dunst
+systemctl --user restart tide-island.service
+busctl --user status org.freedesktop.Notifications
 ```
 
-Tide's notification history is kept in memory and is cleared when Tide
-restarts.
+If HyDE starts Dunst from an `exec-once` entry rather than a user unit, disable
+that autostart entry as well. Keep Dunst installed for rollback.
+
+The Silent toggle in Tide's control centre is Tide-owned DND state; it no
+longer invokes `swaync-client`. DND suppresses every popup, including critical
+popups, while retaining non-transient history. Critical notifications with a
+default or zero timeout do not expire automatically. A positive sender timeout
+is treated as an explicit expiration request, including for critical
+notifications. The freedesktop value `0` means no protocol expiration and
+`-1` uses Tide's seven-second default for low/normal notifications.
+
+Popup and notification-centre entries use one global model capped at 50
+non-transient entries. History is currently in memory and is cleared on Tide
+restart, matching `persistenceSupported: false`. Clear all and individual
+dismissal notify live applications before removing entries.
+
+Useful notification checks:
+
+```bash
+notify-send --app-name="Tide Test" "Title" "Body text"
+notify-send --app-name="Tide Test" "Multiline" $'Line one\nLine two\nLine three'
+busctl --user status org.freedesktop.Notifications
+journalctl --user -u tide-island.service -f
+```
+
+On multiple monitors, Tide routes one popup to the focused output and falls
+back to the first Tide window when focus cannot be resolved. The notification
+centre remains globally shared.
+
+### Notification rollback
+
+Disable Tide native mode before starting Dunst:
+
+```bash
+python - <<'PY'
+import json
+from pathlib import Path
+
+path = Path.home() / ".config/tide-island/userconfig.json"
+data = json.loads(path.read_text()) if path.exists() else {}
+data["nativeNotificationsEnabled"] = False
+path.parent.mkdir(parents=True, exist_ok=True)
+path.write_text(json.dumps(data, indent=2) + "\n")
+PY
+systemctl --user restart tide-island.service
+systemctl --user start dunst.service
+```
+
+If Dunst is not managed by systemd, start it with `dunst &`. To cut back over
+to Tide, stop Dunst, set `nativeNotificationsEnabled` to `true`, and restart
+Tide.
+
+Known notification limitations:
+
+- history is intentionally not persisted to disk;
+- notification body markup and hyperlinks are advertised as unsupported and
+  rendered literally as plain text;
+- raw image-data hints depend on Quickshell's bounded image conversion;
+- Tide does not currently play notification sounds.
 
 ## Updating
 

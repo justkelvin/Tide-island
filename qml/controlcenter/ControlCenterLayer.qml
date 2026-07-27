@@ -398,10 +398,12 @@ Item {
             return;
 
         focusBusy = true;
-        if (focusEnabled)
-            focusDisableProcess.running = true;
-        else
-            focusEnableProcess.running = true;
+        const nextEnabled = !focusEnabled;
+        focusModeChanged(nextEnabled);
+        focusBusy = false;
+        requestNotification("Focus",
+            nextEnabled ? "Focus enabled" : "Focus disabled",
+            nextEnabled ? "Notification popups are suppressed" : "");
     }
 
     function clearWifiPrompt() {
@@ -880,7 +882,6 @@ Item {
         SystemServices.requestBrightness();
         SystemServices.requestVolume();
         refreshBatteryModeState();
-        focusStateProcess.running = true;
     }
 
     Behavior on opacity {
@@ -915,20 +916,6 @@ Item {
             id: batteryDrawerProgressAnimation
             duration: 240
             easing.type: Easing.OutCubic
-        }
-    }
-
-    Process {
-        id: focusStateProcess
-        command: ["swaync-client", "--get-dnd"]
-        running: false
-
-        stdout: SplitParser {
-            onRead: function(line) {
-                const enabled = line.trim().toLowerCase() === "true";
-                controlCenter.focusEnabled = enabled;
-                controlCenter.focusModeChanged(enabled);
-            }
         }
     }
 
@@ -1005,34 +992,6 @@ Item {
                         : "Install gammastep to use Night Light.");
             else
                 controlCenter.requestNotification("Night Light", "Night Light disabled", "");
-        }
-    }
-
-    Process {
-        id: focusEnableProcess
-        command: ["swaync-client", "-dn"]
-        running: false
-
-        onExited: function(exitCode) {
-            controlCenter.focusBusy = false;
-            controlCenter.focusEnabled = exitCode === 0;
-            controlCenter.focusModeChanged(controlCenter.focusEnabled);
-            if (exitCode === 0)
-                controlCenter.requestNotification("Focus", "Focus enabled", "Notifications paused");
-        }
-    }
-
-    Process {
-        id: focusDisableProcess
-        command: ["swaync-client", "-df"]
-        running: false
-
-        onExited: function(exitCode) {
-            controlCenter.focusBusy = false;
-            controlCenter.focusEnabled = false;
-            controlCenter.focusModeChanged(false);
-            if (exitCode === 0)
-                controlCenter.requestNotification("Focus", "Focus disabled", "");
         }
     }
 

@@ -14,6 +14,10 @@ import "qml/workspace"
 PanelWindow {
     id: root
     property var shellRootController: null
+    readonly property var notificationService: shellRootController
+        && shellRootController.notificationService !== undefined
+        ? shellRootController.notificationService
+        : null
     property string overviewPhase: "closed"
     property bool overviewPreloading: false
     readonly property bool overviewPreparing: overviewPhase === "preparing"
@@ -178,7 +182,8 @@ PanelWindow {
         if (islandContainer.wallpaperPickerLayerVisible
                 || islandContainer.applicationLauncherLayerVisible)
             return WlrKeyboardFocus.Exclusive;
-        if (islandContainer.expandedPlayerKeyboardFocusRequested)
+        if (islandContainer.expandedPlayerKeyboardFocusRequested
+                || islandContainer.notificationInteractionActive)
             return WlrKeyboardFocus.OnDemand;
         if (root.monitorFocused && (root.overviewVisible || root.connectivityPromptActive))
             return WlrKeyboardFocus.OnDemand;
@@ -603,6 +608,12 @@ PanelWindow {
             islandContainer.showNotificationCenter();
     }
 
+    function showNotificationEntry(notificationId) {
+        islandContainer.showNotificationEntry(notificationId);
+        showAutoHiddenIsland("notification");
+        scheduleAutoHide();
+    }
+
     function toggleWallpaperPickerWindow() {
         if (islandContainer.islandState === "wallpaper_picker")
             islandContainer.smartRestoreState();
@@ -763,6 +774,7 @@ PanelWindow {
         focus: wallpaperPickerLayerVisible
             || applicationLauncherLayerVisible
             || expandedPlayerKeyboardFocusRequested
+            || notificationInteractionActive
             || (root.monitorFocused && (root.overviewVisible || root.connectivityPromptActive))
 
         property string islandState: "normal"
@@ -778,12 +790,13 @@ PanelWindow {
         readonly property real currentBrightness: systemState.currentBrightness
         readonly property real currentCpuUsage: systemState.currentCpuUsage
         readonly property real currentRamUsage: systemState.currentRamUsage
-        property string notificationAppName: ""
-        property string notificationSummary: ""
-        property string notificationBody: ""
+        property real notificationId: 0
+        property var notificationEntry: null
         property bool notificationExpanded: false
+        readonly property bool notificationInteractionActive: notificationLoader.item
+            ? !!notificationLoader.item.interactionActive
+            : false
         property var bluetoothExpandedDevice: null
-        property var notificationHistoryModel: ListModel {}
         readonly property var cavaLevels: systemState.cavaLevels
         property real swipeTransitionProgress: 0
         property string workspaceOriginSide: "none"
@@ -806,7 +819,6 @@ PanelWindow {
         property real timerCompletionPulse: 0
         property real timerCompletionFlash: 0
         readonly property int defaultAutoHideInterval: 1250
-        readonly property int notificationAutoHideInterval: 4200
         readonly property int bluetoothExpandedAutoHideInterval: 2500
         readonly property int swipeAnimationDuration: 220
         readonly property real timerProgress: timerActive && timerTotalSeconds > 0
@@ -1159,23 +1171,12 @@ PanelWindow {
         function clearTransientCapsule() {
             setOsdProgress(-1.0, false);
             osdCustomText = "";
-            notificationAppName = "";
-            notificationSummary = "";
-            notificationBody = "";
+            if (notificationEntry && root.notificationService)
+                root.notificationService.hidePopup(notificationId);
+            notificationId = 0;
+            notificationEntry = null;
             notificationExpanded = false;
             bluetoothExpandedDevice = null;
-        }
-
-        function cleanNotificationText(text) {
-            return String(text === undefined || text === null ? "" : text)
-                .replace(/<[^>]*>/g, " ")
-                .replace(/&nbsp;/g, " ")
-                .replace(/&amp;/g, "&")
-                .replace(/&quot;/g, "\"")
-                .replace(/&lt;/g, "<")
-                .replace(/&gt;/g, ">")
-                .replace(/\s+/g, " ")
-                .trim();
         }
 
         function prepareRestingCapsuleGeometry() {
@@ -1413,36 +1414,30 @@ PanelWindow {
             restartAutoHideTimer();
         }
 
-        function showNotificationCapsule(appName, summary, body) {
+        function showNotificationEntry(nextNotificationId) {
             if (root.overviewVisible || islandState === "control_center" || islandState === "expanded") return;
-
-            const cleanedAppName = cleanNotificationText(appName);
-            const cleanedSummary = cleanNotificationText(summary);
-            const cleanedBody = cleanNotificationText(body);
-            const resolvedSummary = cleanedSummary !== ""
-                ? cleanedSummary
-                : (cleanedBody !== "" ? cleanedBody : "New notification");
+            if (!root.notificationService)
+                return;
+            const entry = root.notificationService.entryById(nextNotificationId);
+            if (!entry || !entry.popupVisible)
+                return;
 
             abortSideTransientMode();
             clearTransientCapsule();
-            notificationAppName = cleanedAppName !== "" ? cleanedAppName : "Notification";
-            notificationSummary = resolvedSummary;
-            notificationBody = cleanedSummary !== "" ? cleanedBody : "";
+            notificationId = nextNotificationId;
+            notificationEntry = entry;
             notificationExpanded = false;
             islandState = "notification";
-            restartAutoHideTimer(notificationAutoHideInterval);
-            // Store in notification history
-                if (notificationHistoryModel) {
-                    notificationHistoryModel.insert(0, {
-                        appName: cleanedAppName !== "" ? cleanedAppName : "Notification",
-                        summary: resolvedSummary,
-                        body: cleanedSummary !== "" ? cleanedBody : "",
-                        timestamp: new Date()
-                    });
-                    if (notificationHistoryModel.count > 50)
-                        notificationHistoryModel.remove(50, notificationHistoryModel.count - 50);
-                }
+            const displayTimeout = root.notificationService.popupDisplayTimeout(nextNotificationId);
+            if (displayTimeout > 0)
+                restartAutoHideTimer(displayTimeout);
+            else
+                stopAutoHideTimer();
+        }
 
+        function showNotificationCapsule(appName, summary, body) {
+            if (root.notificationService)
+                root.notificationService.publishInternal(appName, summary, body);
         }
 
         function toggleNotificationExpansionIfNeeded() {
@@ -1547,6 +1542,8 @@ PanelWindow {
             cancelSideSwipeSettle();
             abortSideTransientMode();
             clearTransientCapsule();
+            if (root.notificationService)
+                root.notificationService.markAllRead();
             islandState = "notification_center";
             mainCapsule.displayedWidth = mainCapsule.baseTargetWidth;
             stopAutoHideTimer();
@@ -1601,6 +1598,22 @@ PanelWindow {
             islandState = "long_capsule";
             swipeTransitionProgress = 0;
             restartAutoHideTimer();
+        }
+
+        Connections {
+            target: root.notificationService
+
+            function onEntryChanged(changedNotificationId) {
+                if (Number(changedNotificationId) !== Number(islandContainer.notificationId))
+                    return;
+                const entry = root.notificationService
+                    ? root.notificationService.entryById(changedNotificationId)
+                    : null;
+                islandContainer.notificationEntry = entry;
+                if ((!entry || !entry.popupVisible)
+                        && islandContainer.islandState === "notification")
+                    islandContainer.smartRestoreState();
+            }
         }
 
         Timer { id: autoHideTimer; interval: islandContainer.defaultAutoHideInterval; onTriggered: islandContainer.smartRestoreState() }
@@ -2340,9 +2353,8 @@ PanelWindow {
 
                 sourceComponent: Component {
                     NotificationLayer {
-                        appName: islandContainer.notificationAppName
-                        summary: islandContainer.notificationSummary
-                        body: islandContainer.notificationBody
+                        notificationEntry: islandContainer.notificationEntry
+                        notificationService: root.notificationService
                         expanded: islandContainer.notificationExpanded
                         toggleButton: userConfig.mouseButton(userConfig.dynamicIslandPrimaryButton)
                         iconText: root.notificationStatusIcon
@@ -2353,6 +2365,10 @@ PanelWindow {
                         onExpansionToggleRequested: {
                             islandContainer.suppressCapsuleClick(true);
                             islandContainer.toggleNotificationExpansionIfNeeded();
+                        }
+                        onDismissRequested: {
+                            if (root.notificationService)
+                                root.notificationService.dismissNotification(islandContainer.notificationId);
                         }
                     }
                 }
@@ -2380,20 +2396,24 @@ PanelWindow {
                         currentWorkspace: islandContainer.currentWs
                         currentTrack: islandContainer.currentTrack
                         currentArtist: islandContainer.currentArtist
+                        focusEnabled: root.notificationService
+                            ? root.notificationService.dndEnabled
+                            : false
                         nightLightEnabled: root.shellRootController && root.shellRootController.nightLightEnabled !== undefined
                             ? root.shellRootController.nightLightEnabled
                             : false
                         showCondition: islandContainer.controlCenterLayerVisible
                         onFocusModeChanged: function(enabled) {
-                            if (root.shellRootController && root.shellRootController.focusEnabled !== undefined)
-                                root.shellRootController.focusEnabled = enabled;
+                            if (root.notificationService)
+                                root.notificationService.setDndEnabled(enabled);
                         }
                         onNightLightModeChanged: function(enabled) {
                             if (root.shellRootController && root.shellRootController.nightLightEnabled !== undefined)
                                 root.shellRootController.nightLightEnabled = enabled;
                         }
                         onRequestNotification: function(appName, summary, body) {
-                            islandContainer.showNotificationCapsule(appName, summary, body);
+                            if (root.notificationService)
+                                root.notificationService.publishInternal(appName, summary, body);
                         }
                         onConnectivityPanelRequested: function(kind, open) {
                             root.setConnectivityDetailVisible(kind, open);
@@ -2411,13 +2431,17 @@ PanelWindow {
 
                 sourceComponent: Component {
                     NotificationCenterLayer {
-                        notificationModel: islandContainer.notificationHistoryModel
+                        notificationService: root.notificationService
+                        notificationModel: root.notificationService
+                            ? root.notificationService.model
+                            : null
                         iconFontFamily: root.iconFontFamily
                         textFontFamily: root.textFontFamily
                         heroFontFamily: root.heroFontFamily
 
                         onClearAllRequested: {
-                            islandContainer.notificationHistoryModel.clear();
+                            if (root.notificationService)
+                                root.notificationService.clearAll();
                         }
                     }
                 }

@@ -8,13 +8,14 @@ Item {
 
     signal clearAllRequested()
 
+    property var notificationService: null
     property var notificationModel: null
     property string iconFontFamily: userConfig.iconFontFamily
     property string textFontFamily: userConfig.textFontFamily
     property string heroFontFamily: userConfig.heroFontFamily
 
     readonly property bool hasNotifications: notificationModel && notificationModel.count > 0
-    readonly property real contentHeight: 218
+    readonly property real contentHeight: 326
     readonly property real verticalPadding: 10
     readonly property real horizontalPadding: 22
 
@@ -27,6 +28,7 @@ Item {
         anchors.leftMargin: notificationCenter.horizontalPadding
         anchors.rightMargin: notificationCenter.horizontalPadding
         notificationModel: notificationCenter.notificationModel
+        notificationService: notificationCenter.notificationService
         iconFontFamily: notificationCenter.iconFontFamily
         textFontFamily: notificationCenter.textFontFamily
         heroFontFamily: notificationCenter.heroFontFamily
