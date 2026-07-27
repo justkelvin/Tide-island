@@ -1,284 +1,286 @@
-<h1 align="center">Tide Island</h1>
+# Tide Island for HyDE
 
-<p align="center">
-  <b>A smooth, lightweight, and flexible interactive Dynamic Island for Hyprland and niri.</b>
-</p>
+A HyDE-focused fork of [Tide Island](https://github.com/enhaoswen/Tide-island),
+based on upstream version 1.0.30.
 
-<p align="center">
-  <sub>
-    <a href="./README.md">English</a>
-     · 
-    <a href="./README.zh-CN.md">简体中文</a>
-  </sub>
-</p>
+This fork keeps Tide as a standalone Quickshell application while making it
+look and behave like the center section of a HyDE Waybar layout. It is not a
+Waybar plugin: Tide and Waybar remain separate layer-shell surfaces.
 
-<p align="center">
-  <a href="https://github.com/enhaoswen/Tide-island/stargazers">
-    <img alt="GitHub stars" src="https://img.shields.io/github/stars/enhaoswen/Tide-island?style=flat-square&color=8aadf4">
-  </a>
-  <a href="https://github.com/enhaoswen/Tide-island/issues">
-    <img alt="GitHub issues" src="https://img.shields.io/github/issues/enhaoswen/Tide-island?style=flat-square&color=8aadf4">
-  </a>
-  <a href="https://aur.archlinux.org/packages/tide-island">
-    <img alt="AUR package" src="https://img.shields.io/aur/version/tide-island?style=flat-square&label=AUR&color=8aadf4">
-  </a>
-  <img alt="Hyprland" src="https://img.shields.io/badge/Hyprland-111111?style=flat-square&color=8aadf4">
-  <img alt="niri" src="https://img.shields.io/badge/niri-111111?style=flat-square&color=8aadf4">
-  <img alt="C++ + Qt" src="https://img.shields.io/badge/C%2B%2B%20%2B%20Qt-111111?style=flat-square&color=8aadf4">
-</p>
+## Why this fork exists
 
-<p align="center">
-  <a href="#preview">Preview</a>
-  ·
-  <a href="#features">Features</a>
-  ·
-  <a href="#installation">Installation</a>
-  ·
-  <a href="#configuration">Configuration</a>
-  ·
-  <a href="#common-commands">Common Commands</a>
-  ·
-  <a href="#notification-centre">Notification Centre</a>
-</p>
+The upstream project is a general Dynamic Island implementation for Hyprland
+and niri. This fork is maintained for a HyDE/Hyprland desktop and adds:
 
----
+- placement over Waybar without increasing Waybar's configured height;
+- automatic inheritance of Waybar's `@main-bg` color;
+- a reproducible HyDE Waybar layout and Tide configuration preset;
+- a resting media view with artwork, clock, and Cava visualization;
+- persistent but dimmed artwork and static Cava bars while media is paused;
+- rounded artwork in both the resting pill and expanded media player;
+- SF Pro Rounded support for the clock;
+- stricter MPRIS player selection so stopped browser players do not remain
+  visible as stale Chrome media sessions;
+- Cava lifecycle control so the visualizer runs only when a visible view needs
+  it.
 
-## About Tide Island
-
-Tide Island is a small desktop widget for Hyprland and niri, styled like the Dynamic Island.
-
-When nothing much is going on, it just sits in the corner, staying out of the way. When you need to check some information, it expands into a panel where you can view lyrics, switch workspaces, adjust system settings, check notifications, or put in some custom content.
-
-It's built with Quickshell, QML, and C++/Qt 6. Most of the effort went into making the animations as smooth as possible, interactions responsive, and resource usage kept in check. I can't claim it's anything special, but I hope it's comfortable to use.
-
-<br>
-
-## Preview
-
-### Tide Island
-<table>
-  <tr>
-    <td width="50%">
-      <img src="https://raw.githubusercontent.com/enhaoswen/Tide-island/display/Preview/mp.png" width="100%" alt="Music player" />
-    </td>
-    <td width="50%">
-      <img src="https://raw.githubusercontent.com/enhaoswen/Tide-island/display/Preview/msg.png" width="100%" alt="Message preview" />
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <img src="https://raw.githubusercontent.com/enhaoswen/Tide-island/display/Preview/timer.png" width="100%" alt="Timer" />
-    </td>
-    <td width="50%">
-      <img src="https://raw.githubusercontent.com/enhaoswen/Tide-island/display/Preview/wallpaper%20switcher.png" width="100%" alt="Wallpaper switcher" />
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <img src="https://raw.githubusercontent.com/enhaoswen/Tide-island/display/Preview/cc_2.png" width="100%" alt="Control center" />
-    </td>
-    <td width="50%">
-      <img src="https://raw.githubusercontent.com/enhaoswen/Tide-island/display/Preview/Workspace overview_2.png" width="100%" alt="Workspace overview" />
-    </td>
-  </tr>
-</table>
-
-### Config App
-
-<img src="https://raw.githubusercontent.com/enhaoswen/Tide-island/display/Preview/config_app.png" width = "90%">
-<br>
+The HyDE preset is stored in [`integrations/hyde`](integrations/hyde/README.md).
+Core upstream features and niri support remain in the source, but the custom
+integration is designed and tested around HyDE and Hyprland.
 
 ## Features
 
-- Clock
-- Music player
-- Control Center
-- Timer
-- Lyrics displayer
-- Application launcher
-- Wallpaper switcher
-- Workspace overview
-- Custom page
-- Notification Centre
+- Clock, media player, timer, synchronized lyrics, and system feedback
+- Control center and connectivity controls
+- Notification previews and notification history
+- Application launcher with favorites and fuzzy search
+- Wallpaper picker
+- Hyprland workspace overview
+- Custom swipe views for battery, volume, brightness, CPU, memory, storage,
+  workspace, date, time, and Cava
+- Configuration application and Quickshell IPC commands
 
+## Changes since the previously installed 1.0.24
 
+The fork is based on Tide Island 1.0.30. Compared with 1.0.24, upstream added:
 
-### System Feedback
+- **1.0.25:** a notification centre with up to 50 in-memory history entries,
+  individual dismissal, Clear all, and notification-centre IPC commands;
+- **1.0.25:** a storage-usage item for custom swipe layouts;
+- **1.0.26:** an application launcher, favorites, launcher settings, and
+  launcher shortcut support;
+- **1.0.27:** a substantially refined configuration app, including an internal
+  path picker, plus launcher and wallpaper configuration improvements;
+- **1.0.28:** artwork and Cava in the lyrics swipe capsule;
+- **1.0.29:** ranked fuzzy application search across names, keywords, desktop
+  IDs, categories, and other desktop-entry fields;
+- **1.0.30:** previous/next island-view navigation and H/J/K/L workspace
+  navigation in the Hyprland overview.
 
-- Volume changes
-- Brightness changes
-- Battery charging / discharging
-- Workspace changes
-- Media playback (optional)
-- System notifications
+Those are in addition to this fork's HyDE and resting-media changes listed
+above.
 
+## Requirements
 
+- HyDE with Hyprland for the intended integration
+- Quickshell 0.3.0
+- Qt 6.6 or newer
+- CMake, a C++17 compiler, Ninja, Git, and pkg-config
+- Tide's normal runtime dependencies, including PipeWire/WirePlumber, D-Bus,
+  UPower, BlueZ, and `brightnessctl`
+- `cava` for the media visualizer
+- `SF Pro Rounded` for the configured clock font
 
-### Custom Page
-
-- Time
-- Date
-- Battery
-- Volume
-- CPU usage
-- Current workspace
-- Memory usage
-- Brightness
-- Cava
-- Storage usage
-
-### Compositor support
-
-- Hyprland: full current experience, including Tide's workspace overview, workspace animations, shortcuts, and Night Light through `hyprsunset`.
-- niri: island views, focused-output IPC commands, workspace change hints, native niri overview, shortcuts through `~/.config/tide-island/niri-shortcuts.kdl`, and Night Light through `gammastep`.
-- Tide checks `TIDE_ISLAND_COMPOSITOR` first, then `$XDG_CURRENT_DESKTOP`. It uses `$NIRI_SOCKET` only when the desktop environment is inconclusive, then falls back to Hyprland. This prevents inherited compositor sockets from causing a false detection.
-
-<br>
-
-## Installation
-
-### Arch Linux
-
-Install from the AUR:
+Verify the two important optional pieces with:
 
 ```bash
-yay -S tide-island
+quickshell --version
+fc-match "SF Pro Rounded"
 ```
 
-### Other Linux distributions
+## Build without installing
 
-Download the source package and checksum from the
-[latest GitHub Release](https://github.com/enhaoswen/Tide-island/releases/latest):
+This is the safe workflow for development and does not change the running Tide
+service:
 
 ```bash
-curl -fLO https://github.com/enhaoswen/Tide-island/releases/latest/download/tide-island-source.tar.xz
-curl -fLO https://github.com/enhaoswen/Tide-island/releases/latest/download/SHA256SUMS
-sha256sum --check SHA256SUMS
-tar -xf tide-island-source.tar.xz
-cd Tide-island-*
-./install.sh
+git clone git@github.com:justkelvin/Tide-island.git
+cd Tide-island
+
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
 ```
 
-The installer writes Tide Island to `/usr` and can automatically install
-dependencies on:
-
-- Debian, Ubuntu, and derivatives using `apt`
-- Fedora, RHEL, and derivatives using `dnf`
-- openSUSE using `zypper`
-
-For other distributions, install the dependencies manually and run:
+The main QML files can also be checked with:
 
 ```bash
-./install.sh --skip-deps
+qmllint -I build -I /usr/lib/qt6/qml \
+  DynamicIslandWindow.qml \
+  qml/island/ExpandedPlayerLayer.qml \
+  qml/island/IslandMprisController.qml \
+  qml/island/IslandSystemState.qml \
+  qml/island/RestingMediaLayer.qml \
+  qml/island/RoundedArtwork.qml
 ```
 
-Quickshell is used from `/usr/bin/quickshell` when available. Otherwise the
-installer builds the pinned, verified Quickshell version compatible with this
-release. Qt 6.6 or newer is required.
+## Install the fork for one user
 
-This source installer targets conventional Linux systems with a writable
-`/usr`. Declarative or immutable systems such as NixOS and Fedora Silverblue
-should use a native package or a mutable development container instead.
-
-Useful installer options:
-
-| Option | Description |
-| --- | --- |
-| `./install.sh --no-service` | Install Tide Island without enabling or starting the systemd user service. |
-| `./install.sh --skip-quickshell` | Skip building Quickshell from source and use the existing `/usr/bin/quickshell`; installation stops with an error if that file does not exist. |
-| `./install.sh --force-build-quickshell` | Rebuild and install the project's pinned Quickshell version even when Quickshell is already installed. |
-| `./install.sh --uninstall` | Remove the Tide Island files installed by the source installer; installed dependencies and Quickshell are kept. |
-
-<br>
-
-## Starting Tide Island
-
-Tide Island provides a systemd user service.
-
-Enable and start it immediately (Recommended):
+The recommended fork installation uses `~/.local`. It does not overwrite the
+files owned by Arch's `tide-island` package.
 
 ```bash
-systemctl --user enable --now tide-island
+cmake -S . -B build-user \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX="$HOME/.local"
+cmake --build build-user --parallel
+ctest --test-dir build-user --output-on-failure
+cmake --install build-user
 ```
 
-If you want to manage startup manually, add this to your `hyprland.conf`:
+This only installs the fork. It does not automatically redirect an existing
+system service to it.
 
-```conf
-exec-once = tide-island
-```
-
-Or add this to `hyprland.lua`:
-
-```lua
-hl.exec_once("tide-island")
-```
-
-If the systemd service is already enabled, you do not need to add `exec-once`.
-
-<br>
-
-## Configuration
-
-Search `Tide Island Settings` in any application launcher
-
-## Common Commands
-
-#### Restart after editing the configuration:
+When you are ready to activate the fork, first inspect and back up any existing
+service override:
 
 ```bash
-systemctl --user restart tide-island
+systemctl --user cat tide-island.service
+cp -a ~/.config/systemd/user/tide-island.service.d \
+  ~/.config/systemd/user/tide-island.service.d.backup
 ```
 
-#### Stop Tide Island:
+Then edit the user override:
 
 ```bash
-systemctl --user stop tide-island
+systemctl --user edit tide-island.service
 ```
 
-#### View logs:
+Use:
+
+```ini
+[Service]
+ExecStart=
+ExecStart=%h/.local/bin/tide-island
+Environment=TIDE_ISLAND_QML_PATH=
+```
+
+Apply it:
 
 ```bash
-journalctl --user -u tide-island -f
+systemctl --user daemon-reload
+systemctl --user restart tide-island.service
+systemctl --user status tide-island.service
 ```
 
-#### IPC Commands
+The empty `TIDE_ISLAND_QML_PATH` assignment is important if an older override
+points the launcher at a customized system copy.
 
-Tide Island can be controlled remotely via `quickshell ipc call`:
+### System-wide source installation
 
-| Command | Action |
-| --- | --- |
-| `quickshell ipc call tide toggleNotificationCenter` | Open or close the Notification Centre |
-| `quickshell ipc call tide openNotificationCenter` | Open the Notification Centre |
-| `quickshell ipc call tide closeNotificationCenter` | Close the Notification Centre |
-| `quickshell ipc call tide toggleApplicationLauncher` | Open or close the application launcher |
+The upstream installer can install the current source tree to `/usr`, but this
+overwrites package-managed Tide files on Arch and is therefore not the
+recommended fork workflow.
 
-<br>
+Preview what it would do:
 
-### Dismissing notifications
+```bash
+./install.sh --dry-run --skip-deps --skip-quickshell --force
+```
 
-Individual notifications can be dismissed by tapping the × button on the card. Use **Clear all** to remove all notifications at once.
+Install deliberately:
 
-## Contributing
+```bash
+./install.sh --skip-deps --skip-quickshell --force
+```
 
-Issues, bug reports, design suggestions, and pull requests are all welcome.
+Do not use the repository's current `PKGBUILD` for the fork: it downloads the
+upstream 1.0.30 archive rather than packaging this working tree.
 
-## Acknowledgments
+## Apply the HyDE preset
 
-Thanks to:
+Back up the current configuration first:
 
-- [@end-4](https://github.com/end-4) for the workspace overview design inspiration
-- [@gozhuimeng](https://github.com/gozhuimeng) for improving the lyrics backend
-- [@LatifKovani](https://github.com/LatifKovani) for a significant improvement
+```bash
+cp -a ~/.config/tide-island ~/.config/tide-island.backup
+cp -a ~/.config/waybar ~/.config/waybar.backup
+```
 
-## Community
+Install the preset files:
 
-- Discord: https://discord.gg/gEmqgz76
-- Email: enhaoswen@gmail.com
+```bash
+install -Dm644 integrations/hyde/tide-island/userconfig.json \
+  ~/.config/tide-island/userconfig.json
+install -Dm644 integrations/hyde/waybar/layouts/tide-island.jsonc \
+  ~/.config/waybar/layouts/tide-island.jsonc
+install -Dm644 integrations/hyde/waybar/styles/tide-island.css \
+  ~/.config/waybar/styles/tide-island.css
+install -Dm644 integrations/hyde/waybar/modules/tide-island.jsonc \
+  ~/.config/waybar/modules/tide-island.jsonc
+```
 
----
+Select the layout through HyDE:
 
-<p align="center">
-  <sub>
-    Made for Wayland users who like quiet and practical desktops.
-  </sub>
-</p>
+```bash
+hyde-shell waybar --set tide-island
+systemctl --user restart tide-island.service
+```
+
+The layout keeps Waybar at height `10`, places grouped workspaces on the left,
+places grouped tray and battery modules on the right, and leaves the center
+available for Tide's separate overlay surface.
+
+## Notifications and Dunst
+
+Tide observes desktop notification calls and presents them in its pill and
+notification centre. Running normal Dunst presentation at the same time
+therefore produces duplicate visual notifications.
+
+Keep Dunst running as the desktop notification service, but pause its visual
+presentation while Tide handles the UI:
+
+```bash
+dunstctl set-paused true
+```
+
+Restore Dunst presentation with:
+
+```bash
+dunstctl set-paused false
+```
+
+Tide's notification history is kept in memory and is cleared when Tide
+restarts.
+
+## Updating
+
+```bash
+git pull --ff-only
+cmake --build build-user --parallel
+ctest --test-dir build-user --output-on-failure
+cmake --install build-user
+systemctl --user restart tide-island.service
+```
+
+Review upstream changes before merging them because
+`DynamicIslandWindow.qml`, `IslandSystemState.qml`, and the media layers contain
+fork-specific integration code.
+
+## Useful commands
+
+```bash
+systemctl --user restart tide-island.service
+systemctl --user stop tide-island.service
+journalctl --user -u tide-island.service -f
+
+quickshell ipc call tide toggleNotificationCenter
+quickshell ipc call tide toggleApplicationLauncher
+quickshell ipc call tide swipeLeft
+quickshell ipc call tide swipeRight
+```
+
+## Rollback
+
+To return to the previous service configuration, move the fork override aside,
+restore the backed-up drop-in, reload systemd, and restart Tide:
+
+```bash
+mv ~/.config/systemd/user/tide-island.service.d \
+  ~/.config/systemd/user/tide-island.service.d.fork
+cp -a ~/.config/systemd/user/tide-island.service.d.backup \
+  ~/.config/systemd/user/tide-island.service.d
+systemctl --user daemon-reload
+systemctl --user restart tide-island.service
+```
+
+Restore the backed-up Tide and Waybar configuration directories if the HyDE
+preset was also applied.
+
+## Upstream and license
+
+This is a modified fork of
+[enhaoswen/Tide-island](https://github.com/enhaoswen/Tide-island). General Tide
+issues and improvements should be checked against upstream; HyDE integration
+changes belong in this fork.
+
+Licensed under the GNU General Public License v3.0. See [`LICENSE`](LICENSE).

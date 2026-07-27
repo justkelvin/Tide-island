@@ -202,7 +202,9 @@ Item {
         }
 
         const rememberedPlayer = findPlayerByDbusName(lastActivePlayerDbusName);
-        if (rememberedPlayer && (playerHasTrackInfo(rememberedPlayer) || rememberedPlayer.canControl))
+        if (rememberedPlayer
+                && rememberedPlayer.playbackState === MprisPlaybackState.Paused
+                && playerHasTrackInfo(rememberedPlayer))
             return rememberedPlayer;
 
         for (let index = 0; index < playersList.length; index++) {
@@ -210,12 +212,7 @@ Item {
                 return playersList[index];
         }
 
-        for (let index = 0; index < playersList.length; index++) {
-            if (playersList[index].canControl)
-                return playersList[index];
-        }
-
-        return playersList[0];
+        return null;
     }
 
     QtObject {

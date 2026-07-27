@@ -17,6 +17,7 @@ Item {
     property int currentWorkspace: 1
     property bool customSwipeActive: false
     property bool lyricsCavaActive: false
+    property bool mediaVisualizerActive: false
 
     readonly property var configuredLeftSwipeIds: buildNormalizedSwipeItemIds(configuredLeftSwipeItems)
     readonly property bool usesSystemStatsModule: configuredLeftSwipeIds.indexOf("cpu") !== -1
@@ -68,6 +69,7 @@ Item {
     onUsesCavaModuleChanged: updateCavaSubscription()
     onCustomSwipeActiveChanged: updateCavaSubscription()
     onLyricsCavaActiveChanged: updateCavaSubscription()
+    onMediaVisualizerActiveChanged: updateCavaSubscription()
     onBatteryCapacityChanged: syncCustomLeftItems()
     onIsChargingChanged: syncCustomLeftItems()
     onCurrentVolumeChanged: syncCustomLeftItems()
@@ -164,7 +166,9 @@ Item {
     }
 
     function updateCavaSubscription() {
-        const active = (usesCavaModule && customSwipeActive) || lyricsCavaActive;
+        const active = (usesCavaModule && customSwipeActive)
+            || lyricsCavaActive
+            || mediaVisualizerActive;
         SystemServices.setCavaClientActive(systemServicesClientId, active);
         if (active)
             cavaLevels = SystemServices.cavaLevels;

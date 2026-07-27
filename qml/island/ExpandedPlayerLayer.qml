@@ -268,20 +268,14 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             spacing: 16
 
-                            Rectangle {
+                            RoundedArtwork {
                                 width: 60
                                 height: 60
-                                radius: 14
-                                color: "#2c2c2e"
-                                clip: true
-
-                                Image {
-                                    anchors.fill: parent
-                                    source: currentArtUrl
-                                    fillMode: Image.PreserveAspectCrop
-                                    visible: source.toString() !== ""
-                                    sourceSize: Qt.size(120, 120)
-                                }
+                                source: currentArtUrl
+                                cornerRadius: 20
+                                active: activePlayer
+                                    && activePlayer.playbackState === MprisPlaybackState.Playing
+                                fallbackFontFamily: iconFontFamily
                             }
 
                             Column {
