@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import Quickshell
 import IslandBackend
+import "../notifications/NotificationLogic.js" as NotificationLogic
 
 Item {
     id: root
@@ -38,10 +39,13 @@ Item {
     readonly property string sourceName: notificationEntry && notificationEntry.sourceName
         ? String(notificationEntry.sourceName)
         : ""
-    readonly property string titleText: summary !== ""
-        ? summary
-        : (body !== "" ? body.split("\n")[0] : "New notification")
-    readonly property string bodyText: summary !== "" ? body : ""
+    readonly property var presentation: NotificationLogic.presentationText(
+        summary,
+        body,
+        "New notification"
+    )
+    readonly property string titleText: presentation.title
+    readonly property string bodyText: presentation.body
     readonly property var actionIdentifiers: notificationEntry
         && notificationEntry.actionIdentifiers
         ? notificationEntry.actionIdentifiers

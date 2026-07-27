@@ -3,6 +3,7 @@ import QtQuick.Controls
 import Quickshell
 import IslandBackend
 import "../controlcenter"
+import "../notifications/NotificationLogic.js" as NotificationLogic
 
 Item {
     id: root
@@ -119,9 +120,13 @@ Item {
                 readonly property bool hasDefaultAction: !!model.hasDefaultAction
                 readonly property bool hasActionIcons: !!model.hasActionIcons
                 readonly property bool canAct: !!model.liveActionable
-                readonly property string displayTitle: String(model.summary || "") !== ""
-                    ? String(model.summary)
-                    : (String(model.body || "") !== "" ? String(model.body).split("\n")[0] : "Notification")
+                readonly property var presentation: NotificationLogic.presentationText(
+                    String(model.summary || ""),
+                    String(model.body || ""),
+                    "Notification"
+                )
+                readonly property string displayTitle: presentation.title
+                readonly property string displayBody: presentation.body
 
                 width: listView.width
                 height: isHistoryEntry ? root.cardHeight : 0
@@ -181,7 +186,7 @@ Item {
 
                     Text {
                         width: parent.width
-                        text: String(model.summary || "") !== "" ? String(model.body || "") : ""
+                        text: delegateItem.displayBody
                         textFormat: Text.PlainText
                         visible: text !== ""
                         color: "#c8c8cc"

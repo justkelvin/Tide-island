@@ -425,7 +425,6 @@ Item {
         stopExpirationTimer(notificationId);
         if (entry.transient || !entry.inHistory) {
             notificationModel.remove(index);
-            generation.tracked = false;
             recalculateHistoryCount();
             entryChanged(notificationId);
             return;
@@ -436,7 +435,6 @@ Item {
         notificationModel.setProperty(index, "closedReason", closeReasonName(reason));
         notificationModel.setProperty(index, "liveActionable", false);
         notificationModel.setProperty(index, "liveNotification", null);
-        generation.tracked = false;
         entryChanged(notificationId);
     }
 
@@ -518,10 +516,8 @@ Item {
         notificationModel.remove(index);
         recalculateHistoryCount();
         entryChanged(notificationId);
-        if (live) {
+        if (live)
             live.dismiss();
-            live.tracked = false;
-        }
     }
 
     function clearAll() {
@@ -534,10 +530,8 @@ Item {
         }
         notificationModel.clear();
         recalculateHistoryCount();
-        for (let liveIndex = 0; liveIndex < liveNotifications.length; ++liveIndex) {
+        for (let liveIndex = 0; liveIndex < liveNotifications.length; ++liveIndex)
             liveNotifications[liveIndex].dismiss();
-            liveNotifications[liveIndex].tracked = false;
-        }
     }
 
     function setDndEnabled(enabled) {

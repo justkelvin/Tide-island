@@ -31,6 +31,26 @@ function domainProvenance(bodyText) {
     return { body: lines.join("\n"), source: match[1] };
 }
 
+function presentationText(summaryText, bodyText, fallbackTitle) {
+    const summary = stringValue(summaryText);
+    const body = stringValue(bodyText);
+    const fallback = stringValue(fallbackTitle);
+    if (summary !== "")
+        return { title: summary, body: body };
+    if (body === "")
+        return { title: fallback, body: "" };
+
+    const newlineIndex = body.indexOf("\n");
+    if (newlineIndex < 0)
+        return { title: body, body: "" };
+
+    const firstLine = body.slice(0, newlineIndex);
+    return {
+        title: firstLine !== "" ? firstLine : fallback,
+        body: body.slice(newlineIndex + 1)
+    };
+}
+
 function findIndex(model, notificationId) {
     for (let index = 0; index < model.count; ++index) {
         if (Number(model.get(index).notificationId) === Number(notificationId))
@@ -73,8 +93,8 @@ function effectiveExpirationInterval(expireTimeout, urgencyName) {
 
 function popupDisplayTimeout(expireTimeout, urgencyName) {
     const requested = Number(expireTimeout);
-    if (urgencyName === "critical" && requested <= 0)
-        return 0;
+    if (urgencyName === "critical")
+        return requested > 0 ? Math.max(1, requested) : 0;
     return requested > 0 ? Math.min(4200, Math.max(1, requested)) : 4200;
 }
 

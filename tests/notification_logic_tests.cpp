@@ -9,6 +9,7 @@ class NotificationLogicTests final : public QObject {
 private slots:
     void initTestCase();
     void multilineAndProvenance();
+    void bodyPresentation();
     void replacementAndHistoryCap();
     void expirationPolicy();
     void dndPolicy();
@@ -58,6 +59,30 @@ void NotificationLogicTests::multilineAndProvenance()
     QVERIFY(unchanged.property(QStringLiteral("source")).toString().isEmpty());
 }
 
+void NotificationLogicTests::bodyPresentation()
+{
+    const QJSValue bodyOnly = call(
+        QStringLiteral("presentationText"),
+        {QString(), QStringLiteral("Line one\nLine two\nLine three"), QStringLiteral("Notification")}
+    );
+    QCOMPARE(bodyOnly.property(QStringLiteral("title")).toString(), QStringLiteral("Line one"));
+    QCOMPARE(bodyOnly.property(QStringLiteral("body")).toString(), QStringLiteral("Line two\nLine three"));
+
+    const QJSValue titled = call(
+        QStringLiteral("presentationText"),
+        {QStringLiteral("Title"), QStringLiteral("Line one\nLine two"), QStringLiteral("Notification")}
+    );
+    QCOMPARE(titled.property(QStringLiteral("title")).toString(), QStringLiteral("Title"));
+    QCOMPARE(titled.property(QStringLiteral("body")).toString(), QStringLiteral("Line one\nLine two"));
+
+    const QJSValue singleLine = call(
+        QStringLiteral("presentationText"),
+        {QString(), QStringLiteral("Only body"), QStringLiteral("Notification")}
+    );
+    QCOMPARE(singleLine.property(QStringLiteral("title")).toString(), QStringLiteral("Only body"));
+    QVERIFY(singleLine.property(QStringLiteral("body")).toString().isEmpty());
+}
+
 void NotificationLogicTests::replacementAndHistoryCap()
 {
     QJSValue entries = m_engine.newArray();
@@ -92,6 +117,7 @@ void NotificationLogicTests::expirationPolicy()
     QCOMPARE(call(QStringLiteral("effectiveExpirationInterval"), {-1, QStringLiteral("critical")}).toInt(), 0);
     QCOMPARE(call(QStringLiteral("effectiveExpirationInterval"), {1250, QStringLiteral("critical")}).toInt(), 1250);
     QCOMPARE(call(QStringLiteral("popupDisplayTimeout"), {-1, QStringLiteral("critical")}).toInt(), 0);
+    QCOMPARE(call(QStringLiteral("popupDisplayTimeout"), {9000, QStringLiteral("critical")}).toInt(), 9000);
     QCOMPARE(call(QStringLiteral("popupDisplayTimeout"), {9000, QStringLiteral("normal")}).toInt(), 4200);
 }
 
