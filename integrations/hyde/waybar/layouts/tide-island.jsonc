@@ -21,9 +21,18 @@
     },
     "modules-center": [],
     "modules-right": [
-        "group/pill#right1"
+        "group/pill#right1",
+        "group/pill#right2"
     ],
     "group/pill#right1": {
+        "orientation": "inherit",
+        "modules": [
+            "custom/cliphist",
+            "idle_inhibitor",
+            "pulseaudio"
+        ]
+    },
+    "group/pill#right2": {
         "orientation": "inherit",
         "modules": [
             "tray",
