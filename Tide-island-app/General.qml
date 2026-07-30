@@ -56,6 +56,7 @@ PagePanel {
                 id: title
                 font.family: Theme.titleFontFamily
                 text: "General"
+                color: Theme.textColor
                 font.pixelSize: 30
                 x: 60
                 y: 50
@@ -72,6 +73,7 @@ PagePanel {
                 anchors.rightMargin: 40
                 font.family: Theme.titleFontFamily
                 font.pixelSize: 23
+                color: Theme.textColor
             }
 
             Rectangle {
@@ -174,6 +176,7 @@ PagePanel {
                 anchors.rightMargin: 40
                 font.family: Theme.titleFontFamily
                 font.pixelSize: 23
+                color: Theme.textColor
             }
 
             CustomPage {
@@ -198,6 +201,7 @@ PagePanel {
                 anchors.rightMargin: 40
                 font.family: Theme.titleFontFamily
                 font.pixelSize: 23
+                color: Theme.textColor
             }
 
             TlpSettings {
@@ -237,6 +241,7 @@ PagePanel {
             text: row.title
             font.family: Theme.textFontFamily
             font.pixelSize: 18
+            color: Theme.textColor
             anchors.top: parent.top
             anchors.left: parent.left
         }
@@ -294,6 +299,7 @@ PagePanel {
             text: "Clock Format"
             font.family: Theme.textFontFamily
             font.pixelSize: 18
+            color: Theme.textColor
             anchors.top: parent.top
             anchors.left: parent.left
         }

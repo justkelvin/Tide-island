@@ -53,6 +53,7 @@ private slots:
     void niriConfigEnvironmentOverrideIsUsed();
     void niriValidationFailurePreservesManagedConfig();
     void niriValidationFailureDoesNotIncludeManagedFile();
+    void configAppColorSchemePersists();
 };
 
 void ShortcutConfigTests::hyprlandDefaultsIncludeWorkspaceOverview()
@@ -184,6 +185,23 @@ void ShortcutConfigTests::defaultsIncludeApplicationLauncher()
                 && binding.value(QStringLiteral("method")).toString() == QStringLiteral("toggleApplicationLauncher"));
     }
     QVERIFY(foundApplicationLauncher);
+}
+
+void ShortcutConfigTests::configAppColorSchemePersists()
+{
+    QTemporaryDir configHome;
+    QVERIFY(configHome.isValid());
+    qputenv("XDG_CONFIG_HOME", configHome.path().toLocal8Bit());
+
+    Backend backend;
+    QCOMPARE(backend.colorScheme(), QStringLiteral("light"));
+    backend.setColorScheme(QStringLiteral("dark"));
+    QCOMPARE(backend.colorScheme(), QStringLiteral("dark"));
+
+    Backend reloaded;
+    QCOMPARE(reloaded.colorScheme(), QStringLiteral("dark"));
+    reloaded.setColorScheme(QStringLiteral("unsupported"));
+    QCOMPARE(reloaded.colorScheme(), QStringLiteral("light"));
 }
 
 void ShortcutConfigTests::applicationLauncherFavoritesPersistAndResolveNames()

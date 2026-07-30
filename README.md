@@ -1,7 +1,7 @@
 # Tide Island for HyDE
 
 A HyDE-focused fork of [Tide Island](https://github.com/enhaoswen/Tide-island),
-based on upstream version 1.0.30.
+based on upstream version 1.0.33.
 
 This fork keeps Tide as a standalone Quickshell application while making it
 look and behave like the center section of a HyDE Waybar layout. It is not a
@@ -42,7 +42,7 @@ integration is designed and tested around HyDE and Hyprland.
 
 ## Changes since the previously installed 1.0.24
 
-The fork is based on Tide Island 1.0.30. Compared with 1.0.24, upstream added:
+The fork is based on Tide Island 1.0.33. Compared with 1.0.24, upstream added:
 
 - **1.0.25:** a notification centre with up to 50 in-memory history entries,
   individual dismissal, Clear all, and notification-centre IPC commands;
@@ -55,7 +55,10 @@ The fork is based on Tide Island 1.0.30. Compared with 1.0.24, upstream added:
 - **1.0.29:** ranked fuzzy application search across names, keywords, desktop
   IDs, categories, and other desktop-entry fields;
 - **1.0.30:** previous/next island-view navigation and H/J/K/L workspace
-  navigation in the Hyprland overview.
+  navigation in the Hyprland overview;
+- **1.0.31:** improved workspace-overview focus retention;
+- **1.0.32:** launcher-favorite and workspace-overview switching fixes;
+- **1.0.33:** a dark theme for the settings application.
 
 Those are in addition to this fork's HyDE and resting-media changes listed
 above.
@@ -180,7 +183,7 @@ Install deliberately:
 ```
 
 Do not use the repository's current `PKGBUILD` for the fork: it downloads the
-upstream 1.0.30 archive rather than packaging this working tree.
+upstream 1.0.33 archive rather than packaging this working tree.
 
 ## Apply the HyDE preset
 
