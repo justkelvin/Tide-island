@@ -1,6 +1,7 @@
 import QtQuick
 import IslandBackend
 import Quickshell.Io
+import "../resting/RestingPresentationLogic.js" as RestingPresentationLogic
 
 Item {
     id: root
@@ -16,6 +17,7 @@ Item {
     property string dateText: "Mon, Jan 01"
     property int currentWorkspace: 1
     property bool customSwipeActive: false
+    property bool dashboardActive: false
     property bool lyricsCavaActive: false
     property bool mediaVisualizerActive: false
 
@@ -67,7 +69,15 @@ Item {
     onUsesSystemStatsModuleChanged: refreshMissingValues()
     onUsesStorageModuleChanged: refreshMissingValues()
     onUsesCavaModuleChanged: updateCavaSubscription()
-    onCustomSwipeActiveChanged: updateCavaSubscription()
+    onCustomSwipeActiveChanged: {
+        updateCavaSubscription();
+        if (customSwipeActive)
+            refreshMissingValues();
+    }
+    onDashboardActiveChanged: {
+        if (dashboardActive)
+            refreshMissingValues();
+    }
     onLyricsCavaActiveChanged: updateCavaSubscription()
     onMediaVisualizerActiveChanged: updateCavaSubscription()
     onBatteryCapacityChanged: syncCustomLeftItems()
@@ -159,9 +169,9 @@ Item {
             SystemServices.requestBrightness();
         if (currentVolume < 0)
             SystemServices.requestVolume();
-        if (usesSystemStatsModule)
+        if (RestingPresentationLogic.shouldPollSystemStats(dashboardActive, customSwipeActive, usesSystemStatsModule))
             SystemServices.requestSystemStats();
-        if (usesStorageModule)
+        if (RestingPresentationLogic.shouldPollStorage(customSwipeActive, usesStorageModule))
             storagePollTimer.restart();
     }
 
@@ -334,7 +344,11 @@ Item {
 
         interval: 3000
         repeat: true
-        running: root.usesSystemStatsModule
+        running: RestingPresentationLogic.shouldPollSystemStats(
+            root.dashboardActive,
+            root.customSwipeActive,
+            root.usesSystemStatsModule
+        )
         triggeredOnStart: true
 
         onTriggered: SystemServices.requestSystemStats()
@@ -361,7 +375,7 @@ Item {
 
         interval: 10000
         repeat: true
-        running: root.usesStorageModule
+        running: RestingPresentationLogic.shouldPollStorage(root.customSwipeActive, root.usesStorageModule)
         triggeredOnStart: true
 
         onTriggered: storagePollProcess.running = true

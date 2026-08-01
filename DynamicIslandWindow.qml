@@ -9,6 +9,8 @@ import "qml/common"
 import "qml/controlcenter"
 import "qml/connectivity"
 import "qml/island"
+import "qml/resting"
+import "qml/resting/RestingPresentationLogic.js" as RestingPresentationLogic
 import "qml/workspace"
 
 PanelWindow {
@@ -594,6 +596,8 @@ PanelWindow {
     function togglePlayerWindow() {
         if (islandContainer.islandState === "expanded")
             islandContainer.smartRestoreState();
+        else if (!islandContainer.mediaAvailable)
+            islandContainer.showRestingDashboard();
         else
             islandContainer.showExpandedPlayer(false);
     }
@@ -811,6 +815,7 @@ PanelWindow {
         property real lyricsCapsuleWidth: 220
         property bool sideSwipeSettling: false
         property bool hoverExpandedActive: false
+        property bool restingDashboardVisible: false
         property bool expandedPlayerKeyboardFocusRequested: false
         property bool openTimerPageWhenExpanded: false
         property int timerSelectedHours: 0
@@ -842,10 +847,12 @@ PanelWindow {
         readonly property bool splitShowsIconOnly: islandState === "split" && osdProgress < 0 && osdCustomText === ""
         readonly property bool splitUsesExtendedLayout: splitShowsProgress || splitShowsText
         readonly property real splitCapsuleWidth: splitShowsProgress ? 248 : (splitShowsText ? 220 : userConfig.islandWidth)
-        readonly property bool canShowSideSwipe: islandState === "normal"
+        readonly property bool canShowSideSwipe: !restingDashboardVisible && (
+            islandState === "normal"
             || islandState === "custom"
             || islandState === "lyrics"
             || (islandState === "long_capsule" && workspaceOriginSide === "none")
+        )
         readonly property real rightSwipeProgress: Math.max(0, swipeTransitionProgress)
         readonly property var customLeftItems: systemState.customLeftItems
         readonly property bool hasCustomLeftItems: systemState.hasCustomLeftItems
@@ -862,7 +869,7 @@ PanelWindow {
                         && (workspaceOriginSide === "left" || swipeTransitionProgress < 0))
                 )
             )
-        readonly property bool lyricsSwipeVisible: !root.overviewVisible && (
+        readonly property bool lyricsSwipeVisible: !restingDashboardVisible && !root.overviewVisible && (
             capsuleMouseArea.sideSwipeInteractive
             ? swipeTransitionProgress >= 0
             : (
@@ -883,8 +890,8 @@ PanelWindow {
         readonly property var activePlayer: mediaController.activePlayer
         readonly property bool mediaPlaying: activePlayer
             && activePlayer.playbackState === MprisPlaybackState.Playing
-        readonly property bool mediaAvailable: activePlayer && currentTrack !== ""
-        readonly property bool restingMediaVisible: !root.overviewVisible
+        readonly property bool mediaAvailable: mediaController.hasPresentableMedia
+        readonly property bool restingMediaVisible: !restingDashboardVisible && !root.overviewVisible
             && islandState === "normal"
             && mediaAvailable
             && Math.abs(swipeTransitionProgress) < 0.001
@@ -956,6 +963,7 @@ PanelWindow {
             dateText: timeObj.currentDateLabel
             currentWorkspace: islandContainer.currentWs
             customSwipeActive: customSwipeLoader.active
+            dashboardActive: islandContainer.restingDashboardVisible
             lyricsCavaActive: islandContainer.lyricsSwipeVisible
                 && islandContainer.rightSwipeProgress > 0.001
             mediaVisualizerActive: islandContainer.restingMediaVisible
@@ -964,6 +972,22 @@ PanelWindow {
             onTransientRequested: function(icon, progress, text) {
                 islandContainer.showTransientCapsule(icon, progress, text);
             }
+        }
+
+        WeatherProvider {
+            id: weatherProvider
+
+            enabled: userConfig.weatherEnabled
+            active: islandContainer.restingDashboardVisible
+            provider: userConfig.weatherProvider
+            location: userConfig.weatherLocation
+            units: userConfig.weatherUnits
+            refreshIntervalMs: userConfig.weatherRefreshIntervalMs
+        }
+
+        RestingDashboardModel {
+            id: restingDashboardModel
+            active: islandContainer.restingDashboardVisible
         }
 
         CompositorWorkspaceTracker {
@@ -1036,12 +1060,17 @@ PanelWindow {
                 if (islandState === "expanded") {
                     autoHideTimer.stop();
                     smartRestoreState();
+                } else if (!mediaAvailable) {
+                    showRestingDashboard();
                 } else {
                     showExpandedPlayer(false);
                 }
                 return;
             case "openExpandedPlayer":
-                showExpandedPlayer(false);
+                if (mediaAvailable)
+                    showExpandedPlayer(false);
+                else
+                    showRestingDashboard();
                 return;
             case "closeExpandedPlayer":
                 if (islandState === "expanded")
@@ -1181,6 +1210,10 @@ PanelWindow {
             notificationEntry = null;
             notificationExpanded = false;
             bluetoothExpandedDevice = null;
+        }
+
+        function closeRestingDashboard() {
+            restingDashboardVisible = false;
         }
 
         function prepareRestingCapsuleGeometry() {
@@ -1404,6 +1437,7 @@ PanelWindow {
             if (root.autoHideSuppressesTransientReveal) return;
             if (blocksTransientSplit) return;
 
+            closeRestingDashboard();
             const nextProgress = progress >= 0 ? progress : -1.0;
             const animateProgress = islandState === "split" && osdProgress >= 0 && nextProgress >= 0;
             const animateFromSide = currentTransientOriginSide();
@@ -1426,6 +1460,7 @@ PanelWindow {
             if (!entry || !entry.popupVisible)
                 return;
 
+            closeRestingDashboard();
             abortSideTransientMode();
             clearTransientCapsule();
             notificationId = nextNotificationId;
@@ -1476,6 +1511,7 @@ PanelWindow {
                 && ((islandState === "long_capsule" && workspaceOriginSide === targetSide)
                     || (islandState === "split" && splitOriginSide === targetSide));
 
+            closeRestingDashboard();
             if (!forceImmediate && shouldAnimateToSide) {
                 expandedByPlayerAutoOpen = false;
                 prepareRestingCapsuleGeometry();
@@ -1509,6 +1545,7 @@ PanelWindow {
         }
 
         function showExpandedPlayer(autoOpened) {
+            closeRestingDashboard();
             cancelSideSwipeSettle();
             abortSideTransientMode();
             clearTransientCapsule();
@@ -1519,10 +1556,23 @@ PanelWindow {
             else stopAutoHideTimer();
         }
 
+        function showRestingDashboard() {
+            if (!userConfig.restingDashboardEnabled
+                    || userConfig.idleHoverContent !== "informationDashboard")
+                return;
+            if (islandState !== "normal" && islandState !== "custom" && islandState !== "lyrics")
+                restoreRestingCapsule(true);
+            restingState = "normal";
+            swipeTransitionProgress = 0;
+            restingDashboardVisible = true;
+            stopAutoHideTimer();
+        }
+
         function showBluetoothExpanded(device) {
             if (!device || root.overviewVisible || islandState === "control_center" || islandState === "notification")
                 return;
 
+            closeRestingDashboard();
             cancelSideSwipeSettle();
             abortSideTransientMode();
             clearTransientCapsule();
@@ -1534,6 +1584,7 @@ PanelWindow {
         }
 
         function showControlCenter() {
+            closeRestingDashboard();
             cancelSideSwipeSettle();
             abortSideTransientMode();
             clearTransientCapsule();
@@ -1543,6 +1594,7 @@ PanelWindow {
         }
 
         function showNotificationCenter() {
+            closeRestingDashboard();
             cancelSideSwipeSettle();
             abortSideTransientMode();
             clearTransientCapsule();
@@ -1555,6 +1607,7 @@ PanelWindow {
 
 
         function showWallpaperPicker() {
+            closeRestingDashboard();
             cancelSideSwipeSettle();
             abortSideTransientMode();
             clearTransientCapsule();
@@ -1564,6 +1617,7 @@ PanelWindow {
         }
 
         function showApplicationLauncher() {
+            closeRestingDashboard();
             cancelSideSwipeSettle();
             abortSideTransientMode();
             clearTransientCapsule();
@@ -1592,6 +1646,7 @@ PanelWindow {
 
         function showWorkspaceCapsule(wsId) {
             currentWs = wsId;
+            closeRestingDashboard();
             if (root.autoHideSuppressesTransientReveal) return;
             if (islandState === "control_center" || islandState === "notification") return;
             const animateFromSide = currentTransientOriginSide();
@@ -1663,23 +1718,31 @@ PanelWindow {
         }
         Timer {
             id: hoverExpandDelayTimer
-            interval: 350
+            interval: userConfig.restingDashboardHoverDelayMs
             repeat: false
             onTriggered: {
                 if (!capsuleMouseArea.containsMouse) return;
                 if (!root.hoverExpandEnabled) return;
 
                 const current = islandContainer.islandState;
-                const target = root.configuredHoverExpandAction === 2 ? "control_center" : "expanded";
-                if (current === target) return;
-                if (current !== "normal" && current !== "custom" && current !== "lyrics")
-                    return;
+                const target = RestingPresentationLogic.hoverTarget(
+                    current,
+                    root.configuredHoverExpandAction,
+                    userConfig.restingDashboardEnabled,
+                    userConfig.idleHoverContent,
+                    mediaController.hasPresentableMedia
+                );
+                if (target === "none") return;
+                if (target === "media" && current === "expanded") return;
+                if (target === "controlCenter" && current === "control_center") return;
 
                 islandContainer.hoverExpandedActive = true;
-                if (root.configuredHoverExpandAction === 2)
+                if (target === "controlCenter")
                     islandContainer.showControlCenter();
-                else
+                else if (target === "media")
                     islandContainer.showExpandedPlayer(false);
+                else
+                    islandContainer.showRestingDashboard();
             }
         }
         Timer {
@@ -1708,7 +1771,7 @@ PanelWindow {
 
         onCurrentTrackChanged: {
             if (userConfig.disableAutoExpandOnTrackChange) return;
-            if (currentTrack !== ""
+            if (mediaController.hasPresentableMedia
                     && islandState !== "control_center"
                     && islandState !== "notification"
                     && islandState !== "bluetooth_expanded") {
@@ -1716,6 +1779,15 @@ PanelWindow {
                 if (islandState === "expanded" && !expandedByPlayerAutoOpen) return;
                 showExpandedPlayer(true);
             }
+        }
+
+
+        onMediaAvailableChanged: {
+            if (mediaAvailable || islandState !== "expanded")
+                return;
+            const expandedView = expandedPlayerLoader.item;
+            if (!expandedView || expandedView.currentPage === 0)
+                smartRestoreState();
         }
 
         // --- UI 渲染：灵动岛主干 ---
@@ -1731,6 +1803,7 @@ PanelWindow {
             property real displayedWidth: baseTargetWidth
             readonly property real baseTargetWidth: {
                 if (root.overviewVisible) return root.overviewCapsuleWidth;
+                if (islandContainer.restingDashboardVisible) return 410;
                 if (sideTransientRestoreTimer.running) {
                     if (islandContainer.restingState === "lyrics"
                             && ((islandContainer.islandState === "split" && islandContainer.splitOriginSide === "right")
@@ -1776,6 +1849,7 @@ PanelWindow {
             }
             readonly property real targetHeight: {
                 if (root.overviewVisible) return root.overviewCapsuleHeight;
+                if (islandContainer.restingDashboardVisible) return 165;
 
                 switch (islandContainer.islandState) {
                 case "control_center":
@@ -1798,6 +1872,7 @@ PanelWindow {
             }
             readonly property real targetRadius: {
                 if (root.overviewVisible) return root.overviewCapsuleRadius;
+                if (islandContainer.restingDashboardVisible) return 40;
 
                 switch (islandContainer.islandState) {
                 case "control_center":
@@ -2200,6 +2275,36 @@ PanelWindow {
                             && !islandContainer.restingMediaVisible
                         showCondition: true
                         onPreferredWidthChanged: islandContainer.syncLyricsCapsuleWidth()
+                    }
+                }
+            }
+
+            Loader {
+                id: restingDashboardLoader
+                anchors.fill: parent
+                active: islandContainer.restingDashboardVisible
+                asynchronous: false
+                visible: active
+
+                sourceComponent: Component {
+                    RestingDashboard {
+                        active: islandContainer.restingDashboardVisible
+                        itemOrder: userConfig.restingDashboardItems
+                        fullDate: timeObj.currentFullDateLabel
+                        cpuUsage: islandContainer.currentCpuUsage
+                        ramUsage: islandContainer.currentRamUsage
+                        batteryCapacity: islandContainer.batteryCapacity
+                        charging: islandContainer.isCharging
+                        workspace: islandContainer.currentWs
+                        notificationCount: root.notificationService ? root.notificationService.historyCount : 0
+                        dndEnabled: root.notificationService ? root.notificationService.dndEnabled : false
+                        networkName: restingDashboardModel.networkName
+                        networkConnected: restingDashboardModel.networkConnected
+                        vpnActive: restingDashboardModel.vpnActive
+                        powerProfile: restingDashboardModel.powerProfile
+                        weatherProvider: weatherProvider
+                        iconFontFamily: root.iconFontFamily
+                        textFontFamily: root.textFontFamily
                     }
                 }
             }

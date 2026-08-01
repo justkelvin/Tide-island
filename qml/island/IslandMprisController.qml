@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell.Services.Mpris
 import IslandBackend
+import "../resting/RestingPresentationLogic.js" as RestingPresentationLogic
 
 Item {
     id: root
@@ -16,6 +17,17 @@ Item {
     property string lastActivePlayerDbusName: ""
     property var playersList: Mpris.players.values !== undefined ? Mpris.players.values : Mpris.players
     property var activePlayer: resolveActivePlayer()
+    readonly property bool activePlayerPlaybackSupported: activePlayer
+        && (activePlayer.playbackState === MprisPlaybackState.Playing
+            || activePlayer.playbackState === MprisPlaybackState.Paused)
+    readonly property string activePlayerMetadataUrl: activePlayer && activePlayer.metadata
+        ? String(activePlayer.metadata["xesam:url"] || "")
+        : ""
+    readonly property bool hasPresentableMedia: RestingPresentationLogic.hasPresentableMedia(
+        activePlayer !== null,
+        activePlayerPlaybackSupported,
+        RestingPresentationLogic.hasUsefulMediaMetadata(lyricsLookupTitle, activePlayerMetadataUrl)
+    )
 
     readonly property string lyricsLookupTitle: activePlayer ? (activePlayer.trackTitle || activePlayer.title || "") : ""
     readonly property string lyricsLookupArtist: {
@@ -175,12 +187,11 @@ Item {
 
     function playerHasTrackInfo(player) {
         if (!player) return false;
-        if ((player.trackTitle || player.title || "") !== "") return true;
+        if (RestingPresentationLogic.hasUsefulMediaMetadata(player.trackTitle || player.title || "", "")) return true;
         if (!player.metadata) return false;
-        return Boolean(
-            player.metadata["xesam:title"]
-            || player.metadata["mpris:trackid"]
-            || player.metadata["xesam:url"]
+        return RestingPresentationLogic.hasUsefulMediaMetadata(
+            player.metadata["xesam:title"],
+            player.metadata["xesam:url"]
         );
     }
 

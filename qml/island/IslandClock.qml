@@ -9,6 +9,7 @@ Item {
 
     property string currentTime: "00:00"
     property string currentDateLabel: "Mon, Jan 01"
+    property string currentFullDateLabel: "Monday, January 1"
     property string clockFormat: "12"
 
     readonly property var monthNames: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -30,6 +31,7 @@ Item {
         const now = new Date();
         root.currentTime = Qt.formatTime(now, root.clockFormat === "24" ? "HH:mm" : "hh:mm ap");
         root.currentDateLabel = root.formatDateLabel(now);
+        root.currentFullDateLabel = Qt.formatDate(now, "dddd, MMMM d");
         clockTimer.interval = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
     }
 

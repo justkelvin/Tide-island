@@ -74,6 +74,22 @@ target_link_libraries(notification_logic_tests PRIVATE
 
 add_test(NAME notification_logic COMMAND notification_logic_tests)
 
+add_executable(resting_presentation_tests
+    tests/resting_presentation_tests.cpp
+)
+
+target_compile_definitions(resting_presentation_tests PRIVATE
+    RESTING_PRESENTATION_LOGIC_SOURCE="${CMAKE_CURRENT_SOURCE_DIR}/qml/resting/RestingPresentationLogic.js"
+)
+
+target_link_libraries(resting_presentation_tests PRIVATE
+    Qt6::Core
+    Qt6::Qml
+    Qt6::Test
+)
+
+add_test(NAME resting_presentation COMMAND resting_presentation_tests)
+
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/lyricsmpris_core_tests.cpp")
     add_executable(lyricsmpris_tests
         tests/lyricsmpris_core_tests.cpp
