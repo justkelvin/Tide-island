@@ -16,6 +16,7 @@ Item {
     property int toggleButton: Qt.LeftButton
     property var configSource: null
     readonly property var activeConfig: configSource || userConfig
+    property string iconText: ""
     property string iconFontFamily: activeConfig.iconFontFamily
     property string textFontFamily: activeConfig.textFontFamily
     property string heroFontFamily: activeConfig.heroFontFamily
