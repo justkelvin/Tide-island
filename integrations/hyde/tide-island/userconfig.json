@@ -5,7 +5,9 @@
         "battery"
     ],
     "heroFontFamily": "Inter Display",
+    "hoverExpandAction": 1,
     "iconFontFamily": "JetBrainsMono Nerd Font",
+    "idleHoverContent": "informationDashboard",
     "islandAutoHideEnabled": false,
     "islandExclusiveZone": 0,
     "islandHeight": 32,
@@ -13,6 +15,24 @@
     "islandTopMargin": 3,
     "islandWidth": 140,
     "nativeNotificationsEnabled": true,
+    "restingContent": "clock",
+    "restingDashboardEnabled": true,
+    "restingDashboardHoverDelayMs": 350,
+    "restingDashboardItems": [
+        "date",
+        "weather",
+        "cpu",
+        "ram",
+        "battery",
+        "network",
+        "workspace",
+        "notifications"
+    ],
     "timeFontFamily": "SF Pro Rounded",
-    "textFontFamily": "Inter Display"
+    "textFontFamily": "Inter Display",
+    "weatherEnabled": false,
+    "weatherLocation": "",
+    "weatherProvider": "none",
+    "weatherRefreshIntervalMs": 1800000,
+    "weatherUnits": "metric"
 }

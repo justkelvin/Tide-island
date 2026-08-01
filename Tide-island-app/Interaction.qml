@@ -112,6 +112,63 @@ PagePanel {
         revision += 1
     }
 
+    function restingDashboardEnabled() {
+        revision
+        return boolValue("restingDashboardEnabled", true)
+            && String(ConfigStore.value("idleHoverContent", "informationDashboard")) === "informationDashboard"
+    }
+
+    function setRestingDashboardEnabled(enabled) {
+        ConfigStore.setValue("restingContent", "clock")
+        ConfigStore.setValue("idleHoverContent", enabled ? "informationDashboard" : "none")
+        ConfigStore.setValue("restingDashboardEnabled", enabled)
+        ConfigStore.save()
+        revision += 1
+    }
+
+    function dashboardHoverDelayText() {
+        revision
+        return String(ConfigStore.value("restingDashboardHoverDelayMs", 350))
+    }
+
+    function dashboardItemsText() {
+        revision
+        const items = ConfigStore.value("restingDashboardItems", ["date", "weather", "cpu", "ram", "battery", "network", "workspace", "notifications"])
+        return Array.from(items).join(", ")
+    }
+
+    function saveDashboardTextSetting(key, value) {
+        if (key === "restingDashboardItems") {
+            const allowed = ["date", "weather", "cpu", "ram", "battery", "network", "workspace", "notifications"]
+            const seen = {}
+            const items = String(value).split(",").map(item => item.trim().toLowerCase()).filter(item => {
+                if (allowed.indexOf(item) < 0 || seen[item]) return false
+                seen[item] = true
+                return true
+            })
+            ConfigStore.setValue(key, items.length > 0 ? items : allowed)
+        } else if (key === "restingDashboardHoverDelayMs") {
+            ConfigStore.setValue(key, Math.min(2000, Math.max(100, Math.round(Number(value) || 350))))
+        } else if (key === "weatherRefreshIntervalMs") {
+            ConfigStore.setValue(key, Math.min(86400000, Math.max(900000, Math.round((Number(value) || 30) * 60000))))
+        } else {
+            ConfigStore.setValue(key, String(value).trim())
+        }
+        ConfigStore.save()
+        revision += 1
+    }
+
+    function weatherEnabled() {
+        revision
+        return boolValue("weatherEnabled", false)
+    }
+
+    function setWeatherEnabled(enabled) {
+        ConfigStore.setValue("weatherEnabled", enabled)
+        ConfigStore.save()
+        revision += 1
+    }
+
     function islandAutoHideEnabled() {
         revision
         return boolValue("islandAutoHideEnabled", true)
@@ -318,10 +375,71 @@ PagePanel {
             }
 
             Text {
+                id: restingTitle
+
+                text: "Resting dashboard"
+                anchors.top: hoverPanel.bottom
+                anchors.topMargin: 34
+                anchors.left: parent.left
+                anchors.leftMargin: 32
+                anchors.right: parent.right
+                anchors.rightMargin: 40
+                color: Theme.textColor
+                font.family: Theme.titleFontFamily
+                font.pixelSize: 23
+            }
+
+            Rectangle {
+                id: restingPanel
+
+                color: Theme.cardBgColor
+                radius: 16
+                border.width: 1
+                border.color: Theme.splitLineColor
+                anchors.top: restingTitle.bottom
+                anchors.topMargin: 15
+                anchors.left: parent.left
+                anchors.leftMargin: 30
+                anchors.right: parent.right
+                anchors.rightMargin: 40
+                height: restingColumn.implicitHeight + 30
+
+                Column {
+                    id: restingColumn
+
+                    anchors.top: parent.top
+                    anchors.topMargin: 15
+                    anchors.left: parent.left
+                    anchors.leftMargin: 18
+                    anchors.right: parent.right
+                    anchors.rightMargin: 18
+
+                    DashboardEnabledRow {
+                        width: parent.width
+                    }
+
+                    SplitLine { width: parent.width }
+                    SettingFieldRow { width: parent.width; title: "Hover delay"; description: "100–2000 milliseconds"; settingKey: "restingDashboardHoverDelayMs"; initialText: root.dashboardHoverDelayText() }
+                    SplitLine { width: parent.width }
+                    SettingFieldRow { width: parent.width; title: "Items"; description: "Ordered comma-separated dashboard slots"; settingKey: "restingDashboardItems"; initialText: root.dashboardItemsText(); fieldWidth: 330 }
+                    SplitLine { width: parent.width }
+                    WeatherEnabledRow { width: parent.width }
+                    SplitLine { width: parent.width }
+                    SettingFieldRow { width: parent.width; title: "Weather provider"; description: "none, or mock for UI development"; settingKey: "weatherProvider"; initialText: String(ConfigStore.value("weatherProvider", "none")) }
+                    SplitLine { width: parent.width }
+                    SettingFieldRow { width: parent.width; title: "Weather location"; description: "Reserved for a future cached provider"; settingKey: "weatherLocation"; initialText: String(ConfigStore.value("weatherLocation", "")) }
+                    SplitLine { width: parent.width }
+                    SettingFieldRow { width: parent.width; title: "Weather units"; description: "metric or imperial"; settingKey: "weatherUnits"; initialText: String(ConfigStore.value("weatherUnits", "metric")) }
+                    SplitLine { width: parent.width }
+                    SettingFieldRow { width: parent.width; title: "Weather refresh"; description: "Minutes, clamped from 15 to 1440"; settingKey: "weatherRefreshIntervalMs"; initialText: String(Math.round(Number(ConfigStore.value("weatherRefreshIntervalMs", 1800000)) / 60000)) }
+                }
+            }
+
+            Text {
                 id: playerTitle
 
                 text: "Player"
-                anchors.top: hoverPanel.bottom
+                anchors.top: restingPanel.bottom
                 anchors.topMargin: 34
                 anchors.left: parent.left
                 anchors.leftMargin: 32
@@ -349,17 +467,10 @@ PagePanel {
 
                 Column {
                     id: playerColumn
+                    anchors.fill: parent
+                    anchors.margins: 15
 
-                    anchors.top: parent.top
-                    anchors.topMargin: 15
-                    anchors.left: parent.left
-                    anchors.leftMargin: 18
-                    anchors.right: parent.right
-                    anchors.rightMargin: 18
-
-                    AutoExpandTrackRow {
-                        width: parent.width
-                    }
+                    AutoExpandTrackRow { width: parent.width }
                 }
             }
         }
@@ -498,6 +609,44 @@ PagePanel {
                 root.setAutoExpandOnTrackChange(checked)
             }
         }
+    }
+
+    component DashboardEnabledRow: Item {
+        height: 49
+        Text { id: dashboardTitle; text: "Information dashboard"; color: Theme.textColor; font.family: Theme.textFontFamily; font.pixelSize: 18 }
+        Text { anchors.left: dashboardTitle.left; anchors.top: dashboardTitle.bottom; anchors.topMargin: 5; text: "Show useful local information when idle"; color: Theme.subtleTextColor; font.family: Theme.textFontFamily; font.pixelSize: 14 }
+        StyledSwitch { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; checked: root.restingDashboardEnabled(); onToggled: checked => root.setRestingDashboardEnabled(checked) }
+    }
+
+    component WeatherEnabledRow: Item {
+        height: 49
+        Text { id: weatherTitle; text: "Weather"; color: Theme.textColor; font.family: Theme.textFontFamily; font.pixelSize: 18 }
+        Text { anchors.left: weatherTitle.left; anchors.top: weatherTitle.bottom; anchors.topMargin: 5; text: "Disabled by default; no network provider ships yet"; color: Theme.subtleTextColor; font.family: Theme.textFontFamily; font.pixelSize: 14 }
+        StyledSwitch { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; checked: root.weatherEnabled(); onToggled: checked => root.setWeatherEnabled(checked) }
+    }
+
+    component SettingFieldRow: Item {
+        id: settingRow
+        property string title: ""
+        property string description: ""
+        property string settingKey: ""
+        property string initialText: ""
+        property int fieldWidth: 180
+        height: 49
+        Text { id: settingTitle; text: settingRow.title; color: Theme.textColor; font.family: Theme.textFontFamily; font.pixelSize: 18 }
+        Text { anchors.left: settingTitle.left; anchors.top: settingTitle.bottom; anchors.topMargin: 5; width: Math.max(80, parent.width - settingField.width - 28); text: settingRow.description; elide: Text.ElideRight; color: Theme.subtleTextColor; font.family: Theme.textFontFamily; font.pixelSize: 14 }
+        ConfigTextField {
+            id: settingField
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: settingRow.fieldWidth
+            height: 36
+            textPixelSize: 14
+            Component.onCompleted: text = settingRow.initialText
+            onAccepted: settingRow.commit()
+            onEditingFinished: settingRow.commit()
+        }
+        function commit() { root.saveDashboardTextSetting(settingKey, settingField.text) }
     }
 
     component AutoHideRow: Item {

@@ -3,6 +3,8 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QTemporaryDir>
 #include <QTest>
 
@@ -54,7 +56,29 @@ private slots:
     void niriValidationFailurePreservesManagedConfig();
     void niriValidationFailureDoesNotIncludeManagedFile();
     void configAppColorSchemePersists();
+    void configSavePreservesUnknownKeys();
 };
+
+void ShortcutConfigTests::configSavePreservesUnknownKeys()
+{
+    QTemporaryDir configHome;
+    QVERIFY(configHome.isValid());
+    qputenv("XDG_CONFIG_HOME", configHome.path().toLocal8Bit());
+    const QString configPath = configHome.path() + QStringLiteral("/tide-island/userconfig.json");
+    QVERIFY(writeTextFile(configPath, R"JSON({"unknownFutureKey":{"nested":42},"clockFormat":"24"})JSON"));
+
+    Backend backend;
+    QVariantMap config = backend.userConfig();
+    config.insert(QStringLiteral("restingDashboardEnabled"), true);
+    QVERIFY(backend.save(config));
+
+    QFile saved(configPath);
+    QVERIFY(saved.open(QIODevice::ReadOnly));
+    const QJsonObject object = QJsonDocument::fromJson(saved.readAll()).object();
+    QCOMPARE(object.value(QStringLiteral("unknownFutureKey")).toObject().value(QStringLiteral("nested")).toInt(), 42);
+    QCOMPARE(object.value(QStringLiteral("clockFormat")).toString(), QStringLiteral("24"));
+    QVERIFY(object.value(QStringLiteral("restingDashboardEnabled")).toBool());
+}
 
 void ShortcutConfigTests::hyprlandDefaultsIncludeWorkspaceOverview()
 {

@@ -20,6 +20,41 @@ QVariantList defaultDynamicIslandLeftSwipeItems()
     return {QStringLiteral("cava"), QStringLiteral("battery")};
 }
 
+QVariantList defaultRestingDashboardItems()
+{
+    return {
+        QStringLiteral("date"),
+        QStringLiteral("weather"),
+        QStringLiteral("cpu"),
+        QStringLiteral("ram"),
+        QStringLiteral("battery"),
+        QStringLiteral("network"),
+        QStringLiteral("workspace"),
+        QStringLiteral("notifications"),
+    };
+}
+
+QVariantList normalizedRestingDashboardItems(const QVariantList &items)
+{
+    static const QSet<QString> allowed{
+        QStringLiteral("date"), QStringLiteral("weather"), QStringLiteral("cpu"),
+        QStringLiteral("ram"), QStringLiteral("battery"), QStringLiteral("network"),
+        QStringLiteral("workspace"), QStringLiteral("notifications"),
+    };
+    QVariantList result;
+    QSet<QString> seen;
+    for (const QVariant &item : items) {
+        const QString id = item.toString().trimmed().toLower();
+        if (!allowed.contains(id) || seen.contains(id))
+            continue;
+        result.append(id);
+        seen.insert(id);
+        if (result.size() == allowed.size())
+            break;
+    }
+    return result.isEmpty() ? defaultRestingDashboardItems() : result;
+}
+
 QByteArray stripJsonComments(const QByteArray &input)
 {
     QString text = QString::fromUtf8(input);
@@ -105,6 +140,7 @@ UserConfigBackend::UserConfigBackend(QObject *parent)
     : QObject(parent)
     , m_userConfigPath(configHome() + QStringLiteral("/tide-island/userconfig.json"))
     , m_dynamicIslandLeftSwipeItems(defaultDynamicIslandLeftSwipeItems())
+    , m_restingDashboardItems(defaultRestingDashboardItems())
 {
     m_reloadTimer.setSingleShot(true);
     m_reloadTimer.setInterval(50);
@@ -286,6 +322,17 @@ int UserConfigBackend::hoverExpandAction() const
     return m_hoverExpandAction;
 }
 
+QString UserConfigBackend::restingContent() const { return m_restingContent; }
+QString UserConfigBackend::idleHoverContent() const { return m_idleHoverContent; }
+bool UserConfigBackend::restingDashboardEnabled() const { return m_restingDashboardEnabled; }
+const QVariantList &UserConfigBackend::restingDashboardItems() const { return m_restingDashboardItems; }
+int UserConfigBackend::restingDashboardHoverDelayMs() const { return m_restingDashboardHoverDelayMs; }
+bool UserConfigBackend::weatherEnabled() const { return m_weatherEnabled; }
+QString UserConfigBackend::weatherProvider() const { return m_weatherProvider; }
+QString UserConfigBackend::weatherLocation() const { return m_weatherLocation; }
+QString UserConfigBackend::weatherUnits() const { return m_weatherUnits; }
+int UserConfigBackend::weatherRefreshIntervalMs() const { return m_weatherRefreshIntervalMs; }
+
 bool UserConfigBackend::islandAutoHideEnabled() const
 {
     return m_islandAutoHideEnabled;
@@ -466,6 +513,20 @@ void UserConfigBackend::loadConfig()
     updateField(this, m_dynamicIslandLeftSwipeItems, jsonArray(configObject, QLatin1String("dynamicIslandLeftSwipeItems"), defaultDynamicIslandLeftSwipeItems()), &UserConfigBackend::dynamicIslandLeftSwipeItemsChanged);
     updateField(this, m_disableAutoExpandOnTrackChange, jsonBool(configObject, QLatin1String("disableAutoExpandOnTrackChange"), false), &UserConfigBackend::disableAutoExpandOnTrackChangeChanged);
     updateField(this, m_hoverExpandAction, jsonInt(configObject, QLatin1String("hoverExpandAction"), 1), &UserConfigBackend::hoverExpandActionChanged);
+    const QString configuredRestingContent = jsonString(configObject, QLatin1String("restingContent"), QStringLiteral("clock"));
+    updateField(this, m_restingContent, configuredRestingContent == QLatin1String("clock") ? configuredRestingContent : QStringLiteral("clock"), &UserConfigBackend::restingContentChanged);
+    const QString configuredIdleHoverContent = jsonString(configObject, QLatin1String("idleHoverContent"), QStringLiteral("informationDashboard"));
+    updateField(this, m_idleHoverContent, configuredIdleHoverContent == QLatin1String("none") ? configuredIdleHoverContent : QStringLiteral("informationDashboard"), &UserConfigBackend::idleHoverContentChanged);
+    updateField(this, m_restingDashboardEnabled, jsonBool(configObject, QLatin1String("restingDashboardEnabled"), true), &UserConfigBackend::restingDashboardEnabledChanged);
+    updateField(this, m_restingDashboardItems, normalizedRestingDashboardItems(jsonArray(configObject, QLatin1String("restingDashboardItems"), defaultRestingDashboardItems())), &UserConfigBackend::restingDashboardItemsChanged);
+    updateField(this, m_restingDashboardHoverDelayMs, jsonBoundedInt(configObject, QLatin1String("restingDashboardHoverDelayMs"), 350, 100, 2000), &UserConfigBackend::restingDashboardHoverDelayMsChanged);
+    updateField(this, m_weatherEnabled, jsonBool(configObject, QLatin1String("weatherEnabled"), false), &UserConfigBackend::weatherEnabledChanged);
+    const QString configuredWeatherProvider = jsonString(configObject, QLatin1String("weatherProvider"), QStringLiteral("none"));
+    updateField(this, m_weatherProvider, configuredWeatherProvider == QLatin1String("mock") ? configuredWeatherProvider : QStringLiteral("none"), &UserConfigBackend::weatherProviderChanged);
+    updateField(this, m_weatherLocation, jsonString(configObject, QLatin1String("weatherLocation"), QString()).left(128), &UserConfigBackend::weatherLocationChanged);
+    const QString configuredWeatherUnits = jsonString(configObject, QLatin1String("weatherUnits"), QStringLiteral("metric"));
+    updateField(this, m_weatherUnits, configuredWeatherUnits == QLatin1String("imperial") ? configuredWeatherUnits : QStringLiteral("metric"), &UserConfigBackend::weatherUnitsChanged);
+    updateField(this, m_weatherRefreshIntervalMs, jsonBoundedInt(configObject, QLatin1String("weatherRefreshIntervalMs"), 1800000, 900000, 86400000), &UserConfigBackend::weatherRefreshIntervalMsChanged);
     updateField(this, m_islandAutoHideEnabled, jsonBool(configObject, QLatin1String("islandAutoHideEnabled"), true), &UserConfigBackend::islandAutoHideEnabledChanged);
     updateField(this, m_islandAutoHideDelayMs, jsonBoundedInt(configObject, QLatin1String("islandAutoHideDelayMs"), 1000, 100, 10000), &UserConfigBackend::islandAutoHideDelayMsChanged);
     updateField(this, m_islandWidth, jsonInt(configObject, QLatin1String("islandWidth"), 140), &UserConfigBackend::islandWidthChanged);

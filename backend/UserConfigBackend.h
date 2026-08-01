@@ -48,6 +48,16 @@ class UserConfigBackend final : public QObject {
     Q_PROPERTY(QVariantList dynamicIslandLeftSwipeItems READ dynamicIslandLeftSwipeItems NOTIFY dynamicIslandLeftSwipeItemsChanged FINAL)
     Q_PROPERTY(bool disableAutoExpandOnTrackChange READ disableAutoExpandOnTrackChange NOTIFY disableAutoExpandOnTrackChangeChanged FINAL)
     Q_PROPERTY(int hoverExpandAction READ hoverExpandAction NOTIFY hoverExpandActionChanged FINAL)
+    Q_PROPERTY(QString restingContent READ restingContent NOTIFY restingContentChanged FINAL)
+    Q_PROPERTY(QString idleHoverContent READ idleHoverContent NOTIFY idleHoverContentChanged FINAL)
+    Q_PROPERTY(bool restingDashboardEnabled READ restingDashboardEnabled NOTIFY restingDashboardEnabledChanged FINAL)
+    Q_PROPERTY(QVariantList restingDashboardItems READ restingDashboardItems NOTIFY restingDashboardItemsChanged FINAL)
+    Q_PROPERTY(int restingDashboardHoverDelayMs READ restingDashboardHoverDelayMs NOTIFY restingDashboardHoverDelayMsChanged FINAL)
+    Q_PROPERTY(bool weatherEnabled READ weatherEnabled NOTIFY weatherEnabledChanged FINAL)
+    Q_PROPERTY(QString weatherProvider READ weatherProvider NOTIFY weatherProviderChanged FINAL)
+    Q_PROPERTY(QString weatherLocation READ weatherLocation NOTIFY weatherLocationChanged FINAL)
+    Q_PROPERTY(QString weatherUnits READ weatherUnits NOTIFY weatherUnitsChanged FINAL)
+    Q_PROPERTY(int weatherRefreshIntervalMs READ weatherRefreshIntervalMs NOTIFY weatherRefreshIntervalMsChanged FINAL)
     Q_PROPERTY(bool islandAutoHideEnabled READ islandAutoHideEnabled NOTIFY islandAutoHideEnabledChanged FINAL)
     Q_PROPERTY(int islandAutoHideDelayMs READ islandAutoHideDelayMs NOTIFY islandAutoHideDelayMsChanged FINAL)
 
@@ -97,6 +107,16 @@ public:
     const QVariantList &dynamicIslandLeftSwipeItems() const;
     bool disableAutoExpandOnTrackChange() const;
     int hoverExpandAction() const;
+    QString restingContent() const;
+    QString idleHoverContent() const;
+    bool restingDashboardEnabled() const;
+    const QVariantList &restingDashboardItems() const;
+    int restingDashboardHoverDelayMs() const;
+    bool weatherEnabled() const;
+    QString weatherProvider() const;
+    QString weatherLocation() const;
+    QString weatherUnits() const;
+    int weatherRefreshIntervalMs() const;
     bool islandAutoHideEnabled() const;
     int islandAutoHideDelayMs() const;
     int islandWidth() const;
@@ -148,6 +168,16 @@ signals:
     void dynamicIslandLeftSwipeItemsChanged();
     void disableAutoExpandOnTrackChangeChanged();
     void hoverExpandActionChanged();
+    void restingContentChanged();
+    void idleHoverContentChanged();
+    void restingDashboardEnabledChanged();
+    void restingDashboardItemsChanged();
+    void restingDashboardHoverDelayMsChanged();
+    void weatherEnabledChanged();
+    void weatherProviderChanged();
+    void weatherLocationChanged();
+    void weatherUnitsChanged();
+    void weatherRefreshIntervalMsChanged();
     void islandAutoHideEnabledChanged();
     void islandAutoHideDelayMsChanged();
     void islandWidthChanged();
@@ -199,6 +229,16 @@ private:
     QVariantList m_dynamicIslandLeftSwipeItems;
     bool m_disableAutoExpandOnTrackChange = false;
     int m_hoverExpandAction = 1;
+    QString m_restingContent = QStringLiteral("clock");
+    QString m_idleHoverContent = QStringLiteral("informationDashboard");
+    bool m_restingDashboardEnabled = true;
+    QVariantList m_restingDashboardItems;
+    int m_restingDashboardHoverDelayMs = 350;
+    bool m_weatherEnabled = false;
+    QString m_weatherProvider = QStringLiteral("none");
+    QString m_weatherLocation;
+    QString m_weatherUnits = QStringLiteral("metric");
+    int m_weatherRefreshIntervalMs = 1800000;
     bool m_islandAutoHideEnabled = true;
     int m_islandAutoHideDelayMs = 1000;
     int m_islandWidth = 140;
