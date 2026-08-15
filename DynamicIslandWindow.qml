@@ -156,9 +156,13 @@ PanelWindow {
         if (islandContainer.wallpaperPickerLayerVisible
                 || islandContainer.applicationLauncherLayerVisible)
             return WlrKeyboardFocus.Exclusive;
+        // Keep keyboard focus on the overview until an overview action closes it.
+        // Click-to-focus closes the overview before focusing the selected client.
+        if (root.monitorFocused && root.overviewVisible)
+            return WlrKeyboardFocus.Exclusive;
         if (islandContainer.expandedPlayerKeyboardFocusRequested)
             return WlrKeyboardFocus.OnDemand;
-        if (root.monitorFocused && (root.overviewVisible || root.connectivityPromptActive))
+        if (root.monitorFocused && root.connectivityPromptActive)
             return WlrKeyboardFocus.OnDemand;
         return WlrKeyboardFocus.None;
     }
@@ -933,6 +937,10 @@ PanelWindow {
             }
 
             onWorkspaceActivated: function(workspaceId) {
+                if(userConfig.islandShowWorkspaceOnAutoHide){
+                    root.showAutoHiddenIsland();
+                }
+
                 islandContainer.showWorkspaceCapsule(workspaceId);
             }
         }
@@ -1755,7 +1763,7 @@ PanelWindow {
                 case "control_center":
                     return 34;
                 case "notification_center":
-                    return mainCapsule.targetHeight * 40 / 165;
+                    return mainCapsule.targetHeight * 36 / 165;
                 case "wallpaper_picker":
                 case "application_launcher":
                     return 34;
@@ -1782,7 +1790,7 @@ PanelWindow {
             )
             color: root.overviewContentVisible
                 ? root.overviewCapsuleColor
-                : (notificationHistorySurface ? "#080808" : StyleTokens.black)
+                : (notificationHistorySurface ? "#080808" : Qt.rgba(0, 0, 0, userConfig.islandBackgroundOpacity / 100.0))
             y: userConfig.islandTopMargin
                 - (1 - root.autoHideProgress) * (targetHeight + userConfig.islandTopMargin + 8)
             x: parent ? parent.width * userConfig.islandPositionX / 100 - width / 2 : 0

@@ -13,15 +13,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/enhaoswen/Tide-island/stargazers">
-    <img alt="GitHub stars" src="https://img.shields.io/github/stars/enhaoswen/Tide-island?style=flat-square&color=8aadf4">
-  </a>
-  <a href="https://github.com/enhaoswen/Tide-island/issues">
-    <img alt="GitHub issues" src="https://img.shields.io/github/issues/enhaoswen/Tide-island?style=flat-square&color=8aadf4">
-  </a>
-  <a href="https://aur.archlinux.org/packages/tide-island">
-    <img alt="AUR package" src="https://img.shields.io/aur/version/tide-island?style=flat-square&label=AUR&color=8aadf4">
-  </a>
+  <a href="https://github.com/enhaoswen/Tide-island/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/enhaoswen/Tide-island?style=flat-square&color=8aadf4"></a>
+  <a href="https://github.com/enhaoswen/Tide-island/issues"><img alt="GitHub issues" src="https://img.shields.io/github/issues/enhaoswen/Tide-island?style=flat-square&color=8aadf4"></a>
+  <a href="https://aur.archlinux.org/packages/tide-island"><img alt="AUR package" src="https://img.shields.io/aur/version/tide-island?style=flat-square&label=AUR&color=8aadf4"></a>
   <img alt="Hyprland" src="https://img.shields.io/badge/Hyprland-111111?style=flat-square&color=8aadf4">
   <img alt="niri" src="https://img.shields.io/badge/niri-111111?style=flat-square&color=8aadf4">
   <img alt="C++ + Qt" src="https://img.shields.io/badge/C%2B%2B%20%2B%20Qt-111111?style=flat-square&color=8aadf4">
@@ -189,7 +183,7 @@ Tide Island 提供 systemd 用户服务。
 立即启用并启动（推荐）：
 
 ```bash
-systemctl --user enable --now tide-island
+systemctl --user enable --now tide-island.service
 ```
 
 如果希望手动管理自启动，请在 `hyprland.conf` 中添加：
@@ -263,7 +257,7 @@ journalctl --user -u tide-island -f
 
 ## 社区
 
-- Discord: https://discord.gg/gEmqgz76
+- Discord: https://discord.gg/Rcj3uPtKwD
 - Email: enhaoswen@gmail.com
 
 ---
