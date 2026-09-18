@@ -33,6 +33,8 @@ public:
     Q_INVOKABLE void requestVolume();
     Q_INVOKABLE void setVolume(double value);
     Q_INVOKABLE void requestSystemStats();
+    Q_INVOKABLE double storageUsage() const;
+    Q_INVOKABLE void requestStorage();
     Q_INVOKABLE void setCavaClientActive(const QString &clientId, bool active);
     Q_INVOKABLE void ensureUserConfigAvailable();
 
@@ -48,6 +50,7 @@ signals:
     void volumeSnapshotReady(double value, bool muted, const QString &errorString);
     void volumeSetFinished(double value, bool success, const QString &errorString);
     void systemStatsReady(double cpuUsage, double ramUsage, const QString &errorString);
+    void storageSnapshotReady(double value, const QString &errorString);
     void cavaLevelsChanged();
 
 private:
@@ -127,6 +130,8 @@ private:
 
     bool m_notificationCaptureActive = false;
     int m_notificationCaptureStage = -1;
+    bool m_notificationInQuotedString = false;
+    QString m_pendingQuotedAccumulator;
     QString m_pendingNotificationAppName;
     QString m_pendingNotificationSummary;
     QString m_pendingNotificationBody;

@@ -13,6 +13,7 @@
 
 #ifdef Q_OS_UNIX
 #include <unistd.h>
+#include <sys/statvfs.h>
 #endif
 
 #include <algorithm>
@@ -320,26 +321,44 @@ void SystemServices::handleRecordingPortalOutput() {
     });
 }
 
+namespace {
+bool endsWithUnescapedQuote(const QString &str) {
+    if (!str.endsWith(QLatin1Char('"'))) return false;
+    int backslashes = 0;
+    for (int i = str.length() - 2; i >= 0 && str.at(i) == QLatin1Char('\\'); --i) {
+        ++backslashes;
+    }
+    return (backslashes % 2) == 0;
+}
+}
+
 QString SystemServices::decodeDbusMonitorString(const QString &line) const {
-    static const QRegularExpression stringPattern(QStringLiteral("^\\s*string \"(.*)\"\\s*$"));
-    const QRegularExpressionMatch match = stringPattern.match(line);
-    if (!match.hasMatch()) return QString();
+    QString unquoted = line.trimmed();
+    if (unquoted.startsWith(QStringLiteral("string \""))) {
+        unquoted = unquoted.mid(8);
+    } else if (unquoted.startsWith(QLatin1Char('"'))) {
+        unquoted = unquoted.mid(1);
+    }
+    if (unquoted.endsWith(QLatin1Char('"'))) {
+        unquoted.chop(1);
+    }
 
-    const QString escaped = match.captured(1);
     QString decoded;
-    decoded.reserve(escaped.size());
+    decoded.reserve(unquoted.size());
 
-    for (int i = 0; i < escaped.size(); ++i) {
-        const QChar ch = escaped.at(i);
-        if (ch != QLatin1Char('\\') || i + 1 >= escaped.size()) {
+    for (int i = 0; i < unquoted.size(); ++i) {
+        const QChar ch = unquoted.at(i);
+        if (ch != QLatin1Char('\\') || i + 1 >= unquoted.size()) {
             decoded.append(ch);
             continue;
         }
 
-        const QChar next = escaped.at(++i);
+        const QChar next = unquoted.at(++i);
         if (next == QLatin1Char('n')) decoded.append(QLatin1Char('\n'));
         else if (next == QLatin1Char('r')) decoded.append(QLatin1Char('\r'));
         else if (next == QLatin1Char('t')) decoded.append(QLatin1Char('\t'));
+        else if (next == QLatin1Char('\\')) decoded.append(QLatin1Char('\\'));
+        else if (next == QLatin1Char('"')) decoded.append(QLatin1Char('"'));
         else decoded.append(next);
     }
 
@@ -352,6 +371,8 @@ void SystemServices::handleNotificationLine(const QString &line) {
     if (line.contains(QStringLiteral("member=Notify"))) {
         m_notificationCaptureActive = true;
         m_notificationCaptureStage = 0;
+        m_notificationInQuotedString = false;
+        m_pendingQuotedAccumulator.clear();
         m_pendingNotificationAppName.clear();
         m_pendingNotificationSummary.clear();
         m_pendingNotificationBody.clear();
@@ -360,35 +381,82 @@ void SystemServices::handleNotificationLine(const QString &line) {
 
     if (!m_notificationCaptureActive) return;
 
+    if (m_notificationInQuotedString) {
+        m_pendingQuotedAccumulator.append(QLatin1Char('\n'));
+        m_pendingQuotedAccumulator.append(line);
+        if (endsWithUnescapedQuote(line)) {
+            m_notificationInQuotedString = false;
+            const QString decoded = decodeDbusMonitorString(m_pendingQuotedAccumulator);
+            m_pendingQuotedAccumulator.clear();
+            if (m_notificationCaptureStage == 0) {
+                m_pendingNotificationAppName = decoded;
+                m_notificationCaptureStage = 1;
+            } else if (m_notificationCaptureStage == 2) {
+                m_notificationCaptureStage = 3;
+            } else if (m_notificationCaptureStage == 3) {
+                m_pendingNotificationSummary = decoded;
+                m_notificationCaptureStage = 4;
+            } else if (m_notificationCaptureStage == 4) {
+                m_pendingNotificationBody = decoded;
+                emit notificationReceived(m_pendingNotificationAppName, m_pendingNotificationSummary, m_pendingNotificationBody);
+                m_notificationCaptureActive = false;
+                m_notificationCaptureStage = -1;
+            }
+        }
+        return;
+    }
+
     switch (m_notificationCaptureStage) {
     case 0:
-        if (!line.startsWith(QStringLiteral("string "))) return;
-        m_pendingNotificationAppName = decodeDbusMonitorString(line);
-        m_notificationCaptureStage = 1;
+        if (!line.startsWith(QStringLiteral("string \""))) return;
+        if (endsWithUnescapedQuote(line)) {
+            m_pendingNotificationAppName = decodeDbusMonitorString(line);
+            m_notificationCaptureStage = 1;
+        } else {
+            m_notificationInQuotedString = true;
+            m_pendingQuotedAccumulator = line;
+        }
         return;
     case 1:
         if (!line.startsWith(QStringLiteral("uint32 "))) return;
         m_notificationCaptureStage = 2;
         return;
     case 2:
-        if (!line.startsWith(QStringLiteral("string "))) return;
-        m_notificationCaptureStage = 3;
+        if (!line.startsWith(QStringLiteral("string \""))) return;
+        if (endsWithUnescapedQuote(line)) {
+            m_notificationCaptureStage = 3;
+        } else {
+            m_notificationInQuotedString = true;
+            m_pendingQuotedAccumulator = line;
+        }
         return;
     case 3:
-        if (!line.startsWith(QStringLiteral("string "))) return;
-        m_pendingNotificationSummary = decodeDbusMonitorString(line);
-        m_notificationCaptureStage = 4;
+        if (!line.startsWith(QStringLiteral("string \""))) return;
+        if (endsWithUnescapedQuote(line)) {
+            m_pendingNotificationSummary = decodeDbusMonitorString(line);
+            m_notificationCaptureStage = 4;
+        } else {
+            m_notificationInQuotedString = true;
+            m_pendingQuotedAccumulator = line;
+        }
         return;
     case 4:
-        if (!line.startsWith(QStringLiteral("string "))) return;
-        m_pendingNotificationBody = decodeDbusMonitorString(line);
-        emit notificationReceived(m_pendingNotificationAppName, m_pendingNotificationSummary, m_pendingNotificationBody);
-        m_notificationCaptureActive = false;
-        m_notificationCaptureStage = -1;
+        if (!line.startsWith(QStringLiteral("string \""))) return;
+        if (endsWithUnescapedQuote(line)) {
+            m_pendingNotificationBody = decodeDbusMonitorString(line);
+            emit notificationReceived(m_pendingNotificationAppName, m_pendingNotificationSummary, m_pendingNotificationBody);
+            m_notificationCaptureActive = false;
+            m_notificationCaptureStage = -1;
+        } else {
+            m_notificationInQuotedString = true;
+            m_pendingQuotedAccumulator = line;
+        }
         return;
     default:
         m_notificationCaptureActive = false;
         m_notificationCaptureStage = -1;
+        m_notificationInQuotedString = false;
+        m_pendingQuotedAccumulator.clear();
         return;
     }
 }
@@ -738,6 +806,26 @@ void SystemServices::requestSystemStats() {
         ? std::clamp(double(totalMem - availableMem) / double(totalMem), 0.0, 1.0)
         : -1.0;
     emit systemStatsReady(cpuUsage, ramUsage, QString());
+
+    const double storage = storageUsage();
+    emit storageSnapshotReady(storage, storage >= 0.0 ? QString() : QStringLiteral("Could not read filesystem stats."));
+}
+
+double SystemServices::storageUsage() const {
+#ifdef Q_OS_UNIX
+    struct statvfs fs;
+    if (statvfs("/", &fs) == 0 && fs.f_blocks > 0) {
+        const double totalBlocks = fs.f_blocks;
+        const double freeBlocks = fs.f_bavail;
+        return std::clamp((totalBlocks - freeBlocks) / totalBlocks, 0.0, 1.0);
+    }
+#endif
+    return -1.0;
+}
+
+void SystemServices::requestStorage() {
+    const double storage = storageUsage();
+    emit storageSnapshotReady(storage, storage >= 0.0 ? QString() : QStringLiteral("Could not read filesystem stats."));
 }
 
 void SystemServices::setCavaClientActive(const QString &clientId, bool active) {

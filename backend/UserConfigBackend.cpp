@@ -250,19 +250,28 @@ int UserConfigBackend::mouseButton(const QVariant &button) const
 {
     bool ok = false;
     const int numericButton = button.toInt(&ok);
-    if (!ok)
-        return Qt::NoButton;
-
-    switch (numericButton) {
-    case 1:
-        return Qt::LeftButton;
-    case 2:
-        return Qt::MiddleButton;
-    case 3:
-        return Qt::RightButton;
-    default:
-        return numericButton;
+    if (ok) {
+        switch (numericButton) {
+        case 1:
+            return Qt::LeftButton;
+        case 2:
+            return Qt::MiddleButton;
+        case 3:
+            return Qt::RightButton;
+        default:
+            return numericButton;
+        }
     }
+
+    const QString str = button.toString().trimmed().toLower();
+    if (str == QLatin1String("left"))
+        return Qt::LeftButton;
+    if (str == QLatin1String("middle"))
+        return Qt::MiddleButton;
+    if (str == QLatin1String("right"))
+        return Qt::RightButton;
+
+    return Qt::NoButton;
 }
 
 int UserConfigBackend::mouseButtonsMask(const QVariant &buttons) const

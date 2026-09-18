@@ -438,7 +438,7 @@ PanelWindow {
         readonly property bool hasCustomLeftItems: systemState.hasCustomLeftItems
         readonly property bool customSwipeVisible: hasCustomLeftItems
             && (
-                capsuleMouseArea.sideSwipeInteractive
+                capsuleGestureArea.sideSwipeInteractive
                 ? swipeTransitionProgress < 0
                 : (
                     islandState === "custom"
@@ -449,7 +449,7 @@ PanelWindow {
                 )
             )
         readonly property bool lyricsSwipeVisible: (
-            capsuleMouseArea.sideSwipeInteractive
+            capsuleGestureArea.sideSwipeInteractive
             ? swipeTransitionProgress >= 0
             : (
                 islandState === "lyrics"
@@ -554,7 +554,7 @@ PanelWindow {
         }
         Behavior on swipeTransitionProgress {
             NumberAnimation {
-                duration: capsuleMouseArea.sideSwipeInteractive ? 0 : islandContainer.swipeAnimationDuration
+                duration: capsuleGestureArea.sideSwipeInteractive ? 0 : islandContainer.swipeAnimationDuration
                 easing.type: Easing.OutCubic
             }
         }
@@ -898,8 +898,7 @@ PanelWindow {
         }
 
         function suppressCapsuleClick() {
-            capsuleMouseArea.suppressNextClick = true;
-            swipeSuppressReset.restart();
+            capsuleGestureArea.suppressClick();
         }
 
         function restoreRestingCapsule(forceImmediate) {
@@ -1030,7 +1029,7 @@ PanelWindow {
             interval: 350
             repeat: false
             onTriggered: {
-                if (!capsuleMouseArea.containsMouse) return;
+                if (!capsuleGestureArea.containsMouse) return;
                 if (!root.hoverExpandEnabled) return;
 
                 const current = islandContainer.islandState;
@@ -1048,7 +1047,7 @@ PanelWindow {
             interval: 250
             repeat: false
             onTriggered: {
-                if (capsuleMouseArea.containsMouse) return;
+                if (capsuleGestureArea.containsMouse) return;
                 if (!islandContainer.hoverExpandedActive) return;
                 islandContainer.hoverExpandedActive = false;
                 islandContainer.smartRestoreState();
@@ -1086,67 +1085,52 @@ PanelWindow {
             property real outlineWidth: 0
             property color outlineColor: StyleTokens.clearBlack
             property real displayedWidth: baseTargetWidth
-            readonly property real baseTargetWidth: {
+            function capsuleTargetGeometry(state) {
                 if (sideTransientRestoreTimer.running) {
                     if (islandContainer.restingState === "lyrics"
-                            && ((islandContainer.islandState === "split" && islandContainer.splitOriginSide === "right")
-                                || (islandContainer.islandState === "long_capsule" && islandContainer.workspaceOriginSide === "right"))) {
-                        return islandContainer.lyricsCapsuleWidth;
+                            && ((state === "split" && islandContainer.splitOriginSide === "right")
+                                || (state === "long_capsule" && islandContainer.workspaceOriginSide === "right"))) {
+                        return { width: islandContainer.lyricsCapsuleWidth, height: userConfig.islandHeight, radius: userConfig.islandHeight / 2 };
                     }
 
                     if (islandContainer.restingState === "custom"
-                            && ((islandContainer.islandState === "split" && islandContainer.splitOriginSide === "left")
-                                || (islandContainer.islandState === "long_capsule" && islandContainer.workspaceOriginSide === "left"))) {
-                        return islandContainer.customCapsuleWidth;
+                            && ((state === "split" && islandContainer.splitOriginSide === "left")
+                                || (state === "long_capsule" && islandContainer.workspaceOriginSide === "left"))) {
+                        return { width: islandContainer.customCapsuleWidth, height: userConfig.islandHeight, radius: userConfig.islandHeight / 2 };
                     }
                 }
 
-                switch (islandContainer.islandState) {
-                case "split":
-                    return islandContainer.splitCapsuleWidth;
-                case "long_capsule":
-                    return 220;
-                case "custom":
-                    return islandContainer.customCapsuleWidth;
-                case "lyrics":
-                    return islandContainer.lyricsCapsuleWidth;
+                switch (state) {
                 case "expanded":
                 case "bluetooth_expanded":
-                    return 410;
+                    return { width: 410, height: 165, radius: 40 };
                 case "notification":
-                    if (!notificationLoader.item) return 272;
-                    return Math.max(
-                        notificationLoader.item.minimumWidth,
-                        Math.min(root.width - 48, notificationLoader.item.maximumWidth, notificationLoader.item.preferredWidth)
-                    );
-                default:
-                    return userConfig.islandWidth;
-                }
-            }
-            readonly property real targetHeight: {
-                switch (islandContainer.islandState) {
-                case "expanded":
-                case "bluetooth_expanded":
-                    return 165;
-                case "notification":
-                    return notificationLoader.item
+                    const notifWidth = notificationLoader.item
+                        ? Math.max(notificationLoader.item.minimumWidth,
+                                   Math.min(root.width - 48, notificationLoader.item.maximumWidth, notificationLoader.item.preferredWidth))
+                        : 272;
+                    const notifHeight = notificationLoader.item
                         ? Math.max(56, notificationLoader.item.preferredHeight)
                         : 56;
+                    const notifRadius = islandContainer.notificationExpanded ? 28 : notifHeight / 2;
+                    return { width: notifWidth, height: notifHeight, radius: notifRadius };
+                case "split":
+                    return { width: islandContainer.splitCapsuleWidth, height: userConfig.islandHeight, radius: userConfig.islandHeight / 2 };
+                case "long_capsule":
+                    return { width: 220, height: userConfig.islandHeight, radius: userConfig.islandHeight / 2 };
+                case "custom":
+                    return { width: islandContainer.customCapsuleWidth, height: userConfig.islandHeight, radius: userConfig.islandHeight / 2 };
+                case "lyrics":
+                    return { width: islandContainer.lyricsCapsuleWidth, height: userConfig.islandHeight, radius: userConfig.islandHeight / 2 };
                 default:
-                    return userConfig.islandHeight;
+                    return { width: userConfig.islandWidth, height: userConfig.islandHeight, radius: userConfig.islandHeight / 2 };
                 }
             }
-            readonly property real targetRadius: {
-                switch (islandContainer.islandState) {
-                case "expanded":
-                case "bluetooth_expanded":
-                    return 40;
-                case "notification":
-                    return islandContainer.notificationExpanded ? 28 : mainCapsule.targetHeight / 2;
-                default:
-                    return userConfig.islandHeight / 2;
-                }
-            }
+
+            readonly property var targetGeometry: capsuleTargetGeometry(islandContainer.islandState)
+            readonly property real baseTargetWidth: targetGeometry.width
+            readonly property real targetHeight: targetGeometry.height
+            readonly property real targetRadius: targetGeometry.radius
             function sideSwipeWidthForProgress(progressValue) {
                 if (progressValue < 0)
                     return userConfig.islandWidth + (islandContainer.customCapsuleWidth - userConfig.islandWidth)
@@ -1177,13 +1161,13 @@ PanelWindow {
             transformOrigin: Item.Top
 
             onBaseTargetWidthChanged: {
-                if (!capsuleMouseArea.sideSwipeInteractive && !islandContainer.sideSwipeSettling)
+                if (!capsuleGestureArea.sideSwipeInteractive && !islandContainer.sideSwipeSettling)
                     displayedWidth = baseTargetWidth;
             }
 
             Behavior on displayedWidth  {
                 NumberAnimation {
-                    duration: capsuleMouseArea.sideSwipeInteractive ? 0 : mainCapsule.morphDuration
+                    duration: capsuleGestureArea.sideSwipeInteractive ? 0 : mainCapsule.morphDuration
                     easing.type: Easing.OutQuint
                 }
             }
@@ -1200,232 +1184,13 @@ PanelWindow {
             border.width: outlineWidth
             border.color: outlineColor
 
-            MouseArea {
-                id: capsuleMouseArea
-                anchors.fill: parent
-                z: -1
-                enabled: twoFingerTouchArea.touchPoints.length < 2
-                acceptedButtons: root.dynamicIslandAcceptedButtons
-                preventStealing: true
-                hoverEnabled: root.hoverExpandEnabled || root.autoHideEnabled
-                property real swipeStartX: 0
-                property real swipeStartY: 0
-                property real swipeStartProgress: 0
-                property real swipeLastX: 0
-                readonly property real sideSwipeVerticalTolerance: 24
-                property bool swipeArmed: false
-                property bool swipeMoved: false
-                property bool sideSwipeInteractive: false
-                property bool suppressNextClick: false
-
-                Timer {
-                    id: swipeSuppressReset
-                    interval: 180
-                    repeat: false
-                    onTriggered: capsuleMouseArea.suppressNextClick = false
-                }
-
-                onEntered: {
-                    if (root.autoHideEnabled) {
-                        root.autoHidePointerInside = true;
-                        root.showAutoHiddenIsland();
-                    }
-                    if (root.hoverExpandEnabled) {
-                        hoverCollapseDelayTimer.stop();
-                        hoverExpandDelayTimer.restart();
-                    }
-                }
-
-                onExited: {
-                    if (root.autoHideEnabled) {
-                        root.autoHidePointerInside = false;
-                        root.scheduleAutoHide();
-                    }
-                    if (root.hoverExpandEnabled)
-                        hoverCollapseDelayTimer.restart();
-                }
-
-                onPressed: (mouse) => {
-                    const mappedPoint = capsuleMouseArea.mapToItem(islandContainer, mouse.x, mouse.y);
-                    swipeStartX = mappedPoint.x;
-                    swipeStartY = mappedPoint.y;
-                    islandContainer.cancelSideSwipeSettle();
-                    swipeArmed = mouse.button === Qt.LeftButton
-                        && islandContainer.canShowSideSwipe;
-                    swipeStartProgress = islandContainer.swipeTransitionProgress;
-                    swipeLastX = mappedPoint.x;
-                    swipeMoved = false;
-                    sideSwipeInteractive = swipeArmed;
-                    islandContainer.swipeTransitionProgress = swipeStartProgress;
-                }
-
-                onPositionChanged: (mouse) => {
-                    if (!pressed || !swipeArmed || suppressNextClick || twoFingerTouchArea.touchPoints.length >= 2) return;
-
-                    const mappedPoint = capsuleMouseArea.mapToItem(islandContainer, mouse.x, mouse.y);
-                    const deltaX = mappedPoint.x - swipeLastX;
-                    const deltaY = Math.abs(mappedPoint.y - swipeStartY);
-                    const adjustedDeltaX = deltaY < sideSwipeVerticalTolerance ? deltaX : 0;
-                    const nextProgress = islandContainer.advanceSideSwipeProgress(
-                        islandContainer.swipeTransitionProgress,
-                        adjustedDeltaX
-                    );
-
-                    swipeMoved = swipeMoved || Math.abs(nextProgress - swipeStartProgress) > 0.03 || deltaY > 6;
-                    swipeLastX = mappedPoint.x;
-                    islandContainer.swipeTransitionProgress = nextProgress;
-                    mainCapsule.displayedWidth = mainCapsule.sideSwipePreviewWidth;
-                }
-
-                onReleased: {
-                    if (swipeMoved) {
-                        suppressNextClick = true;
-                        swipeSuppressReset.restart();
-                    }
-                    let settleResult = {
-                        action: "",
-                        progress: islandContainer.sideSwipeRestProgressForProgress(swipeStartProgress),
-                        width: islandContainer.sideSwipeRestWidthForProgress(swipeStartProgress)
-                    };
-
-                    if (swipeArmed)
-                        settleResult = islandContainer.resolveSideSwipeSettle(
-                            swipeStartProgress,
-                            islandContainer.swipeTransitionProgress
-                        );
-
-                    sideSwipeInteractive = false;
-
-                    if (swipeArmed)
-                        islandContainer.beginSideSwipeSettle(settleResult.width);
-                    else
-                        mainCapsule.displayedWidth = mainCapsule.baseTargetWidth;
-
-                    if (swipeArmed) {
-                        switch (settleResult.action) {
-                        case "time":
-                            islandContainer.showTimeCapsule();
-                            break;
-                        case "custom":
-                            islandContainer.showCustomCapsule();
-                            break;
-                        case "lyrics":
-                            islandContainer.showLyricsCapsule();
-                            break;
-                        default:
-                            islandContainer.swipeTransitionProgress = settleResult.progress;
-                        }
-                    } else {
-                        islandContainer.swipeTransitionProgress = settleResult.progress;
-                    }
-                    swipeArmed = false;
-                    swipeMoved = false;
-                }
-
-                onCanceled: {
-                    swipeArmed = false;
-                    swipeMoved = false;
-                    sideSwipeInteractive = false;
-                    suppressNextClick = false;
-                    swipeSuppressReset.stop();
-                    mainCapsule.displayedWidth = mainCapsule.baseTargetWidth;
-                    islandContainer.swipeTransitionProgress = islandContainer.swipeRestProgressForState();
-                }
-
-                onClicked: (mouse) => {
-                    islandContainer.hoverExpandedActive = false;
-                    hoverExpandDelayTimer.stop();
-                    hoverCollapseDelayTimer.stop();
-
-                    if (suppressNextClick) {
-                        swipeSuppressReset.stop();
-                        suppressNextClick = false;
-                        return;
-                    }
-
-                    if (mouse.button === userConfig.mouseButton(userConfig.dynamicIslandPrimaryButton)) {
-                        if (islandContainer.toggleNotificationExpansionIfNeeded()) {
-                            return;
-                        }
-
-                        islandContainer.handleConfiguredClickAction(userConfig.dynamicIslandPrimaryAction);
-                        return;
-                    }
-
-                    if (mouse.button === userConfig.mouseButton(userConfig.dynamicIslandSecondaryButton)) {
-                        islandContainer.handleConfiguredClickAction(userConfig.dynamicIslandSecondaryAction);
-                    }
-                }
-            }
-
-            MultiPointTouchArea {
-                id: twoFingerTouchArea
-                anchors.fill: parent
-                z: 0
-                mouseEnabled: false
-                minimumTouchPoints: 2
-                maximumTouchPoints: 2
-
-                property real swipeStartX: 0
-                property real swipeStartProgress: 0
-                property bool swipeMoved: false
-
-                onPressed: (touchPoints) => {
-                    const centerPoint = islandContainer.mapFromItem(twoFingerTouchArea, 
-                        (touchPoints[0].x + touchPoints[1].x) / 2,
-                        (touchPoints[0].y + touchPoints[1].y) / 2);
-                    swipeStartX = centerPoint.x;
-                    swipeStartProgress = islandContainer.swipeTransitionProgress;
-                    swipeMoved = false;
-                    islandContainer.cancelSideSwipeSettle();
-                }
-
-                onUpdated: (touchPoints) => {
-                    const centerPoint = islandContainer.mapFromItem(twoFingerTouchArea, 
-                        (touchPoints[0].x + touchPoints[1].x) / 2,
-                        (touchPoints[0].y + touchPoints[1].y) / 2);
-                    
-                    const deltaX = centerPoint.x - swipeStartX;
-                    const nextProgress = islandContainer.advanceSideSwipeProgress(
-                        swipeStartProgress,
-                        deltaX
-                    );
-
-                    if (Math.abs(nextProgress - swipeStartProgress) > 0.03) {
-                        swipeMoved = true;
-                    }
-
-                    islandContainer.swipeTransitionProgress = nextProgress;
-                    mainCapsule.displayedWidth = mainCapsule.sideSwipePreviewWidth;
-                }
-
-                onReleased: {
-                    if (swipeMoved) {
-                        const settleResult = islandContainer.resolveSideSwipeSettle(
-                            swipeStartProgress,
-                            islandContainer.swipeTransitionProgress
-                        );
-
-                        islandContainer.beginSideSwipeSettle(settleResult.width);
-
-                        switch (settleResult.action) {
-                        case "time":
-                            islandContainer.showTimeCapsule();
-                            break;
-                        case "custom":
-                            islandContainer.showCustomCapsule();
-                            break;
-                        case "lyrics":
-                            islandContainer.showLyricsCapsule();
-                            break;
-                        default:
-                            islandContainer.swipeTransitionProgress = settleResult.progress;
-                        }
-                    } else {
-                        islandContainer.swipeTransitionProgress = islandContainer.sideSwipeRestProgressForProgress(swipeStartProgress);
-                    }
-                    swipeMoved = false;
-                }
+            CapsuleGestureArea {
+                id: capsuleGestureArea
+                windowRoot: root
+                islandController: islandContainer
+                capsule: mainCapsule
+                hoverExpandTimer: hoverExpandDelayTimer
+                hoverCollapseTimer: hoverCollapseDelayTimer
             }
 
 

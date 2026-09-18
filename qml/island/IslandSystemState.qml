@@ -157,10 +157,8 @@ Item {
             SystemServices.requestBrightness();
         if (currentVolume < 0)
             SystemServices.requestVolume();
-        if (usesSystemStatsModule)
+        if (usesSystemStatsModule || usesStorageModule)
             SystemServices.requestSystemStats();
-        if (usesStorageModule)
-            storagePollTimer.restart();
     }
 
     function updateCavaSubscription() {
@@ -330,39 +328,11 @@ Item {
 
         interval: 3000
         repeat: true
-        running: root.usesSystemStatsModule
+        running: root.usesSystemStatsModule || root.usesStorageModule
         triggeredOnStart: true
 
         onTriggered: SystemServices.requestSystemStats()
     }
-    Process {
-        id: storagePollProcess
-        command: ["df", "--output=pcent", "/"]
-        running: false
-
-        stdout: SplitParser {
-            onRead: function(line) {
-                const trimmed = line.trim();
-                if (trimmed === "" || trimmed.indexOf("Use%") >= 0)
-                    return;
-                const pct = parseInt(trimmed.replace("%", ""));
-                if (!isNaN(pct))
-                    root.currentStorageUsage = pct;
-            }
-        }
-    }
-
-    Timer {
-        id: storagePollTimer
-
-        interval: 10000
-        repeat: true
-        running: root.usesStorageModule
-        triggeredOnStart: true
-
-        onTriggered: storagePollProcess.running = true
-    }
-
 
     Connections {
         target: SystemServices
@@ -386,6 +356,11 @@ Item {
                 root.currentCpuUsage = root.clamp01(cpuUsage);
             if (ramUsage >= 0)
                 root.currentRamUsage = root.clamp01(ramUsage);
+        }
+
+        function onStorageSnapshotReady(value, errorString) {
+            if (errorString === "" && value >= 0)
+                root.currentStorageUsage = Math.round(root.clamp01(value) * 100);
         }
 
         function onCavaLevelsChanged() {
