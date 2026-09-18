@@ -8,8 +8,6 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-option(TIDE_ISLAND_WITH_NIRI "Build niri compositor integration" ON)
-
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Network DBus Test Concurrent)
 find_library(UDEV_LIB NAMES udev REQUIRED)
 
@@ -35,28 +33,6 @@ target_link_libraries(lyricsmpris PRIVATE
 )
 
 enable_testing()
-
-find_program(PYTHON3_EXECUTABLE NAMES python3 REQUIRED)
-add_test(
-    NAME wallpaper_apply
-    COMMAND "${PYTHON3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/wallpaper_apply_tests.py"
-)
-
-add_executable(application_search_tests
-    tests/application_search_tests.cpp
-)
-
-target_compile_definitions(application_search_tests PRIVATE
-    APPLICATION_SEARCH_SOURCE="${CMAKE_CURRENT_SOURCE_DIR}/qml/common/ApplicationSearch.js"
-)
-
-target_link_libraries(application_search_tests PRIVATE
-    Qt6::Core
-    Qt6::Qml
-    Qt6::Test
-)
-
-add_test(NAME application_search COMMAND application_search_tests)
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/lyricsmpris_core_tests.cpp")
     add_executable(lyricsmpris_tests
@@ -97,31 +73,6 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/user_config_backend_tests.cpp")
     )
 
     add_test(NAME user_config_backend COMMAND user_config_backend_tests)
-endif()
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/compositor_backend_tests.cpp")
-    add_executable(compositor_backend_tests
-        tests/compositor_backend_tests.cpp
-        backend/CompositorBackend.h
-        backend/CompositorBackend.cpp
-    )
-
-    target_include_directories(compositor_backend_tests PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/backend
-    )
-
-    target_compile_definitions(compositor_backend_tests PRIVATE
-        TIDE_ISLAND_WITH_NIRI=$<BOOL:${TIDE_ISLAND_WITH_NIRI}>
-    )
-
-    target_link_libraries(compositor_backend_tests PRIVATE
-        Qt6::Core
-        Qt6::Qml
-        Qt6::Network
-        Qt6::Test
-    )
-
-    add_test(NAME compositor_backend COMMAND compositor_backend_tests)
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/lyricsmpris_runtime_tests.cpp")
@@ -167,18 +118,10 @@ qt_add_qml_module(IslandBackend
         backend/SysBackend.cpp
         backend/SystemServices.h
         backend/SystemServices.cpp
-        backend/CompositorBackend.h
-        backend/CompositorBackend.cpp
         backend/StyleTokensBackend.h
         backend/StyleTokensBackend.cpp
         backend/UserConfigBackend.h
         backend/UserConfigBackend.cpp
-        backend/BluetoothPairingAgent.h
-        backend/BluetoothPairingAgent.cpp
-        backend/WifiController.h
-        backend/WifiController.cpp
-        backend/WifiNetworkModel.h
-        backend/WifiNetworkModel.cpp
 )
 
 # The QML plugin is installed below lib/qt6/qml/IslandBackend while its backing
@@ -190,10 +133,6 @@ set_target_properties(IslandBackendplugin PROPERTIES
 
 target_include_directories(IslandBackend PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/backend
-)
-
-target_compile_definitions(IslandBackend PRIVATE
-    TIDE_ISLAND_WITH_NIRI=$<BOOL:${TIDE_ISLAND_WITH_NIRI}>
 )
 
 target_link_libraries(IslandBackend PRIVATE

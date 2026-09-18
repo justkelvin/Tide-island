@@ -6,9 +6,7 @@ PagePanel {
 
     color: "transparent"
 
-    readonly property bool supportsTideWorkspaceOverview: backend.supportsTideWorkspaceOverview()
     readonly property bool supportsHyprlandShortcutSnippets: backend.supportsHyprlandShortcutSnippets()
-    readonly property bool supportsNiriShortcutSnippets: backend.supportsNiriShortcutSnippets()
     readonly property string compositorName: backend.compositorDisplayName()
     readonly property string nightLightBackendName: backend.nightLightBackendName()
 
@@ -58,21 +56,12 @@ PagePanel {
 
                 InfoBlock {
                     title: "Current desktop"
-                    body: root.supportsTideWorkspaceOverview
-                        ? root.compositorName + " has the full Tide Island experience, including Tide workspace overview."
-                        : root.compositorName + " uses all Tide Island features except Tide workspace overview. Use the compositor native overview or your own compositor config."
+                    body: root.compositorName + " has the full Tide Island experience."
                 }
 
                 InfoBlock {
-                    visible: root.supportsHyprlandShortcutSnippets
                     title: "Hyprland shortcuts"
                     body: "The Shortcut page writes ~/.config/tide-island/hyprland-shortcuts.conf, sources it from ~/.config/hypr/hyprland.conf, then reloads Hyprland."
-                }
-
-                InfoBlock {
-                    visible: root.supportsNiriShortcutSnippets
-                    title: "niri shortcuts"
-                    body: "The Shortcut page writes ~/.config/tide-island/niri-shortcuts.kdl, includes it from ~/.config/niri/config.kdl after niri validate succeeds, then reloads niri."
                 }
 
                 InfoBlock {

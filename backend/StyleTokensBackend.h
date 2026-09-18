@@ -20,8 +20,6 @@ class StyleTokensBackend final : public QObject {
     Q_PROPERTY(QColor track READ track CONSTANT FINAL)
     Q_PROPERTY(QColor cardFillActive READ cardFillActive CONSTANT FINAL)
     Q_PROPERTY(QColor cardFillHover READ cardFillHover CONSTANT FINAL)
-    Q_PROPERTY(QColor connectivityCard READ connectivityCard CONSTANT FINAL)
-    Q_PROPERTY(QColor connectivityCardHover READ connectivityCardHover CONSTANT FINAL)
     Q_PROPERTY(QColor prompt READ prompt CONSTANT FINAL)
     Q_PROPERTY(QColor input READ input CONSTANT FINAL)
     Q_PROPERTY(QColor inputBorder READ inputBorder CONSTANT FINAL)
@@ -51,17 +49,6 @@ class StyleTokensBackend final : public QObject {
     Q_PROPERTY(QColor buttonFillHover READ buttonFillHover CONSTANT FINAL)
     Q_PROPERTY(QColor buttonFillPressed READ buttonFillPressed CONSTANT FINAL)
 
-    Q_PROPERTY(QColor overviewCard READ overviewCard CONSTANT FINAL)
-    Q_PROPERTY(QColor overviewBorder READ overviewBorder CONSTANT FINAL)
-    Q_PROPERTY(QColor overviewInnerBorder READ overviewInnerBorder CONSTANT FINAL)
-    Q_PROPERTY(QColor workspaceCell READ workspaceCell CONSTANT FINAL)
-    Q_PROPERTY(QColor workspaceCellHover READ workspaceCellHover CONSTANT FINAL)
-    Q_PROPERTY(QColor workspaceCellBorder READ workspaceCellBorder CONSTANT FINAL)
-    Q_PROPERTY(QColor workspaceCellBorderHover READ workspaceCellBorderHover CONSTANT FINAL)
-    Q_PROPERTY(QColor workspaceOverlay READ workspaceOverlay CONSTANT FINAL)
-    Q_PROPERTY(QColor workspaceOverlayHover READ workspaceOverlayHover CONSTANT FINAL)
-    Q_PROPERTY(QColor workspaceActiveBorder READ workspaceActiveBorder CONSTANT FINAL)
-
     Q_PROPERTY(int radiusPanel READ radiusPanel CONSTANT FINAL)
     Q_PROPERTY(int radiusModule READ radiusModule CONSTANT FINAL)
     Q_PROPERTY(int radiusPrompt READ radiusPrompt CONSTANT FINAL)
@@ -84,8 +71,6 @@ public:
     QColor track() const;
     QColor cardFillActive() const;
     QColor cardFillHover() const;
-    QColor connectivityCard() const;
-    QColor connectivityCardHover() const;
     QColor prompt() const;
     QColor input() const;
     QColor inputBorder() const;
@@ -111,16 +96,6 @@ public:
     QColor buttonFill() const;
     QColor buttonFillHover() const;
     QColor buttonFillPressed() const;
-    QColor overviewCard() const;
-    QColor overviewBorder() const;
-    QColor overviewInnerBorder() const;
-    QColor workspaceCell() const;
-    QColor workspaceCellHover() const;
-    QColor workspaceCellBorder() const;
-    QColor workspaceCellBorderHover() const;
-    QColor workspaceOverlay() const;
-    QColor workspaceOverlayHover() const;
-    QColor workspaceActiveBorder() const;
 
     int radiusPanel() const;
     int radiusModule() const;

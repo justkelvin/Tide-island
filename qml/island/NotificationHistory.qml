@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Shapes
 import IslandBackend
-import "../controlcenter"
+import "../common"
 
 Item {
     id: root

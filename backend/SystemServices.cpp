@@ -6,16 +6,10 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
-#include <QFutureWatcher>
-#include <QImage>
-#include <QImageReader>
-#include <QImageWriter>
 #include <QJsonDocument>
 #include <QRegularExpression>
-#include <QSaveFile>
 #include <QStandardPaths>
 #include <QTextStream>
-#include <QtConcurrent/QtConcurrent>
 
 #ifdef Q_OS_UNIX
 #include <unistd.h>
@@ -28,157 +22,6 @@
 namespace {
 
 constexpr qsizetype kMaximumStreamBufferBytes = 64 * 1024;
-
-struct ThumbnailResult {
-    QString sourcePath;
-    QString cachePath;
-    bool cacheAvailable = false;
-    bool updated = false;
-    QString errorString;
-};
-
-QString thumbnailMetadataPath(const QString &cachePath) {
-    return cachePath + QStringLiteral(".meta.json");
-}
-
-QJsonObject thumbnailMetadata(const QFileInfo &sourceInfo,
-                              int targetWidth,
-                              int targetHeight,
-                              int quality) {
-    return {
-        {QStringLiteral("sourcePath"), sourceInfo.absoluteFilePath()},
-        {QStringLiteral("sourceModifiedMs"), sourceInfo.lastModified().toMSecsSinceEpoch()},
-        {QStringLiteral("sourceSize"), sourceInfo.size()},
-        {QStringLiteral("targetWidth"), targetWidth},
-        {QStringLiteral("targetHeight"), targetHeight},
-        {QStringLiteral("quality"), quality}
-    };
-}
-
-bool thumbnailMetadataMatches(const QString &cachePath, const QJsonObject &expected) {
-    if (!QFileInfo::exists(cachePath)) return false;
-
-    QFile metadataFile(thumbnailMetadataPath(cachePath));
-    if (!metadataFile.open(QIODevice::ReadOnly)) return false;
-
-    QJsonParseError parseError;
-    const QJsonDocument document = QJsonDocument::fromJson(metadataFile.readAll(), &parseError);
-    return parseError.error == QJsonParseError::NoError
-        && document.isObject()
-        && document.object() == expected;
-}
-
-bool writeThumbnailMetadata(const QString &cachePath, const QJsonObject &metadata, QString *errorString) {
-    QSaveFile metadataFile(thumbnailMetadataPath(cachePath));
-    if (!metadataFile.open(QIODevice::WriteOnly)) {
-        if (errorString) *errorString = metadataFile.errorString();
-        return false;
-    }
-
-    if (metadataFile.write(QJsonDocument(metadata).toJson(QJsonDocument::Compact)) < 0
-        || !metadataFile.commit()) {
-        if (errorString) *errorString = metadataFile.errorString();
-        return false;
-    }
-
-    return true;
-}
-
-ThumbnailResult createWallpaperThumbnail(const QString &sourcePath,
-                                         const QString &cachePath,
-                                         const QString &cacheDir,
-                                         int targetWidth,
-                                         int targetHeight,
-                                         int quality) {
-    ThumbnailResult result;
-    result.sourcePath = sourcePath;
-    result.cachePath = cachePath;
-
-    if (sourcePath.isEmpty() || cachePath.isEmpty() || cacheDir.isEmpty()) {
-        result.errorString = QStringLiteral("Missing wallpaper thumbnail path.");
-        return result;
-    }
-
-    if (targetWidth <= 0 || targetHeight <= 0) {
-        result.errorString = QStringLiteral("Invalid wallpaper thumbnail size.");
-        return result;
-    }
-
-    const QFileInfo sourceInfo(sourcePath);
-    if (!sourceInfo.exists() || !sourceInfo.isFile()) {
-        result.errorString = QStringLiteral("Wallpaper source file does not exist.");
-        return result;
-    }
-
-    if (!QDir().mkpath(cacheDir)) {
-        result.errorString = QStringLiteral("Could not create wallpaper cache directory.");
-        return result;
-    }
-
-    const int boundedQuality = std::clamp(quality, 1, 100);
-    const QJsonObject expectedMetadata = thumbnailMetadata(
-        sourceInfo,
-        targetWidth,
-        targetHeight,
-        boundedQuality
-    );
-    if (thumbnailMetadataMatches(cachePath, expectedMetadata)) {
-        result.cacheAvailable = true;
-        return result;
-    }
-
-    QImageReader reader(sourcePath);
-    reader.setAutoTransform(true);
-    const QSize sourceSize = reader.size();
-    const QSize requestedSize(targetWidth, targetHeight);
-    if (sourceSize.isValid()) {
-        const QSize decodeSize = sourceSize.scaled(requestedSize, Qt::KeepAspectRatioByExpanding);
-        if (qint64(decodeSize.width()) * decodeSize.height()
-                < qint64(sourceSize.width()) * sourceSize.height()) {
-            reader.setScaledSize(decodeSize);
-        }
-    }
-    const QImage sourceImage = reader.read();
-    if (sourceImage.isNull()) {
-        result.errorString = reader.errorString().isEmpty()
-            ? QStringLiteral("Could not read wallpaper source image.")
-            : reader.errorString();
-        return result;
-    }
-
-    const QSize targetSize(targetWidth, targetHeight);
-    const QImage scaled = sourceImage.scaled(targetSize, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-    const int cropX = std::max(0, (scaled.width() - targetWidth) / 2);
-    const int cropY = std::max(0, (scaled.height() - targetHeight) / 2);
-    const QImage cropped = scaled.copy(cropX, cropY, targetWidth, targetHeight);
-
-    QSaveFile output(cachePath);
-    if (!output.open(QIODevice::WriteOnly)) {
-        result.errorString = output.errorString();
-        return result;
-    }
-
-    QImageWriter writer(&output, "jpg");
-    writer.setQuality(boundedQuality);
-    if (!writer.write(cropped)) {
-        result.errorString = writer.errorString().isEmpty()
-            ? QStringLiteral("Could not write wallpaper thumbnail.")
-            : writer.errorString();
-        output.cancelWriting();
-        return result;
-    }
-
-    if (!output.commit()) {
-        result.errorString = output.errorString();
-        return result;
-    }
-
-    result.cacheAvailable = QFileInfo::exists(cachePath);
-    result.updated = result.cacheAvailable;
-    if (result.cacheAvailable)
-        writeThumbnailMetadata(cachePath, expectedMetadata, &result.errorString);
-    return result;
-}
 
 QString trimCommandOutput(const QByteArray &stdoutData, const QByteArray &stderrData) {
     QString output = QString::fromUtf8(stdoutData).trimmed();
@@ -234,7 +77,6 @@ SystemServices::~SystemServices() {
     stopProcess(m_pipeWireMonitor);
     stopProcess(m_recordingPortalMonitor);
     stopProcess(m_recordingSnapshot);
-    stopProcess(m_tlpSetter);
     stopCava();
 }
 
@@ -749,46 +591,6 @@ void SystemServices::ensureUserConfigAvailable() {
     }
 }
 
-void SystemServices::generateWallpaperThumbnail(const QString &sourcePath,
-                                                const QString &cachePath,
-                                                const QString &cacheDir,
-                                                int targetWidth,
-                                                int targetHeight,
-                                                int quality) {
-    const QString requestKey = QStringLiteral("%1\x1f%2\x1f%3x%4\x1f%5")
-        .arg(sourcePath, cachePath)
-        .arg(targetWidth)
-        .arg(targetHeight)
-        .arg(quality);
-    if (m_wallpaperThumbnailRequests.contains(requestKey))
-        return;
-
-    m_wallpaperThumbnailRequests.insert(requestKey);
-    auto *watcher = new QFutureWatcher<ThumbnailResult>(this);
-    connect(watcher, &QFutureWatcher<ThumbnailResult>::finished, this, [this, watcher, requestKey]() {
-        const ThumbnailResult result = watcher->result();
-        m_wallpaperThumbnailRequests.remove(requestKey);
-        emit wallpaperThumbnailFinished(
-            result.sourcePath,
-            result.cachePath,
-            result.cacheAvailable,
-            result.updated,
-            result.errorString
-        );
-        watcher->deleteLater();
-    });
-
-    watcher->setFuture(QtConcurrent::run(
-        createWallpaperThumbnail,
-        sourcePath,
-        cachePath,
-        cacheDir,
-        targetWidth,
-        targetHeight,
-        quality
-    ));
-}
-
 double SystemServices::parseBrightnessOutput(const QString &text, bool *ok) const {
     if (ok) *ok = false;
     static const QRegularExpression brightnessPattern(QStringLiteral(",(\\d+)%"));
@@ -936,150 +738,6 @@ void SystemServices::requestSystemStats() {
         ? std::clamp(double(totalMem - availableMem) / double(totalMem), 0.0, 1.0)
         : -1.0;
     emit systemStatsReady(cpuUsage, ramUsage, QString());
-}
-
-QString SystemServices::parseTlpProfile(const QString &text) const {
-    static const QRegularExpression profilePattern(QStringLiteral("TLP profile\\s*=\\s*([a-z-]+)"),
-                                                   QRegularExpression::CaseInsensitiveOption);
-    const QRegularExpressionMatch match = profilePattern.match(text);
-    return match.hasMatch() ? match.captured(1).toLower() : QString();
-}
-
-void SystemServices::requestTlpState() {
-    if (findExecutable(QStringLiteral("tlp")).isEmpty()) {
-        emit tlpStateReady(false, QString(), QString(), QStringLiteral("TLP is not installed."));
-        return;
-    }
-
-    if (findExecutable(QStringLiteral("tlp-stat")).isEmpty()) {
-        emit tlpStateReady(true, QString(), QString(), QString());
-        return;
-    }
-
-    startCommand(QStringLiteral("tlp-stat"), {QStringLiteral("-s")}, 2000,
-        [this](const CommandResult &result) {
-            const QString output = trimCommandOutput(result.stdoutData, result.stderrData);
-            const QString errorText = commandErrorText(QStringLiteral("tlp-stat"), result);
-            emit tlpStateReady(errorText.isEmpty(), parseTlpProfile(output), output, errorText);
-        });
-}
-
-void SystemServices::setTlpMode(const QString &mode, const QString &sudoPassword, bool promptForPassword) {
-    static const QSet<QString> allowedModes = {
-        QStringLiteral("power-saver"),
-        QStringLiteral("balanced"),
-        QStringLiteral("performance")
-    };
-
-    const QString normalizedMode = mode.trimmed().toLower();
-    if (!allowedModes.contains(normalizedMode)) {
-        emit tlpSetFinished(false, 125, QString(), QStringLiteral("Unsupported TLP mode."));
-        return;
-    }
-
-    if (findExecutable(QStringLiteral("tlp")).isEmpty()) {
-        emit tlpSetFinished(false, 127, QString(), QStringLiteral("TLP is not installed."));
-        return;
-    }
-
-    if (m_tlpSetter) {
-        ++m_tlpCommandGeneration;
-        m_tlpSetter->kill();
-        m_tlpSetter = nullptr;
-    }
-
-#ifdef Q_OS_UNIX
-    if (::getuid() != 0
-        && promptForPassword
-        && !findExecutable(QStringLiteral("zenity")).isEmpty()
-        && !findExecutable(QStringLiteral("sudo")).isEmpty()) {
-        const int promptGeneration = ++m_tlpCommandGeneration;
-        m_tlpSetter = startCommand(
-            QStringLiteral("zenity"),
-            {
-                QStringLiteral("--password"),
-                QStringLiteral("--title=Tide Island"),
-                QStringLiteral("--text=Enter your sudo password to change the TLP profile."),
-            },
-            0,
-            [this, normalizedMode, promptGeneration](const CommandResult &result) {
-                if (promptGeneration != m_tlpCommandGeneration)
-                    return;
-
-                m_tlpSetter = nullptr;
-                if (result.exitCode != 0 || result.exitStatus != QProcess::NormalExit) {
-                    emit tlpSetFinished(false, result.exitCode, QString(), QStringLiteral("Authentication canceled."));
-                    return;
-                }
-
-                QString password = QString::fromUtf8(result.stdoutData);
-                while (password.endsWith(QLatin1Char('\n')) || password.endsWith(QLatin1Char('\r')))
-                    password.chop(1);
-                if (password.isEmpty()) {
-                    emit tlpSetFinished(false, 126, QString(), QStringLiteral("A sudo password is required."));
-                    return;
-                }
-
-                setTlpMode(normalizedMode, password, false);
-            });
-        return;
-    }
-#endif
-
-    QString program;
-    QStringList arguments;
-    QByteArray stdinData;
-
-#ifdef Q_OS_UNIX
-    if (::getuid() == 0) {
-        program = QStringLiteral("tlp");
-        arguments = {normalizedMode};
-    } else
-#endif
-    {
-        const QString password = sudoPassword.trimmed();
-        if (password.isEmpty() && !findExecutable(QStringLiteral("pkexec")).isEmpty()) {
-            program = QStringLiteral("pkexec");
-            arguments = {QStringLiteral("tlp"), normalizedMode};
-        } else if (password.isEmpty()) {
-            if (findExecutable(QStringLiteral("sudo")).isEmpty()) {
-                emit tlpSetFinished(false, 126, QString(), QStringLiteral("pkexec or sudo is not installed."));
-                return;
-            }
-            program = QStringLiteral("sudo");
-            arguments = {QStringLiteral("-n"), QStringLiteral("tlp"), normalizedMode};
-        } else {
-            if (findExecutable(QStringLiteral("sudo")).isEmpty()) {
-                emit tlpSetFinished(false, 126, QString(), QStringLiteral("sudo is not installed."));
-                return;
-            }
-            program = QStringLiteral("sudo");
-            arguments = {QStringLiteral("-S"), QStringLiteral("-p"), QString(), QStringLiteral("tlp"), normalizedMode};
-            stdinData = (password + QLatin1Char('\n')).toUtf8();
-        }
-    }
-
-    const int commandGeneration = ++m_tlpCommandGeneration;
-    m_tlpSetter = startCommand(program, arguments, 10000,
-        [this, program, commandGeneration](const CommandResult &result) {
-            if (commandGeneration != m_tlpCommandGeneration)
-                return;
-
-            m_tlpSetter = nullptr;
-            const QString output = trimCommandOutput(result.stdoutData, result.stderrData);
-            const QString errorText = commandErrorText(program, result);
-            emit tlpSetFinished(errorText.isEmpty(), result.exitCode, output, errorText);
-            if (errorText.isEmpty())
-                requestTlpState();
-        },
-        stdinData);
-}
-
-void SystemServices::cancelTlpApply() {
-    if (!m_tlpSetter) return;
-    ++m_tlpCommandGeneration;
-    m_tlpSetter->kill();
-    m_tlpSetter = nullptr;
 }
 
 void SystemServices::setCavaClientActive(const QString &clientId, bool active) {

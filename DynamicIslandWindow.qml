@@ -6,51 +6,18 @@ import Quickshell.Wayland
 import Quickshell.Services.Mpris
 import IslandBackend
 import "qml/common"
-import "qml/controlcenter"
-import "qml/connectivity"
 import "qml/island"
-import "qml/workspace"
 
 PanelWindow {
     id: root
     property var shellRootController: null
-    property string overviewPhase: "closed"
-    property bool overviewPreloading: false
-    readonly property bool overviewPreparing: overviewPhase === "preparing"
-    readonly property bool overviewVisible: overviewPhase === "preparing" || overviewPhase === "opening" || overviewPhase === "open"
-    readonly property bool overviewMounted: overviewPhase !== "closed" || overviewPreloading
-    readonly property bool overviewLoaderActive: !compositorIsNiri
-        && (overviewMounted || overviewUnloadGraceTimer.running)
-    readonly property bool overviewDataReady: overviewLoader.item
-        ? !!overviewLoader.item.overviewDataReady
-        : false
-    readonly property bool overviewWallpaperReady: overviewWallpaperCache.ready
-    readonly property bool overviewVisualReady: overviewDataReady && overviewWallpaperReady
-    readonly property bool overviewContentVisible: (overviewPhase === "opening" || overviewPhase === "open")
-        && overviewVisualReady
-    readonly property bool compositorIsNiri: CompositorBackend.compositor === "niri"
-    readonly property int compositorRevision: CompositorBackend.revision
-    readonly property string screenOutputName: screen && screen.name !== undefined ? String(screen.name) : ""
     readonly property var hyprlandIntegration: hyprlandIntegrationLoader.item
     readonly property var hyprMonitor: hyprlandIntegration ? hyprlandIntegration.monitor : null
     readonly property string hyprMonitorName: hyprlandIntegration ? hyprlandIntegration.monitorName : ""
-    readonly property string compositorOutputName: compositorIsNiri ? screenOutputName : hyprMonitorName
-    readonly property bool monitorFocused: {
-        compositorRevision;
-        return compositorIsNiri
-            ? CompositorBackend.isOutputFocused(screenOutputName)
-            : (hyprlandIntegration ? hyprlandIntegration.monitorFocused : false);
-    }
-    readonly property bool connectivityPromptActive: controlCenterLoader.item
-        ? controlCenterLoader.item.hasConnectivityPrompt
-        : false
-    readonly property var controlCenterRef: controlCenterLoader.item
-    readonly property int currentMonitorWorkspaceId: {
-        compositorRevision;
-        return compositorIsNiri
-            ? CompositorBackend.activeWorkspaceIndexForOutput(screenOutputName)
-            : (hyprlandIntegration ? hyprlandIntegration.workspaceId : 1);
-    }
+    readonly property string screenOutputName: screen && screen.name !== undefined ? String(screen.name) : ""
+    readonly property string compositorOutputName: hyprMonitorName
+    readonly property bool monitorFocused: hyprlandIntegration ? hyprlandIntegration.monitorFocused : false
+    readonly property int currentMonitorWorkspaceId: hyprlandIntegration ? hyprlandIntegration.workspaceId : 1
     readonly property bool screenRecordingActive: shellRootController
         && shellRootController.screenRecordingActive !== undefined
         ? !!shellRootController.screenRecordingActive
@@ -85,9 +52,9 @@ PanelWindow {
     Loader {
         id: hyprlandIntegrationLoader
 
-        active: !root.compositorIsNiri
+        active: true
         asynchronous: false
-        source: active ? "qml/island/HyprlandWindowIntegration.qml" : ""
+        source: "qml/island/HyprlandWindowIntegration.qml"
     }
 
     Binding {
@@ -116,39 +83,13 @@ PanelWindow {
             width: Math.ceil(mainCapsule.width)
             height: Math.ceil(mainCapsule.height)
         }
-        
-        // Add existing detail shells
-        Region {
-            intersection: Intersection.Combine
-            x: Math.floor(wifiConnectivityDetailShell.x)
-            y: Math.floor(wifiConnectivityDetailShell.y)
-            width: wifiConnectivityDetailShell.visible ? Math.ceil(wifiConnectivityDetailShell.width) : 0
-            height: wifiConnectivityDetailShell.visible ? Math.ceil(wifiConnectivityDetailShell.height) : 0
-        }
-
-        Region {
-            intersection: Intersection.Combine
-            x: Math.floor(bluetoothConnectivityDetailShell.x)
-            y: Math.floor(bluetoothConnectivityDetailShell.y)
-            width: bluetoothConnectivityDetailShell.visible ? Math.ceil(bluetoothConnectivityDetailShell.width) : 0
-            height: bluetoothConnectivityDetailShell.visible ? Math.ceil(bluetoothConnectivityDetailShell.height) : 0
-        }
     }
     readonly property real capsuleWindowHeight: Math.ceil(
         userConfig.islandTopMargin + mainCapsule.targetHeight + 12
     )
-    readonly property real connectivityDetailWindowHeight: root.anyConnectivityDetailMounted
-        ? Math.ceil(userConfig.islandTopMargin + root.connectivityDetailHeight + 12)
-        : 0
-    readonly property real overviewWindowHeight: root.overviewVisible
-        ? Math.ceil(userConfig.islandTopMargin + root.overviewCapsuleHeight + 8)
-        : 0
     readonly property real requestedWindowHeight: Math.max(
         root.notificationCenterWindowHeight,
-        root.capsuleWindowHeight,
-        root.connectivityDetailWindowHeight,
-        root.overviewWindowHeight,
-        Math.ceil(root.controlCenterWindowHeight)
+        root.capsuleWindowHeight
     )
     // Grow the layer surface immediately, but keep the old extent while the
     // capsule finishes its collapse animation. A later expansion interrupts
@@ -180,16 +121,7 @@ PanelWindow {
     WlrLayershell.namespace: "tide-island"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: {
-        if (islandContainer.wallpaperPickerLayerVisible
-                || islandContainer.applicationLauncherLayerVisible)
-            return WlrKeyboardFocus.Exclusive;
-        // Keep keyboard focus on the overview until an overview action closes it.
-        // Click-to-focus closes the overview before focusing the selected client.
-        if (root.monitorFocused && root.overviewVisible)
-            return WlrKeyboardFocus.Exclusive;
         if (islandContainer.expandedPlayerKeyboardFocusRequested)
-            return WlrKeyboardFocus.OnDemand;
-        if (root.monitorFocused && root.connectivityPromptActive)
             return WlrKeyboardFocus.OnDemand;
         return WlrKeyboardFocus.None;
     }
@@ -202,7 +134,6 @@ PanelWindow {
     readonly property int iconFontSize: userConfig.iconFontSize
     readonly property string defaultSplitIcon: "\ud83c\udfa7"
     readonly property string notificationStatusIcon: "\uf0f3"
-    readonly property real overviewWindowCornerRadius: 12
     readonly property int dynamicIslandAcceptedButtons: userConfig.mouseButtonsMask([
         1,
         userConfig.dynamicIslandPrimaryButton,
@@ -214,7 +145,7 @@ PanelWindow {
     }
     readonly property real baseExclusiveZone: userConfig.islandExclusiveZone
     readonly property bool hoverExpandEnabled: configuredHoverExpandAction > 0
-    readonly property bool topGestureInputActive: !root.overviewVisible && islandContainer.canShowSideSwipe
+    readonly property bool topGestureInputActive: islandContainer.canShowSideSwipe
     readonly property bool autoHideRuntimeEnabled: !shellRootController
         || shellRootController.islandAutoHideRuntimeEnabled === undefined
         || !!shellRootController.islandAutoHideRuntimeEnabled
@@ -224,13 +155,7 @@ PanelWindow {
         || islandContainer.islandState === "lyrics"
     readonly property bool autoHideCanHideNow: autoHideEnabled
         && autoHideRestingState
-        && !root.overviewVisible
-        && !root.connectivityPromptActive
-        && !root.anyConnectivityDetailMounted
     readonly property bool autoHideMustShow: !autoHideRestingState
-        || root.overviewVisible
-        || root.connectivityPromptActive
-        || root.anyConnectivityDetailMounted
     readonly property bool autoHideTargetVisible: autoHideMustShow
         || (!autoHideForcedHidden && (!autoHideEnabled || autoHideVisible))
     readonly property bool autoHideSuppressesTransientReveal: (autoHideEnabled || autoHideForcedHidden)
@@ -253,38 +178,9 @@ PanelWindow {
     readonly property real topGestureInputHeight: topGestureInputActive
         ? (autoHideEnabled ? autoHideRevealHeight : root.baseExclusiveZone)
         : 0
-    readonly property real overviewCapsuleWidth: islandContainer.overviewView ? islandContainer.overviewView.width : 760
-    readonly property real overviewCapsuleHeight: islandContainer.overviewView ? islandContainer.overviewView.height : 308
-    readonly property real overviewCapsuleRadius: islandContainer.overviewView
-        ? islandContainer.overviewView.largeWorkspaceRadius + islandContainer.overviewView.outerPadding
-        : 44
-    readonly property color overviewCapsuleColor: islandContainer.overviewView
-        ? islandContainer.overviewView.cardColor
-        : StyleTokens.overviewCard
-    readonly property color overviewCapsuleBorderColor: islandContainer.overviewView
-        ? islandContainer.overviewView.cardBorderColor
-        : StyleTokens.overviewBorder
-    property bool wifiConnectivityDetailOpen: false
-    property bool wifiConnectivityDetailMounted: false
-    property bool bluetoothConnectivityDetailOpen: false
-    property bool bluetoothConnectivityDetailMounted: false
-    readonly property bool anyConnectivityDetailMounted: wifiConnectivityDetailMounted || bluetoothConnectivityDetailMounted
-    readonly property real connectivityDetailWidth: 318
-    readonly property real connectivityDetailHeight: 404
-    readonly property real controlCenterMaximumExtraHeight: controlCenterLoader.item
-        ? controlCenterLoader.item.controlCenterMaximumExtraHeight
-        : 120
-    readonly property real controlCenterWindowHeight: islandContainer.controlCenterLayerVisible
-        ? userConfig.islandTopMargin + 320 + root.controlCenterMaximumExtraHeight + 12
-        : 0
-
     readonly property real notificationCenterWindowHeight: islandContainer.notificationCenterLayerVisible
         ? userConfig.islandTopMargin + (notificationCenterLoader.item ? notificationCenterLoader.item.contentHeight : 400) + 6
         : 0
-    readonly property real connectivityDetailGap: 16
-    readonly property int connectivityDetailAnimationDuration: 360
-    readonly property string overviewWallpaperSource: overviewWallpaperCache.effectiveSource
-    property string wallpaperPickerActiveWallpaper: userConfig.wallpaperPath
 
     Behavior on autoHideProgress {
         NumberAnimation {
@@ -393,154 +289,6 @@ PanelWindow {
             showAutoHiddenIsland("manual");
     }
 
-    function beginOverviewOpening() {
-        if (!overviewPreparing) return;
-        if (overviewLoader.status !== Loader.Ready || !overviewVisualReady) return;
-        overviewPreloading = false;
-        overviewPhase = "opening";
-        overviewRevealTimer.restart();
-    }
-
-    function prepareOverview() {
-        if (compositorIsNiri) return;
-        if (overviewPhase !== "closed") return;
-        overviewUnloadGraceTimer.stop();
-        overviewPreloading = true;
-        overviewPreloadExpireTimer.restart();
-    }
-
-    function cancelPreparedOverview() {
-        if (compositorIsNiri) return;
-        if (overviewPhase !== "closed") return;
-        overviewPreloadExpireTimer.stop();
-        overviewPreloading = false;
-    }
-
-    function openOverview() {
-        if (compositorIsNiri)
-            return;
-        if (overviewPhase !== "closed") return;
-        overviewUnloadGraceTimer.stop();
-        overviewPreloadExpireTimer.stop();
-        overviewPreloading = true;
-        overviewPhase = "preparing";
-        if (overviewLoader.status === Loader.Ready) {
-            beginOverviewOpening();
-        }
-    }
-
-    function closeOverview() {
-        if (compositorIsNiri)
-            return;
-        if (!overviewMounted) return;
-        if (overviewLoader.status === Loader.Ready)
-            overviewUnloadGraceTimer.restart();
-        overviewRevealTimer.stop();
-        overviewPreloadExpireTimer.stop();
-        islandContainer.restoreRestingCapsule(true);
-        overviewPreloading = false;
-        overviewPhase = "closed";
-    }
-
-    function closeOverviewEverywhere() {
-        if (shellRootController && shellRootController.closeOverviewAll) {
-            shellRootController.closeOverviewAll();
-            return;
-        }
-
-        closeOverview();
-    }
-
-    function setConnectivityDetailVisible(kind, open) {
-        const nextOpen = !!open;
-
-        if (kind === "wifi") {
-            if (nextOpen) {
-                wifiConnectivityDetailCleanupTimer.stop();
-                wifiConnectivityDetailMounted = true;
-                wifiConnectivityDetailOpen = true;
-            } else {
-                if (!wifiConnectivityDetailMounted && !wifiConnectivityDetailOpen)
-                    return;
-                wifiConnectivityDetailOpen = false;
-                wifiConnectivityDetailCleanupTimer.restart();
-            }
-            return;
-        }
-
-        if (kind === "bluetooth") {
-            if (nextOpen) {
-                bluetoothConnectivityDetailCleanupTimer.stop();
-                bluetoothConnectivityDetailMounted = true;
-                bluetoothConnectivityDetailOpen = true;
-            } else {
-                if (!bluetoothConnectivityDetailMounted && !bluetoothConnectivityDetailOpen)
-                    return;
-                bluetoothConnectivityDetailOpen = false;
-                bluetoothConnectivityDetailCleanupTimer.restart();
-            }
-        }
-    }
-
-    function closeAllConnectivityDetails() {
-        setConnectivityDetailVisible("wifi", false);
-        setConnectivityDetailVisible("bluetooth", false);
-    }
-
-    function openOverviewEverywhere() {
-        if (shellRootController && shellRootController.openOverviewAll) {
-            shellRootController.openOverviewAll();
-            return;
-        }
-
-        openOverview();
-    }
-
-    function prepareOverviewEverywhere() {
-        if (shellRootController && shellRootController.prepareOverviewAll) {
-            shellRootController.prepareOverviewAll();
-            return;
-        }
-
-        prepareOverview();
-    }
-
-    function cancelPreparedOverviewEverywhere() {
-        if (shellRootController && shellRootController.cancelPreparedOverviewAll) {
-            shellRootController.cancelPreparedOverviewAll();
-            return;
-        }
-
-        cancelPreparedOverview();
-    }
-
-    function toggleOverviewEverywhere() {
-        if (compositorIsNiri)
-            return;
-
-        if (shellRootController && shellRootController.toggleOverviewAll) {
-            shellRootController.toggleOverviewAll();
-            return;
-        }
-
-        if (overviewMounted)
-            closeOverviewEverywhere();
-        else
-            openOverviewEverywhere();
-    }
-
-    function prewarmWallpaperCache() {
-        overviewWallpaperCache.prewarm();
-    }
-
-    function handleWallpaperApplySucceeded(filePath) {
-        wallpaperPickerActiveWallpaper = filePath;
-        if (shellRootController && shellRootController.refreshOverviewWallpaperCaches)
-            shellRootController.refreshOverviewWallpaperCaches(filePath);
-        else
-            prewarmWallpaperCache();
-    }
-
     function showNotification(appName, summary, body) {
         islandContainer.showNotificationCapsule(appName, summary, body);
     }
@@ -598,13 +346,6 @@ PanelWindow {
             islandContainer.showExpandedPlayer(false);
     }
 
-    function toggleControlCenterWindow() {
-        if (islandContainer.islandState === "control_center")
-            islandContainer.smartRestoreState();
-        else
-            islandContainer.showControlCenter();
-    }
-
     function toggleNotificationCenterWindow() {
         if (islandContainer.islandState === "notification_center")
             islandContainer.smartRestoreState();
@@ -612,35 +353,6 @@ PanelWindow {
             islandContainer.showNotificationCenter();
     }
 
-    function toggleWallpaperPickerWindow() {
-        if (islandContainer.islandState === "wallpaper_picker")
-            islandContainer.smartRestoreState();
-        else
-            islandContainer.showWallpaperPicker();
-    }
-
-    function toggleApplicationLauncherWindow() {
-        if (islandContainer.islandState === "application_launcher")
-            islandContainer.smartRestoreState();
-        else
-            islandContainer.showApplicationLauncher();
-    }
-
-    onOverviewVisibleChanged: {
-        if (overviewVisible && monitorFocused) overviewFocusTimer.restart();
-        if (overviewVisible)
-            showAutoHiddenIsland("state");
-        else
-            scheduleAutoHide();
-    }
-    onConnectivityPromptActiveChanged: {
-        if (connectivityPromptActive && monitorFocused)
-            connectivityPromptFocusTimer.restart();
-        if (connectivityPromptActive)
-            showAutoHiddenIsland("state");
-        else
-            scheduleAutoHide();
-    }
     onAutoHideEnabledChanged: {
         if (autoHideEnabled)
             scheduleAutoHide();
@@ -652,27 +364,6 @@ PanelWindow {
             scheduleAutoHide();
         else
             showAutoHiddenIsland("state");
-    }
-    onOverviewVisualReadyChanged: {
-        if (overviewVisualReady) beginOverviewOpening();
-    }
-    onMonitorFocusedChanged: {
-        if (overviewVisible && monitorFocused) overviewFocusTimer.restart();
-        if (connectivityPromptActive && monitorFocused) connectivityPromptFocusTimer.restart();
-    }
-
-    Timer {
-        id: overviewFocusTimer
-        interval: 0
-        repeat: false
-        onTriggered: islandContainer.forceActiveFocus()
-    }
-
-    Timer {
-        id: connectivityPromptFocusTimer
-        interval: 0
-        repeat: false
-        onTriggered: islandContainer.forceActiveFocus()
     }
 
     Timer {
@@ -698,68 +389,6 @@ PanelWindow {
         onTriggered: root.hideAutoHiddenIsland(false)
     }
 
-    function focusWallpaperPicker() {
-        islandContainer.forceActiveFocus();
-        if (wallpaperPickerLoader.item && wallpaperPickerLoader.item.grabKeyboardFocus)
-            wallpaperPickerLoader.item.grabKeyboardFocus();
-    }
-
-    function focusApplicationLauncher() {
-        islandContainer.forceActiveFocus();
-        if (applicationLauncherLoader.item && applicationLauncherLoader.item.grabKeyboardFocus)
-            applicationLauncherLoader.item.grabKeyboardFocus();
-    }
-
-    Timer {
-        id: overviewRevealTimer
-        interval: 0
-        repeat: false
-        onTriggered: {
-            if (root.overviewPhase === "opening") root.overviewPhase = "open";
-        }
-    }
-
-    Timer {
-        id: overviewPreloadExpireTimer
-        interval: 1200
-        repeat: false
-        onTriggered: {
-            if (root.overviewPhase === "closed")
-                root.overviewPreloading = false;
-        }
-    }
-
-    Timer {
-        id: overviewUnloadGraceTimer
-        interval: 260
-        repeat: false
-    }
-
-    Timer {
-        id: wifiConnectivityDetailCleanupTimer
-        interval: root.connectivityDetailAnimationDuration
-        repeat: false
-        onTriggered: root.wifiConnectivityDetailMounted = false
-    }
-
-    Timer {
-        id: bluetoothConnectivityDetailCleanupTimer
-        interval: root.connectivityDetailAnimationDuration
-        repeat: false
-        onTriggered: root.bluetoothConnectivityDetailMounted = false
-    }
-
-    OverviewWallpaperCacheController {
-        id: overviewWallpaperCache
-
-        active: root.overviewLoaderActive
-        wallpaperPath: userConfig.wallpaperCustomCommandEnabled === true && root.wallpaperPickerActiveWallpaper !== ""
-            ? root.wallpaperPickerActiveWallpaper
-            : userConfig.wallpaperPath
-        hyprMonitor: root.hyprMonitor
-        screenObject: root.screen
-    }
-
     IslandClock {
         id: timeObj
         clockFormat: userConfig.clockFormat
@@ -769,10 +398,7 @@ PanelWindow {
     FocusScope {
         id: islandContainer
         anchors.fill: parent
-        focus: wallpaperPickerLayerVisible
-            || applicationLauncherLayerVisible
-            || expandedPlayerKeyboardFocusRequested
-            || (root.monitorFocused && (root.overviewVisible || root.connectivityPromptActive))
+        focus: expandedPlayerKeyboardFocusRequested
 
         property string islandState: "normal"
         property string splitIcon: root.defaultSplitIcon
@@ -804,32 +430,13 @@ PanelWindow {
         property bool sideSwipeSettling: false
         property bool hoverExpandedActive: false
         property bool expandedPlayerKeyboardFocusRequested: false
-        property bool openTimerPageWhenExpanded: false
-        property int timerSelectedHours: 0
-        property int timerSelectedMinutes: 5
-        property int timerTotalSeconds: 300
-        property int timerRemainingSeconds: 0
-        property bool timerRunning: false
-        property bool timerActive: false
-        property bool timerCompletionAnimating: false
-        property real timerCompletionPulse: 0
-        property real timerCompletionFlash: 0
         readonly property int defaultAutoHideInterval: 1250
         readonly property int notificationAutoHideInterval: 4200
         readonly property int bluetoothExpandedAutoHideInterval: 2500
         readonly property int swipeAnimationDuration: 220
-        readonly property real timerProgress: timerActive && timerTotalSeconds > 0
-            ? Math.max(0, Math.min(1, timerRemainingSeconds / timerTotalSeconds))
-            : 0
-        readonly property bool timerBubbleWanted: (timerActive && timerRemainingSeconds > 0 || timerCompletionAnimating)
-            && !root.overviewVisible
-            && (islandState === "normal" || islandState === "lyrics" || islandState === "custom")
         readonly property bool blocksTransientSplit: islandState === "expanded"
             || islandState === "bluetooth_expanded"
-            || islandState === "control_center"
             || islandState === "notification"
-            || islandState === "wallpaper_picker"
-            || islandState === "application_launcher"
         readonly property bool splitShowsProgress: islandState === "split" && osdProgress >= 0
         readonly property bool splitShowsText: islandState === "split" && osdProgress < 0 && osdCustomText !== ""
         readonly property bool splitShowsIconOnly: islandState === "split" && osdProgress < 0 && osdCustomText === ""
@@ -842,8 +449,7 @@ PanelWindow {
         readonly property real rightSwipeProgress: Math.max(0, swipeTransitionProgress)
         readonly property var customLeftItems: systemState.customLeftItems
         readonly property bool hasCustomLeftItems: systemState.hasCustomLeftItems
-        readonly property bool customSwipeVisible: !root.overviewVisible
-            && hasCustomLeftItems
+        readonly property bool customSwipeVisible: hasCustomLeftItems
             && (
                 capsuleMouseArea.sideSwipeInteractive
                 ? swipeTransitionProgress < 0
@@ -855,7 +461,7 @@ PanelWindow {
                         && (workspaceOriginSide === "left" || swipeTransitionProgress < 0))
                 )
             )
-        readonly property bool lyricsSwipeVisible: !root.overviewVisible && (
+        readonly property bool lyricsSwipeVisible: (
             capsuleMouseArea.sideSwipeInteractive
             ? swipeTransitionProgress >= 0
             : (
@@ -866,13 +472,10 @@ PanelWindow {
                     && (workspaceOriginSide === "right" || swipeTransitionProgress > 0))
             )
         )
-        readonly property bool expandedLayerVisible: !root.overviewVisible && islandState === "expanded"
-        readonly property bool bluetoothExpandedLayerVisible: !root.overviewVisible && islandState === "bluetooth_expanded"
-        readonly property bool notificationLayerVisible: !root.overviewVisible && islandState === "notification"
-        readonly property bool controlCenterLayerVisible: !root.overviewVisible && islandState === "control_center"
-        readonly property bool notificationCenterLayerVisible: !root.overviewVisible && islandState === "notification_center"
-        readonly property bool wallpaperPickerLayerVisible: !root.overviewVisible && islandState === "wallpaper_picker"
-        readonly property bool applicationLauncherLayerVisible: !root.overviewVisible && islandState === "application_launcher"
+        readonly property bool expandedLayerVisible: islandState === "expanded"
+        readonly property bool bluetoothExpandedLayerVisible: islandState === "bluetooth_expanded"
+        readonly property bool notificationLayerVisible: islandState === "notification"
+        readonly property bool notificationCenterLayerVisible: islandState === "notification_center"
         readonly property var activePlayer: mediaController.activePlayer
         readonly property string lyricsDisplayText: mediaController.displayText
         readonly property string currentTrack: mediaController.currentTrack
@@ -883,22 +486,10 @@ PanelWindow {
         readonly property string timeTotal: mediaController.timeTotal
         readonly property bool screenRecordingActive: root.screenRecordingActive
         readonly property var bluetoothDevices: bluetoothConnectionTracker.devices
-        readonly property var overviewView: overviewLoader.item && overviewLoader.item.overviewView
-            ? overviewLoader.item.overviewView
-            : null
 
         onExpandedLayerVisibleChanged: {
             if (!expandedLayerVisible)
                 expandedPlayerKeyboardFocusRequested = false;
-        }
-
-        onControlCenterLayerVisibleChanged: {
-            if (!controlCenterLayerVisible) {
-                if (controlCenterLoader.item)
-                    controlCenterLoader.item.closeConnectivityPanels();
-                else
-                    root.closeAllConnectivityDetails();
-            }
         }
 
         onCustomLeftItemsChanged: {
@@ -950,13 +541,11 @@ PanelWindow {
             }
         }
 
-        CompositorWorkspaceTracker {
+        HyprlandWorkspaceTracker {
             id: workspaceTracker
 
-            compositor: CompositorBackend.compositor
             hyprMonitor: root.hyprMonitor
-            hyprMonitorName: root.hyprMonitorName
-            outputName: root.compositorOutputName
+            monitorName: root.hyprMonitorName
             monitorFocused: root.monitorFocused
 
             onWorkspaceSynced: function(workspaceId) {
@@ -981,37 +570,6 @@ PanelWindow {
             NumberAnimation {
                 duration: capsuleMouseArea.sideSwipeInteractive ? 0 : islandContainer.swipeAnimationDuration
                 easing.type: Easing.OutCubic
-            }
-        }
-
-        Keys.onPressed: (event) => {
-            if (!root.overviewVisible) return;
-
-            const view = islandContainer.overviewView;
-            if (event.key === Qt.Key_H) {
-                if (view)
-                    view.focusAdjacentWorkspace(0, -1);
-                event.accepted = true;
-            } else if (event.key === Qt.Key_J) {
-                if (view)
-                    view.focusAdjacentWorkspace(1, 0);
-                event.accepted = true;
-            } else if (event.key === Qt.Key_K) {
-                if (view)
-                    view.focusAdjacentWorkspace(-1, 0);
-                event.accepted = true;
-            } else if (event.key === Qt.Key_L) {
-                if (view)
-                    view.focusAdjacentWorkspace(0, 1);
-                event.accepted = true;
-            } else if ((event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier)) || event.key === Qt.Key_Backtab) {
-                if (root.hyprlandIntegration)
-                    root.hyprlandIntegration.focusWorkspace("r-1");
-                event.accepted = true;
-            } else if (event.key === Qt.Key_Tab) {
-                if (root.hyprlandIntegration)
-                    root.hyprlandIntegration.focusWorkspace("r+1");
-                event.accepted = true;
             }
         }
 
@@ -1047,28 +605,6 @@ PanelWindow {
             case "closeNotificationCenter":
                 if (islandState === "notification_center")
                     smartRestoreState();
-                return;
-            case "toggleControlCenter":
-                if (islandState === "control_center")
-                    smartRestoreState();
-                else
-                    showControlCenter();
-                return;
-            case "openControlCenter":
-                showControlCenter();
-                return;
-            case "closeControlCenter":
-                if (islandState === "control_center")
-                    smartRestoreState();
-                return;
-            case "toggleOverview":
-                root.toggleOverviewEverywhere();
-                return;
-            case "openOverview":
-                root.openOverviewEverywhere();
-                return;
-            case "closeOverview":
-                root.closeOverviewEverywhere();
                 return;
             case "toggleLyrics":
                 if (restingState === "lyrics")
@@ -1333,69 +869,6 @@ PanelWindow {
             expandedPlayerKeyboardFocusRequested = false;
         }
 
-        function clampTimerInput(value, minValue, maxValue) {
-            const parsed = parseInt(value, 10);
-            if (isNaN(parsed)) return minValue;
-            return Math.max(minValue, Math.min(maxValue, parsed));
-        }
-
-        function syncTimerDuration(hours, minutes) {
-            cancelTimerCompletionAnimation();
-            timerSelectedHours = clampTimerInput(hours, 0, 23);
-            timerSelectedMinutes = clampTimerInput(minutes, 0, 59);
-            timerTotalSeconds = timerSelectedHours * 3600 + timerSelectedMinutes * 60;
-            timerRemainingSeconds = 0;
-            timerRunning = false;
-            timerActive = false;
-        }
-
-        function toggleTimer(hours, minutes) {
-            if (timerCompletionAnimating)
-                cancelTimerCompletionAnimation();
-
-            if (timerRunning) {
-                timerRunning = false;
-                return;
-            }
-
-            if (!timerActive || timerRemainingSeconds <= 0) {
-                syncTimerDuration(hours, minutes);
-                timerRemainingSeconds = timerTotalSeconds;
-                timerActive = timerRemainingSeconds > 0;
-            }
-
-            if (timerRemainingSeconds > 0)
-                timerRunning = true;
-        }
-
-        function resetTimer() {
-            cancelTimerCompletionAnimation();
-            timerRemainingSeconds = 0;
-            timerRunning = false;
-            timerActive = false;
-        }
-
-        function startTimerCompletionAnimation() {
-            timerCompletionPulse = 0;
-            timerCompletionFlash = 0;
-            timerCompletionAnimating = true;
-        }
-
-        function cancelTimerCompletionAnimation() {
-            timerCompletionAnimating = false;
-            timerCompletionPulse = 0;
-            timerCompletionFlash = 0;
-        }
-
-        function showExpandedTimerPage() {
-            openTimerPageWhenExpanded = true;
-            showExpandedPlayer(false);
-            if (expandedPlayerLoader.item && expandedPlayerLoader.item.openTimerPage) {
-                expandedPlayerLoader.item.openTimerPage();
-                openTimerPageWhenExpanded = false;
-            }
-        }
-
         function showTransientCapsule(icon, progress, customText) {
             if (progress === undefined)    progress = -1.0;
             if (customText === undefined)  customText = "";
@@ -1418,7 +891,7 @@ PanelWindow {
         }
 
         function showNotificationCapsule(appName, summary, body) {
-            if (root.overviewVisible || islandState === "control_center" || islandState === "expanded") return;
+            if (islandState === "expanded") return;
 
             const cleanedAppName = cleanNotificationText(appName);
             const cleanedSummary = cleanNotificationText(summary);
@@ -1463,12 +936,7 @@ PanelWindow {
             return true;
         }
 
-        function suppressCapsuleClick(cancelPreparedOverview) {
-            if (cancelPreparedOverview === undefined) cancelPreparedOverview = false;
-            if (cancelPreparedOverview && capsuleMouseArea.preparedOverviewOnPress) {
-                root.cancelPreparedOverviewEverywhere();
-                capsuleMouseArea.preparedOverviewOnPress = false;
-            }
+        function suppressCapsuleClick() {
             capsuleMouseArea.suppressNextClick = true;
             swipeSuppressReset.restart();
         }
@@ -1525,7 +993,7 @@ PanelWindow {
         }
 
         function showBluetoothExpanded(device) {
-            if (!device || root.overviewVisible || islandState === "control_center" || islandState === "notification")
+            if (!device || islandState === "notification")
                 return;
 
             cancelSideSwipeSettle();
@@ -1538,15 +1006,6 @@ PanelWindow {
             restartAutoHideTimer(bluetoothExpandedAutoHideInterval);
         }
 
-        function showControlCenter() {
-            cancelSideSwipeSettle();
-            abortSideTransientMode();
-            clearTransientCapsule();
-            islandState = "control_center";
-            mainCapsule.displayedWidth = mainCapsule.baseTargetWidth;
-            stopAutoHideTimer();
-        }
-
         function showNotificationCenter() {
             cancelSideSwipeSettle();
             abortSideTransientMode();
@@ -1556,24 +1015,6 @@ PanelWindow {
             stopAutoHideTimer();
         }
 
-
-        function showWallpaperPicker() {
-            cancelSideSwipeSettle();
-            abortSideTransientMode();
-            clearTransientCapsule();
-            islandState = "wallpaper_picker";
-            mainCapsule.displayedWidth = mainCapsule.baseTargetWidth;
-            stopAutoHideTimer();
-        }
-
-        function showApplicationLauncher() {
-            cancelSideSwipeSettle();
-            abortSideTransientMode();
-            clearTransientCapsule();
-            islandState = "application_launcher";
-            mainCapsule.displayedWidth = mainCapsule.baseTargetWidth;
-            stopAutoHideTimer();
-        }
 
         function showCustomCapsule() {
             if (!hasCustomLeftItems) {
@@ -1596,7 +1037,7 @@ PanelWindow {
         function showWorkspaceCapsule(wsId) {
             currentWs = wsId;
             if (root.autoHideSuppressesTransientReveal) return;
-            if (islandState === "control_center" || islandState === "notification") return;
+            if (islandState === "notification") return;
             const animateFromSide = currentTransientOriginSide();
             clearTransientCapsule();
             sideTransientRestoreTimer.stop();
@@ -1608,23 +1049,6 @@ PanelWindow {
         }
 
         Timer { id: autoHideTimer; interval: islandContainer.defaultAutoHideInterval; onTriggered: islandContainer.smartRestoreState() }
-        Timer {
-            id: islandTimerTick
-            interval: 1000
-            repeat: true
-            running: islandContainer.timerRunning
-            onTriggered: {
-                const nextRemainingSeconds = Math.max(0, islandContainer.timerRemainingSeconds - 1);
-                if (nextRemainingSeconds <= 0) {
-                    islandContainer.startTimerCompletionAnimation();
-                    islandContainer.timerRemainingSeconds = 0;
-                    islandContainer.timerRunning = false;
-                    islandContainer.timerActive = false;
-                } else {
-                    islandContainer.timerRemainingSeconds = nextRemainingSeconds;
-                }
-            }
-        }
         Timer {
             id: osdProgressAnimationReset
             interval: 0
@@ -1657,16 +1081,13 @@ PanelWindow {
                 if (!root.hoverExpandEnabled) return;
 
                 const current = islandContainer.islandState;
-                const target = root.configuredHoverExpandAction === 2 ? "control_center" : "expanded";
+                const target = "expanded";
                 if (current === target) return;
                 if (current !== "normal" && current !== "custom" && current !== "lyrics")
                     return;
 
                 islandContainer.hoverExpandedActive = true;
-                if (root.configuredHoverExpandAction === 2)
-                    islandContainer.showControlCenter();
-                else
-                    islandContainer.showExpandedPlayer(false);
+                islandContainer.showExpandedPlayer(false);
             }
         }
         Timer {
@@ -1696,7 +1117,6 @@ PanelWindow {
         onCurrentTrackChanged: {
             if (userConfig.disableAutoExpandOnTrackChange) return;
             if (currentTrack !== ""
-                    && islandState !== "control_center"
                     && islandState !== "notification"
                     && islandState !== "bluetooth_expanded") {
                 if (root.autoHideSuppressesTransientReveal) return;
@@ -1711,13 +1131,10 @@ PanelWindow {
             z: 5
             property int morphDuration: 400
             readonly property bool notificationHistorySurface: islandContainer.islandState === "notification_center"
-            property real outlineWidth: root.overviewContentVisible || notificationHistorySurface ? 1 : 0
-            property color outlineColor: root.overviewContentVisible
-                ? root.overviewCapsuleBorderColor
-                : (notificationHistorySurface ? "#1affffff" : StyleTokens.clearBlack)
+            property real outlineWidth: notificationHistorySurface ? 1 : 0
+            property color outlineColor: notificationHistorySurface ? "#1affffff" : StyleTokens.clearBlack
             property real displayedWidth: baseTargetWidth
             readonly property real baseTargetWidth: {
-                if (root.overviewVisible) return root.overviewCapsuleWidth;
                 if (sideTransientRestoreTimer.running) {
                     if (islandContainer.restingState === "lyrics"
                             && ((islandContainer.islandState === "split" && islandContainer.splitOriginSide === "right")
@@ -1741,13 +1158,8 @@ PanelWindow {
                     return islandContainer.customCapsuleWidth;
                 case "lyrics":
                     return islandContainer.lyricsCapsuleWidth;
-                case "control_center":
-                    return 420;
                 case "notification_center":
                     return 410;
-                case "wallpaper_picker":
-                case "application_launcher":
-                    return 1100;
                 case "expanded":
                 case "bluetooth_expanded":
                     return 410;
@@ -1762,16 +1174,9 @@ PanelWindow {
                 }
             }
             readonly property real targetHeight: {
-                if (root.overviewVisible) return root.overviewCapsuleHeight;
-
                 switch (islandContainer.islandState) {
-                case "control_center":
-                    return 320 + (controlCenterLoader.item ? controlCenterLoader.item.controlCenterExtraHeight : 32);
                 case "notification_center":
                     return notificationCenterLoader.item ? notificationCenterLoader.item.contentHeight : 200;
-                case "wallpaper_picker":
-                case "application_launcher":
-                    return 260;
                 case "expanded":
                 case "bluetooth_expanded":
                     return 165;
@@ -1784,16 +1189,9 @@ PanelWindow {
                 }
             }
             readonly property real targetRadius: {
-                if (root.overviewVisible) return root.overviewCapsuleRadius;
-
                 switch (islandContainer.islandState) {
-                case "control_center":
-                    return 34;
                 case "notification_center":
                     return mainCapsule.targetHeight * 36 / 165;
-                case "wallpaper_picker":
-                case "application_launcher":
-                    return 34;
                 case "expanded":
                 case "bluetooth_expanded":
                     return 40;
@@ -1815,16 +1213,14 @@ PanelWindow {
             readonly property real sideSwipePreviewWidth: mainCapsule.sideSwipeWidthForProgress(
                 islandContainer.swipeTransitionProgress
             )
-            color: root.overviewContentVisible
-                ? root.overviewCapsuleColor
-                : (notificationHistorySurface
-                    ? "#080808"
-                    : Qt.rgba(
-                        root.waybarMainBackground.r,
-                        root.waybarMainBackground.g,
-                        root.waybarMainBackground.b,
-                        userConfig.islandBackgroundOpacity / 100.0
-                    ))
+            color: notificationHistorySurface
+                ? "#080808"
+                : Qt.rgba(
+                    root.waybarMainBackground.r,
+                    root.waybarMainBackground.g,
+                    root.waybarMainBackground.b,
+                    userConfig.islandBackgroundOpacity / 100.0
+                )
             y: userConfig.islandTopMargin
                 - (1 - root.autoHideProgress) * (targetHeight + userConfig.islandTopMargin + 8)
             x: parent ? parent.width * userConfig.islandPositionX / 100 - width / 2 : 0
@@ -1848,8 +1244,6 @@ PanelWindow {
                 }
             }
             Behavior on height {
-                enabled: !(controlCenterLoader.item && controlCenterLoader.item.batteryDrawerMoving)
-
                 NumberAnimation {
                     duration: mainCapsule.morphDuration
                     easing.type: Easing.OutQuint
@@ -1862,29 +1256,11 @@ PanelWindow {
             border.width: outlineWidth
             border.color: outlineColor
 
-            Rectangle {
-                anchors.fill: parent
-                anchors.margins: 1
-                radius: Math.max(parent.radius - 1, 0)
-                color: StyleTokens.transparent
-                border.width: 1
-                border.color: StyleTokens.overviewInnerBorder
-                opacity: root.overviewContentVisible ? 1 : 0
-
-                Behavior on opacity {
-                    NumberAnimation {
-                        duration: root.overviewContentVisible ? 260 : 140
-                        easing.type: Easing.InOutQuad
-                    }
-                }
-            }
-
-
             MouseArea {
                 id: capsuleMouseArea
                 anchors.fill: parent
                 z: -1
-                enabled: !root.overviewVisible && twoFingerTouchArea.touchPoints.length < 2
+                enabled: twoFingerTouchArea.touchPoints.length < 2
                 acceptedButtons: root.dynamicIslandAcceptedButtons
                 preventStealing: true
                 hoverEnabled: root.hoverExpandEnabled || root.autoHideEnabled
@@ -1897,7 +1273,6 @@ PanelWindow {
                 property bool swipeMoved: false
                 property bool sideSwipeInteractive: false
                 property bool suppressNextClick: false
-                property bool preparedOverviewOnPress: false
 
                 Timer {
                     id: swipeSuppressReset
@@ -1938,18 +1313,6 @@ PanelWindow {
                     swipeMoved = false;
                     sideSwipeInteractive = swipeArmed;
                     islandContainer.swipeTransitionProgress = swipeStartProgress;
-
-                    let pressedAction = "";
-                    if (mouse.button === userConfig.mouseButton(userConfig.dynamicIslandPrimaryButton)) {
-                        pressedAction = userConfig.dynamicIslandPrimaryAction;
-                    } else if (mouse.button === userConfig.mouseButton(userConfig.dynamicIslandSecondaryButton)) {
-                        pressedAction = userConfig.dynamicIslandSecondaryAction;
-                    }
-
-                    preparedOverviewOnPress = pressedAction === "openOverview"
-                        || (pressedAction === "toggleOverview" && root.overviewPhase === "closed");
-                    if (preparedOverviewOnPress)
-                        root.prepareOverviewEverywhere();
                 }
 
                 onPositionChanged: (mouse) => {
@@ -1972,9 +1335,6 @@ PanelWindow {
 
                 onReleased: {
                     if (swipeMoved) {
-                        if (preparedOverviewOnPress)
-                            root.cancelPreparedOverviewEverywhere();
-                        preparedOverviewOnPress = false;
                         suppressNextClick = true;
                         swipeSuppressReset.restart();
                     }
@@ -2019,13 +1379,10 @@ PanelWindow {
                 }
 
                 onCanceled: {
-                    if (preparedOverviewOnPress)
-                        root.cancelPreparedOverviewEverywhere();
                     swipeArmed = false;
                     swipeMoved = false;
                     sideSwipeInteractive = false;
                     suppressNextClick = false;
-                    preparedOverviewOnPress = false;
                     swipeSuppressReset.stop();
                     mainCapsule.displayedWidth = mainCapsule.baseTargetWidth;
                     islandContainer.swipeTransitionProgress = islandContainer.swipeRestProgressForState();
@@ -2039,25 +1396,19 @@ PanelWindow {
                     if (suppressNextClick) {
                         swipeSuppressReset.stop();
                         suppressNextClick = false;
-                        preparedOverviewOnPress = false;
                         return;
                     }
 
                     if (mouse.button === userConfig.mouseButton(userConfig.dynamicIslandPrimaryButton)) {
                         if (islandContainer.toggleNotificationExpansionIfNeeded()) {
-                            if (preparedOverviewOnPress)
-                                root.cancelPreparedOverviewEverywhere();
-                            preparedOverviewOnPress = false;
                             return;
                         }
 
-                        preparedOverviewOnPress = false;
                         islandContainer.handleConfiguredClickAction(userConfig.dynamicIslandPrimaryAction);
                         return;
                     }
 
                     if (mouse.button === userConfig.mouseButton(userConfig.dynamicIslandSecondaryButton)) {
-                        preparedOverviewOnPress = false;
                         islandContainer.handleConfiguredClickAction(userConfig.dynamicIslandSecondaryAction);
                     }
                 }
@@ -2067,7 +1418,6 @@ PanelWindow {
                 id: twoFingerTouchArea
                 anchors.fill: parent
                 z: 0
-                enabled: !root.overviewVisible
                 mouseEnabled: false
                 minimumTouchPoints: 2
                 maximumTouchPoints: 2
@@ -2200,7 +1550,7 @@ PanelWindow {
             Loader {
                 id: splitIconLoader
                 anchors.fill: parent
-                active: !root.overviewVisible && islandContainer.splitShowsIconOnly
+                active: islandContainer.splitShowsIconOnly
                 asynchronous: false
                 visible: active
 
@@ -2218,7 +1568,7 @@ PanelWindow {
             Loader {
                 id: osdLayerLoader
                 anchors.fill: parent
-                active: !root.overviewVisible && islandContainer.splitUsesExtendedLayout
+                active: islandContainer.splitUsesExtendedLayout
                 asynchronous: false
                 visible: active
 
@@ -2240,8 +1590,7 @@ PanelWindow {
             Loader {
                 id: workspaceLayerLoader
                 anchors.fill: parent
-                active: !root.overviewVisible
-                    && islandContainer.islandState === "long_capsule"
+                active: islandContainer.islandState === "long_capsule"
                     && (islandContainer.workspaceOriginSide !== "none"
                         || Math.abs(islandContainer.swipeTransitionProgress) < 0.001)
                 asynchronous: false
@@ -2267,13 +1616,6 @@ PanelWindow {
                 active: islandContainer.expandedLayerVisible
                 asynchronous: false
                 visible: active
-                onLoaded: {
-                    if (islandContainer.openTimerPageWhenExpanded
-                            && item && item.openTimerPage) {
-                        item.openTimerPage();
-                        islandContainer.openTimerPageWhenExpanded = false;
-                    }
-                }
 
                 sourceComponent: Component {
                     ExpandedPlayerLayer {
@@ -2286,26 +1628,12 @@ PanelWindow {
                         activePlayer: islandContainer.activePlayer
                         iconFontFamily: root.iconFontFamily
                         textFontFamily: root.textFontFamily
-                        timerSelectedHours: islandContainer.timerSelectedHours
-                        timerSelectedMinutes: islandContainer.timerSelectedMinutes
-                        timerTotalSeconds: islandContainer.timerTotalSeconds
-                        timerRemainingSeconds: islandContainer.timerRemainingSeconds
-                        timerRunning: islandContainer.timerRunning
-                        timerActive: islandContainer.timerActive
                         showCondition: islandContainer.expandedLayerVisible
                         onControlPressed: islandContainer.suppressCapsuleClick()
                         onBackgroundClicked: islandContainer.smartRestoreState()
                         onKeyboardFocusRequested: islandContainer.requestExpandedPlayerKeyboardFocus()
                         onKeyboardFocusReleased: islandContainer.releaseExpandedPlayerKeyboardFocus()
                         onPreviousRequested: mediaController.previous()
-                        onTimerToggleRequested: function(hours, minutes) {
-                            islandContainer.toggleTimer(hours, minutes);
-                        }
-                        onTimerResetRequested: islandContainer.resetTimer()
-                        onTimerDurationRequested: function(hours, minutes) {
-                            if (!islandContainer.timerActive)
-                                islandContainer.syncTimerDuration(hours, minutes);
-                        }
                     }
                 }
             }
@@ -2356,49 +1684,6 @@ PanelWindow {
                 }
             }
 
-            Loader {
-                id: controlCenterLoader
-                anchors.fill: parent
-                active: islandContainer.controlCenterLayerVisible || root.anyConnectivityDetailMounted
-                asynchronous: false
-                visible: active
-
-                sourceComponent: Component {
-                    ControlCenterLayer {
-                        iconFontFamily: root.iconFontFamily
-                        textFontFamily: root.textFontFamily
-                        heroFontFamily: root.heroFontFamily
-                        sliderIntroDelay: mainCapsule.morphDuration
-                        currentTime: timeObj.currentTime
-                        currentDateLabel: timeObj.currentDateLabel
-                        batteryCapacity: islandContainer.batteryCapacity
-                        isCharging: islandContainer.isCharging
-                        volumeLevel: islandContainer.currentVolume
-                        brightnessLevel: islandContainer.currentBrightness
-                        currentWorkspace: islandContainer.currentWs
-                        currentTrack: islandContainer.currentTrack
-                        currentArtist: islandContainer.currentArtist
-                        nightLightEnabled: root.shellRootController && root.shellRootController.nightLightEnabled !== undefined
-                            ? root.shellRootController.nightLightEnabled
-                            : false
-                        showCondition: islandContainer.controlCenterLayerVisible
-                        onFocusModeChanged: function(enabled) {
-                            if (root.shellRootController && root.shellRootController.focusEnabled !== undefined)
-                                root.shellRootController.focusEnabled = enabled;
-                        }
-                        onNightLightModeChanged: function(enabled) {
-                            if (root.shellRootController && root.shellRootController.nightLightEnabled !== undefined)
-                                root.shellRootController.nightLightEnabled = enabled;
-                        }
-                        onRequestNotification: function(appName, summary, body) {
-                            islandContainer.showNotificationCapsule(appName, summary, body);
-                        }
-                        onConnectivityPanelRequested: function(kind, open) {
-                            root.setConnectivityDetailVisible(kind, open);
-                        }
-                    }
-                }
-            }
 
             Loader {
                 id: notificationCenterLoader
@@ -2421,351 +1706,6 @@ PanelWindow {
                 }
             }
 
-            Loader {
-                id: wallpaperPickerLoader
-                anchors.fill: parent
-                active: islandContainer.wallpaperPickerLayerVisible
-                asynchronous: false
-                visible: islandContainer.wallpaperPickerLayerVisible
-                onLoaded: root.focusWallpaperPicker()
-
-                sourceComponent: Component {
-                    WallpaperPickerLayer {
-                        iconFontFamily: root.iconFontFamily
-                        textFontFamily: root.textFontFamily
-                        activeWallpaper: root.wallpaperPickerActiveWallpaper
-                        showCondition: islandContainer.wallpaperPickerLayerVisible
-                        onWallpaperApplied: filePath => root.wallpaperPickerActiveWallpaper = filePath
-                        onWallpaperApplySucceeded: filePath => root.handleWallpaperApplySucceeded(filePath)
-                        onCloseRequested: islandContainer.smartRestoreState()
-                    }
-                }
-            }
-
-            Loader {
-                id: applicationLauncherLoader
-                anchors.fill: parent
-                active: islandContainer.applicationLauncherLayerVisible
-                asynchronous: false
-                visible: islandContainer.applicationLauncherLayerVisible
-                onLoaded: root.focusApplicationLauncher()
-
-                sourceComponent: Component {
-                    ApplicationLauncherLayer {
-                        iconFontFamily: root.iconFontFamily
-                        textFontFamily: root.textFontFamily
-                        showCondition: islandContainer.applicationLauncherLayerVisible
-                        onCloseRequested: islandContainer.smartRestoreState()
-                    }
-                }
-            }
-
-            Loader {
-                id: overviewLoader
-
-                anchors.fill: parent
-                active: root.overviewLoaderActive
-                asynchronous: false
-                visible: root.overviewContentVisible
-
-                onStatusChanged: {
-                    if (status === Loader.Ready && root.overviewPreparing) {
-                        root.beginOverviewOpening();
-                    }
-                }
-
-                sourceComponent: Component {
-                    WorkspaceOverviewScene {
-                        screen: root.screen
-                        showCondition: root.overviewVisible
-                        previewsEnabled: root.overviewContentVisible
-                        textFontFamily: root.textFontFamily
-                        heroFontFamily: root.heroFontFamily
-                        wallpaperPath: root.overviewWallpaperSource
-                        windowCornerRadius: root.overviewWindowCornerRadius
-                        onCloseRequested: root.closeOverviewEverywhere()
-                    }
-                }
-            }
-
-        }
-
-        Item {
-            id: timerBubble
-
-            property bool mounted: islandContainer.timerBubbleWanted
-            property real reveal: islandContainer.timerBubbleWanted ? 1 : 0
-            readonly property int bubbleSize: 34
-            readonly property real hiddenX: mainCapsule.x + mainCapsule.width - width * 0.62
-            readonly property real shownX: mainCapsule.x + mainCapsule.width + 8
-            readonly property real centerY: mainCapsule.y + mainCapsule.height / 2 - height / 2
-
-            width: bubbleSize
-            height: bubbleSize
-            x: hiddenX + (shownX - hiddenX) * reveal
-            y: centerY + (1 - reveal) * 10
-            z: 6
-            visible: mounted
-            opacity: reveal * root.autoHideProgress
-            scale: (0.55 + reveal * 0.45) * (0.96 + root.autoHideProgress * 0.04) * (1 + islandContainer.timerCompletionPulse * 0.12)
-            transformOrigin: Item.Center
-
-            Connections {
-                target: islandContainer
-
-                function onTimerBubbleWantedChanged() {
-                    timerBubbleShowAnimation.stop();
-                    timerBubbleHideAnimation.stop();
-
-                    if (islandContainer.timerBubbleWanted) {
-                        timerBubble.mounted = true;
-                        timerBubbleShowAnimation.restart();
-                    } else {
-                        timerBubbleHideAnimation.restart();
-                    }
-                }
-
-                function onTimerProgressChanged() {
-                    timerBubbleRing.requestPaint();
-                }
-
-                function onTimerRemainingSecondsChanged() {
-                    timerBubbleRing.requestPaint();
-                }
-
-                function onTimerTotalSecondsChanged() {
-                    timerBubbleRing.requestPaint();
-                }
-
-                function onTimerCompletionAnimatingChanged() {
-                    timerBubbleRing.requestPaint();
-                }
-
-                function onTimerCompletionFlashChanged() {
-                    timerBubbleRing.requestPaint();
-                }
-            }
-
-            NumberAnimation {
-                id: timerBubbleShowAnimation
-
-                target: timerBubble
-                property: "reveal"
-                from: timerBubble.reveal
-                to: 1
-                duration: 360
-                easing.type: Easing.OutCubic
-            }
-
-            NumberAnimation {
-                id: timerBubbleHideAnimation
-
-                target: timerBubble
-                property: "reveal"
-                from: timerBubble.reveal
-                to: 0
-                duration: 280
-                easing.type: Easing.InCubic
-                onStopped: {
-                    if (!islandContainer.timerBubbleWanted && timerBubble.reveal <= 0.001)
-                        timerBubble.mounted = false;
-                }
-            }
-
-            SequentialAnimation {
-                id: timerBubbleCompletionAnimation
-
-                running: islandContainer.timerCompletionAnimating
-
-                onStarted: {
-                    timerBubbleShowAnimation.stop();
-                    timerBubbleHideAnimation.stop();
-                    timerBubble.mounted = true;
-                    timerBubble.reveal = 1;
-                }
-
-                onStopped: {
-                    if (islandContainer.timerCompletionAnimating)
-                        islandContainer.timerCompletionAnimating = false;
-                    islandContainer.timerCompletionPulse = 0;
-                    islandContainer.timerCompletionFlash = 0;
-                    timerBubbleRing.requestPaint();
-                }
-
-                ParallelAnimation {
-                    NumberAnimation {
-                        target: islandContainer
-                        property: "timerCompletionPulse"
-                        from: 0
-                        to: 1
-                        duration: 140
-                        easing.type: Easing.OutCubic
-                    }
-
-                    NumberAnimation {
-                        target: islandContainer
-                        property: "timerCompletionFlash"
-                        from: 0
-                        to: 1
-                        duration: 140
-                        easing.type: Easing.OutCubic
-                    }
-                }
-
-                ParallelAnimation {
-                    NumberAnimation {
-                        target: islandContainer
-                        property: "timerCompletionPulse"
-                        from: 1
-                        to: 0
-                        duration: 380
-                        easing.type: Easing.OutCubic
-                    }
-
-                    NumberAnimation {
-                        target: islandContainer
-                        property: "timerCompletionFlash"
-                        from: 1
-                        to: 0
-                        duration: 380
-                        easing.type: Easing.InOutQuad
-                    }
-                }
-
-                PauseAnimation {
-                    duration: 380
-                }
-            }
-
-            Rectangle {
-                anchors.fill: parent
-                anchors.margins: 2
-                radius: width / 2
-                color: StyleTokens.black
-            }
-
-            Canvas {
-                id: timerBubbleRing
-
-                anchors.fill: parent
-                anchors.margins: 1
-
-                Component.onCompleted: requestPaint()
-                onVisibleChanged: requestPaint()
-                onWidthChanged: requestPaint()
-                onHeightChanged: requestPaint()
-
-                onPaint: {
-                    const ctx = getContext("2d");
-                    const centerX = width / 2;
-                    const centerY = height / 2;
-                    const completionActive = islandContainer.timerCompletionAnimating;
-                    const flash = Math.max(0, Math.min(1, islandContainer.timerCompletionFlash));
-                    const lineWidth = completionActive ? 3 + flash : 3;
-                    const radius = Math.min(width, height) / 2 - lineWidth / 2;
-                    const progress = Math.max(0, Math.min(1, islandContainer.timerProgress));
-                    const startAngle = -Math.PI / 2;
-                    const endAngle = startAngle - Math.PI * 2 * progress;
-
-                    ctx.clearRect(0, 0, width, height);
-                    ctx.lineCap = "round";
-                    ctx.lineWidth = lineWidth;
-
-                    ctx.beginPath();
-                    ctx.strokeStyle = "#303036";
-                    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-                    ctx.stroke();
-
-                    if (completionActive) {
-                        if (flash > 0) {
-                            ctx.beginPath();
-                            ctx.lineWidth = lineWidth + 1.5;
-                            ctx.strokeStyle = "rgba(255, 204, 0, " + (0.18 * flash) + ")";
-                            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-                            ctx.stroke();
-                        }
-
-                        ctx.beginPath();
-                        ctx.lineWidth = lineWidth;
-                        ctx.strokeStyle = "rgba(255, 204, 0, " + (0.72 + 0.28 * flash) + ")";
-                        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-                        ctx.stroke();
-                    } else if (progress > 0) {
-                        ctx.beginPath();
-                        ctx.strokeStyle = "#ffcc00";
-                        ctx.arc(centerX, centerY, radius, startAngle, endAngle, true);
-                        ctx.stroke();
-                    }
-                }
-            }
-
-            Text {
-                anchors.centerIn: parent
-                anchors.horizontalCenterOffset: -1
-                text: "󰔛"
-                color: "white"
-                font.pixelSize: root.iconFontSize - 1
-                font.family: root.iconFontFamily
-                font.weight: Font.DemiBold
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-            }
-
-            MouseArea {
-                anchors.fill: parent
-                enabled: timerBubble.mounted && root.autoHideProgress > 0.5
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onEntered: {
-                    if (root.autoHideEnabled) {
-                        root.autoHidePointerInside = true;
-                        root.showAutoHiddenIsland();
-                    }
-                }
-                onExited: {
-                    if (root.autoHideEnabled) {
-                        root.autoHidePointerInside = false;
-                        root.scheduleAutoHide();
-                    }
-                }
-                onClicked: islandContainer.showExpandedTimerPage()
-            }
-        }
-
-        ConnectivityDetailShell {
-            id: wifiConnectivityDetailShell
-
-            open: root.wifiConnectivityDetailOpen
-            mounted: root.wifiConnectivityDetailMounted
-            rightSide: false
-            panelKind: "wifi"
-            provider: controlCenterLoader.item
-            mainCapsule: mainCapsule
-            availableWidth: root.width
-            detailWidth: root.connectivityDetailWidth
-            detailHeight: root.connectivityDetailHeight
-            detailGap: root.connectivityDetailGap
-            iconFontFamily: root.iconFontFamily
-            textFontFamily: root.textFontFamily
-            heroFontFamily: root.heroFontFamily
-        }
-
-        ConnectivityDetailShell {
-            id: bluetoothConnectivityDetailShell
-
-            open: root.bluetoothConnectivityDetailOpen
-            mounted: root.bluetoothConnectivityDetailMounted
-            rightSide: true
-            panelKind: "bluetooth"
-            provider: controlCenterLoader.item
-            mainCapsule: mainCapsule
-            availableWidth: root.width
-            detailWidth: root.connectivityDetailWidth
-            detailHeight: root.connectivityDetailHeight
-            detailGap: root.connectivityDetailGap
-            iconFontFamily: root.iconFontFamily
-            textFontFamily: root.textFontFamily
-            heroFontFamily: root.heroFontFamily
         }
     }
 

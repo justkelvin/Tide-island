@@ -31,12 +31,10 @@ ApplicationWindow {
         case 1:
             return generalPage
         case 2:
-            return wallpaperPage
-        case 3:
             return fontPage
-        case 4:
+        case 3:
             return shortcutPage
-        case 5:
+        case 4:
             return interactionPage
         default:
             return null
@@ -146,36 +144,10 @@ ApplicationWindow {
         }
 
         Text{
-            id: wallpaperButton
+            id: fontButton
             anchors.horizontalCenter: parent.horizontalCenter
             y: 265
             color: currentPage === 2 ? Theme.selectedColor : Theme.textColor
-            text: wallpaperButtonText.width > mainSplitLine.x ? "W" : "Wallpaper"
-            font.family: Theme.titleFontFamily
-            font.pixelSize: 23
-
-            TextMetrics {
-                id: wallpaperButtonText
-                font: wallpaperButton.font
-                text: "Wallpaper"
-            }
-
-            Behavior on color {ColorAnimation{ duration:Theme.animationDuration}}
-
-            MouseArea{
-                anchors.fill:parent
-
-                onClicked: {
-                    selectPage(2)
-                }
-            }
-        }
-
-        Text{
-            id: fontButton
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: 320
-            color: currentPage === 3 ? Theme.selectedColor : Theme.textColor
             text: fontButtonText.width > mainSplitLine.x ? "F" : "Font"
             font.family: Theme.titleFontFamily
             font.pixelSize: 23
@@ -192,7 +164,7 @@ ApplicationWindow {
                 anchors.fill:parent
 
                 onClicked: {
-                    selectPage(3)
+                    selectPage(2)
                 }
             }
         }
@@ -200,8 +172,8 @@ ApplicationWindow {
         Text{
             id: shortcutButton
             anchors.horizontalCenter: parent.horizontalCenter
-            y: 375
-            color: currentPage === 4 ? Theme.selectedColor : Theme.textColor
+            y: 320
+            color: currentPage === 3 ? Theme.selectedColor : Theme.textColor
             text: shortcutButtonText.width > mainSplitLine.x ? "S" : "Shortcut"
             font.family: Theme.titleFontFamily
             font.pixelSize: 23
@@ -218,7 +190,7 @@ ApplicationWindow {
                 anchors.fill:parent
 
                 onClicked: {
-                    selectPage(4)
+                    selectPage(3)
                 }
             }
         }
@@ -226,8 +198,8 @@ ApplicationWindow {
         Text{
             id: interactionButton
             anchors.horizontalCenter: parent.horizontalCenter
-            y: 430
-            color: currentPage === 5 ? Theme.selectedColor : Theme.textColor
+            y: 375
+            color: currentPage === 4 ? Theme.selectedColor : Theme.textColor
             text: interactionButtonText.width > mainSplitLine.x ? "I" : "Interaction"
             font.family: Theme.titleFontFamily
             font.pixelSize: 23
@@ -244,7 +216,7 @@ ApplicationWindow {
                 anchors.fill:parent
 
                 onClicked: {
-                    selectPage(5)
+                    selectPage(4)
                 }
             }
         }
@@ -291,13 +263,6 @@ ApplicationWindow {
             anchors.fill:parent
             visible: true
             opacity: 1
-        }
-
-        WallpaperSettings {
-            id: wallpaperPage
-            anchors.fill: parent
-            visible: false
-            opacity: 0
         }
 
         FontSettings {

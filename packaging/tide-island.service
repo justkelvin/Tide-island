@@ -1,5 +1,5 @@
 [Unit]
-Description=Tide Island Dynamic Island for Hyprland and niri
+Description=Tide Island Dynamic Island for Hyprland
 After=graphical-session.target
 
 [Service]

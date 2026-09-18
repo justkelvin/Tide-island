@@ -1,7 +1,7 @@
 <h1 align="center">Tide Island</h1>
 
 <p align="center">
-  <b>A smooth, lightweight, and flexible interactive Dynamic Island for Hyprland and niri.</b>
+  <b>A smooth, lightweight, and flexible interactive Dynamic Island for Hyprland.</b>
 </p>
 
 <p align="center">
@@ -9,7 +9,6 @@
   <a href="https://github.com/enhaoswen/Tide-island/issues"><img alt="GitHub issues" src="https://img.shields.io/github/issues/enhaoswen/Tide-island?style=flat-square&color=8aadf4"></a>
   <a href="https://aur.archlinux.org/packages/tide-island"><img alt="AUR package" src="https://img.shields.io/aur/version/tide-island?style=flat-square&label=AUR&color=8aadf4"></a>
   <img alt="Hyprland" src="https://img.shields.io/badge/Hyprland-111111?style=flat-square&color=8aadf4">
-  <img alt="niri" src="https://img.shields.io/badge/niri-111111?style=flat-square&color=8aadf4">
   <img alt="C++ + Qt" src="https://img.shields.io/badge/C%2B%2B%20%2B%20Qt-111111?style=flat-square&color=8aadf4">
 </p>
 
@@ -33,7 +32,7 @@
 
 ## About Tide Island
 
-Tide Island is a small desktop widget for Hyprland and niri, styled like the Dynamic Island.
+Tide Island is a small desktop widget for Hyprland, styled like the Dynamic Island.
 
 When nothing much is going on, it just sits in the corner, staying out of the way. When you need to check some information, it expands into a panel where you can view lyrics, switch workspaces, adjust system settings, check notifications, or put in some custom content.
 
@@ -53,22 +52,6 @@ It's built with Quickshell, QML, and C++/Qt 6. Most of the effort went into maki
       <img src="https://raw.githubusercontent.com/enhaoswen/Tide-island/display/Preview/msg.png" width="100%" alt="Message preview" />
     </td>
   </tr>
-  <tr>
-    <td width="50%">
-      <img src="https://raw.githubusercontent.com/enhaoswen/Tide-island/display/Preview/timer.png" width="100%" alt="Timer" />
-    </td>
-    <td width="50%">
-      <img src="https://raw.githubusercontent.com/enhaoswen/Tide-island/display/Preview/wallpaper%20switcher.png" width="100%" alt="Wallpaper switcher" />
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <img src="https://raw.githubusercontent.com/enhaoswen/Tide-island/display/Preview/cc_2.png" width="100%" alt="Control center" />
-    </td>
-    <td width="50%">
-      <img src="https://raw.githubusercontent.com/enhaoswen/Tide-island/display/Preview/Workspace overview_2.png" width="100%" alt="Workspace overview" />
-    </td>
-  </tr>
 </table>
 
 ### Config App
@@ -80,12 +63,7 @@ It's built with Quickshell, QML, and C++/Qt 6. Most of the effort went into maki
 
 - Clock
 - Music player
-- Control Center
-- Timer
 - Lyrics displayer
-- Application launcher
-- Wallpaper switcher
-- Workspace overview
 - Custom page
 - Notification Centre
 
@@ -117,9 +95,7 @@ It's built with Quickshell, QML, and C++/Qt 6. Most of the effort went into maki
 
 ### Compositor support
 
-- Hyprland: full current experience, including Tide's workspace overview, workspace animations, shortcuts, and Night Light through `hyprsunset`.
-- niri: island views, focused-output IPC commands, workspace change hints, native niri overview, shortcuts through `~/.config/tide-island/niri-shortcuts.kdl`, and Night Light through `gammastep`.
-- Tide checks `TIDE_ISLAND_COMPOSITOR` first, then `$XDG_CURRENT_DESKTOP`. It uses `$NIRI_SOCKET` only when the desktop environment is inconclusive, then falls back to Hyprland. This prevents inherited compositor sockets from causing a false detection.
+- Hyprland: full current experience, including workspace animations, shortcuts, and Night Light through `hyprsunset`.
 
 <br>
 

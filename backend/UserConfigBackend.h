@@ -13,32 +13,12 @@ class UserConfigBackend final : public QObject {
 
     Q_PROPERTY(QString userConfigPath READ userConfigPath CONSTANT FINAL)
     Q_PROPERTY(QString configError READ configError NOTIFY configErrorChanged FINAL)
-    Q_PROPERTY(QString defaultWallpaperPath READ defaultWallpaperPath WRITE setDefaultWallpaperPath NOTIFY defaultWallpaperPathChanged FINAL)
-    Q_PROPERTY(QString defaultTlpSudoPassword READ defaultTlpSudoPassword WRITE setDefaultTlpSudoPassword NOTIFY defaultTlpSudoPasswordChanged FINAL)
 
-    Q_PROPERTY(QString wallpaperPath READ wallpaperPath NOTIFY wallpaperPathChanged FINAL)
-    Q_PROPERTY(QString wallpaperLibraryPath READ wallpaperLibraryPath NOTIFY wallpaperLibraryPathChanged FINAL)
-    Q_PROPERTY(bool wallpaperPywalEnabled READ wallpaperPywalEnabled NOTIFY wallpaperPywalEnabledChanged FINAL)
-    Q_PROPERTY(bool wallpaperCustomCommandEnabled READ wallpaperCustomCommandEnabled NOTIFY wallpaperCustomCommandEnabledChanged FINAL)
-    Q_PROPERTY(QString wallpaperCustomCommand READ wallpaperCustomCommand NOTIFY wallpaperCustomCommandChanged FINAL)
-    Q_PROPERTY(QString wallpaperTransitionType READ wallpaperTransitionType NOTIFY wallpaperTransitionTypeChanged FINAL)
-    Q_PROPERTY(int wallpaperTransitionStep READ wallpaperTransitionStep NOTIFY wallpaperTransitionStepChanged FINAL)
-    Q_PROPERTY(double wallpaperTransitionDuration READ wallpaperTransitionDuration NOTIFY wallpaperTransitionDurationChanged FINAL)
-    Q_PROPERTY(int wallpaperTransitionFps READ wallpaperTransitionFps NOTIFY wallpaperTransitionFpsChanged FINAL)
-    Q_PROPERTY(int wallpaperTransitionAngle READ wallpaperTransitionAngle NOTIFY wallpaperTransitionAngleChanged FINAL)
-    Q_PROPERTY(QString wallpaperTransitionPosition READ wallpaperTransitionPosition NOTIFY wallpaperTransitionPositionChanged FINAL)
-    Q_PROPERTY(QString wallpaperTransitionBezier READ wallpaperTransitionBezier NOTIFY wallpaperTransitionBezierChanged FINAL)
-    Q_PROPERTY(QString wallpaperTransitionWave READ wallpaperTransitionWave NOTIFY wallpaperTransitionWaveChanged FINAL)
-    Q_PROPERTY(bool wallpaperTransitionInvertY READ wallpaperTransitionInvertY NOTIFY wallpaperTransitionInvertYChanged FINAL)
     Q_PROPERTY(QString iconFontFamily READ iconFontFamily NOTIFY iconFontFamilyChanged FINAL)
     Q_PROPERTY(QString textFontFamily READ textFontFamily NOTIFY textFontFamilyChanged FINAL)
     Q_PROPERTY(QString heroFontFamily READ heroFontFamily NOTIFY heroFontFamilyChanged FINAL)
     Q_PROPERTY(QString timeFontFamily READ timeFontFamily NOTIFY timeFontFamilyChanged FINAL)
     Q_PROPERTY(QString clockFormat READ clockFormat NOTIFY clockFormatChanged FINAL)
-    Q_PROPERTY(QString tlpSudoPassword READ tlpSudoPassword NOTIFY tlpSudoPasswordChanged FINAL)
-    Q_PROPERTY(QString tlpPermissionMode READ tlpPermissionMode NOTIFY tlpPermissionModeChanged FINAL)
-
-    Q_PROPERTY(int workspaceOverviewWindowDragButton READ workspaceOverviewWindowDragButton NOTIFY workspaceOverviewWindowDragButtonChanged FINAL)
 
     Q_PROPERTY(int dynamicIslandPrimaryButton READ dynamicIslandPrimaryButton NOTIFY dynamicIslandPrimaryButtonChanged FINAL)
     Q_PROPERTY(QString dynamicIslandPrimaryAction READ dynamicIslandPrimaryAction NOTIFY dynamicIslandPrimaryActionChanged FINAL)
@@ -66,30 +46,11 @@ public:
 
     QString userConfigPath() const;
     QString configError() const;
-    QString defaultWallpaperPath() const;
-    QString defaultTlpSudoPassword() const;
-    QString wallpaperPath() const;
-    QString wallpaperLibraryPath() const;
-    bool wallpaperPywalEnabled() const;
-    bool wallpaperCustomCommandEnabled() const;
-    QString wallpaperCustomCommand() const;
-    QString wallpaperTransitionType() const;
-    int wallpaperTransitionStep() const;
-    double wallpaperTransitionDuration() const;
-    int wallpaperTransitionFps() const;
-    int wallpaperTransitionAngle() const;
-    QString wallpaperTransitionPosition() const;
-    QString wallpaperTransitionBezier() const;
-    QString wallpaperTransitionWave() const;
-    bool wallpaperTransitionInvertY() const;
     QString iconFontFamily() const;
     QString textFontFamily() const;
     QString heroFontFamily() const;
     QString timeFontFamily() const;
     QString clockFormat() const;
-    QString tlpSudoPassword() const;
-    QString tlpPermissionMode() const;
-    int workspaceOverviewWindowDragButton() const;
     int dynamicIslandPrimaryButton() const;
     QString dynamicIslandPrimaryAction() const;
     int dynamicIslandSecondaryButton() const;
@@ -109,8 +70,6 @@ public:
     int bodyFontSize() const;
     int titleFontSize() const;
     int iconFontSize() const;
-    void setDefaultWallpaperPath(const QString &path);
-    void setDefaultTlpSudoPassword(const QString &password);
 
     Q_INVOKABLE int mouseButton(const QVariant &button) const;
     Q_INVOKABLE int mouseButtonsMask(const QVariant &buttons) const;
@@ -118,30 +77,11 @@ public:
 
 signals:
     void configErrorChanged();
-    void defaultWallpaperPathChanged();
-    void defaultTlpSudoPasswordChanged();
-    void wallpaperPathChanged();
-    void wallpaperLibraryPathChanged();
-    void wallpaperPywalEnabledChanged();
-    void wallpaperCustomCommandEnabledChanged();
-    void wallpaperCustomCommandChanged();
-    void wallpaperTransitionTypeChanged();
-    void wallpaperTransitionStepChanged();
-    void wallpaperTransitionDurationChanged();
-    void wallpaperTransitionFpsChanged();
-    void wallpaperTransitionAngleChanged();
-    void wallpaperTransitionPositionChanged();
-    void wallpaperTransitionBezierChanged();
-    void wallpaperTransitionWaveChanged();
-    void wallpaperTransitionInvertYChanged();
     void iconFontFamilyChanged();
     void textFontFamilyChanged();
     void heroFontFamilyChanged();
     void timeFontFamilyChanged();
     void clockFormatChanged();
-    void tlpSudoPasswordChanged();
-    void tlpPermissionModeChanged();
-    void workspaceOverviewWindowDragButtonChanged();
     void dynamicIslandPrimaryButtonChanged();
     void dynamicIslandPrimaryActionChanged();
     void dynamicIslandSecondaryButtonChanged();
@@ -170,34 +110,15 @@ private:
 
     QString m_userConfigPath;
     QString m_configError;
-    QString m_defaultWallpaperPath;
-    QString m_defaultTlpSudoPassword;
-    QString m_wallpaperPath;
-    QString m_wallpaperLibraryPath;
-    bool m_wallpaperPywalEnabled = false;
-    bool m_wallpaperCustomCommandEnabled = false;
-    QString m_wallpaperCustomCommand;
-    QString m_wallpaperTransitionType = QStringLiteral("center");
-    int m_wallpaperTransitionStep = 5;
-    double m_wallpaperTransitionDuration = 3.0;
-    int m_wallpaperTransitionFps = 60;
-    int m_wallpaperTransitionAngle = 45;
-    QString m_wallpaperTransitionPosition = QStringLiteral("center");
-    QString m_wallpaperTransitionBezier = QStringLiteral(".54,0,.34,.99");
-    QString m_wallpaperTransitionWave = QStringLiteral("20,20");
-    bool m_wallpaperTransitionInvertY = false;
     QString m_iconFontFamily = QStringLiteral("JetBrainsMono Nerd Font");
     QString m_textFontFamily = QStringLiteral("Inter Display");
     QString m_heroFontFamily = QStringLiteral("Inter Display");
     QString m_timeFontFamily = QStringLiteral("Inter Display");
     QString m_clockFormat = QStringLiteral("12");
-    QString m_tlpSudoPassword;
-    QString m_tlpPermissionMode = QStringLiteral("skip");
-    int m_workspaceOverviewWindowDragButton = 1;
     int m_dynamicIslandPrimaryButton = 1;
     QString m_dynamicIslandPrimaryAction = QStringLiteral("toggleExpandedPlayer");
     int m_dynamicIslandSecondaryButton = 3;
-    QString m_dynamicIslandSecondaryAction = QStringLiteral("toggleControlCenter");
+    QString m_dynamicIslandSecondaryAction = QString();
     QVariantList m_dynamicIslandLeftSwipeItems;
     bool m_islandShowWorkspaceOnAutoHide = true;
     bool m_disableAutoExpandOnTrackChange = false;

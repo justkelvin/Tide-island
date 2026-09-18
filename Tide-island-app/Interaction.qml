@@ -6,7 +6,6 @@ PagePanel {
     id: root
 
     readonly property string playerAction: "toggleExpandedPlayer"
-    readonly property string controlAction: "toggleControlCenter"
     readonly property var mouseButtonOptions: [
         { "label": "Left", "value": 1 },
         { "label": "Middle", "value": 2 },
@@ -14,8 +13,7 @@ PagePanel {
     ]
     readonly property var hoverActionOptions: [
         { "label": "Disabled", "value": 0 },
-        { "label": "Music Player", "value": 1 },
-        { "label": "Control Center", "value": 2 }
+        { "label": "Music Player", "value": 1 }
     ]
 
     property int revision: 0
@@ -29,7 +27,7 @@ PagePanel {
 
     function normalizedHoverAction(value) {
         const parsedValue = Number(value)
-        if (parsedValue === 0 || parsedValue === 1 || parsedValue === 2)
+        if (parsedValue === 0 || parsedValue === 1)
             return parsedValue
         return 1
     }
@@ -50,55 +48,24 @@ PagePanel {
         revision
 
         const primaryAction = String(ConfigStore.value("dynamicIslandPrimaryAction", root.playerAction))
-        const secondaryAction = String(ConfigStore.value("dynamicIslandSecondaryAction", root.controlAction))
-
         if (primaryAction === actionName)
             return normalizedButton(ConfigStore.value("dynamicIslandPrimaryButton", fallback), fallback)
-        if (secondaryAction === actionName)
-            return normalizedButton(ConfigStore.value("dynamicIslandSecondaryButton", fallback), fallback)
 
         return fallback
     }
 
-    function firstFreeButton(usedButton) {
-        const buttons = [1, 2, 3]
-        for (let i = 0; i < buttons.length; ++i) {
-            if (buttons[i] !== usedButton)
-                return buttons[i]
-        }
-        return 1
-    }
-
-    function saveClickMappings(playerButton, controlButton) {
+    function saveClickMappings(playerButton) {
         ConfigStore.setValue("dynamicIslandPrimaryAction", root.playerAction)
         ConfigStore.setValue("dynamicIslandPrimaryButton", playerButton)
-        ConfigStore.setValue("dynamicIslandSecondaryAction", root.controlAction)
-        ConfigStore.setValue("dynamicIslandSecondaryButton", controlButton)
+        ConfigStore.setValue("dynamicIslandSecondaryAction", "")
         ConfigStore.save()
         revision += 1
     }
 
     function setButtonForAction(actionName, button) {
-        let playerButton = buttonForAction(root.playerAction, 1)
-        let controlButton = buttonForAction(root.controlAction, 3)
-        const previousPlayerButton = playerButton
-        const previousControlButton = controlButton
-
         if (actionName === root.playerAction) {
-            playerButton = button
-            if (controlButton === playerButton)
-                controlButton = normalizedButton(previousPlayerButton, 1)
-            if (controlButton === playerButton)
-                controlButton = firstFreeButton(playerButton)
-        } else if (actionName === root.controlAction) {
-            controlButton = button
-            if (playerButton === controlButton)
-                playerButton = normalizedButton(previousControlButton, 3)
-            if (playerButton === controlButton)
-                playerButton = firstFreeButton(controlButton)
+            saveClickMappings(button)
         }
-
-        saveClickMappings(playerButton, controlButton)
     }
 
     function hoverActionValue() {
@@ -252,16 +219,6 @@ PagePanel {
                         description: "Mouse button that toggles the player"
                         actionName: root.playerAction
                         fallbackButton: 1
-                        width: parent.width
-                    }
-
-                    SplitLine { width: parent.width }
-
-                    ActionButtonRow {
-                        title: "Control Center"
-                        description: "Mouse button that toggles the control center"
-                        actionName: root.controlAction
-                        fallbackButton: 3
                         width: parent.width
                     }
                 }

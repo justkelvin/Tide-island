@@ -50,7 +50,7 @@ PagePanel {
         Item {
             id: content
             width: scroller.width
-            height: tlpPanel.y + tlpPanel.height + 40
+            height: customPagePanel.y + customPagePanel.height + 40
 
             Text {
                 id: title
@@ -202,32 +202,6 @@ PagePanel {
                 anchors.rightMargin: 40
                 height: implicitHeight
             }
-
-            Text {
-                id: tlpTitle
-                text: "TLP"
-                anchors.top: customPagePanel.bottom
-                anchors.topMargin: 34
-                anchors.left: parent.left
-                anchors.leftMargin: 32
-                anchors.right: parent.right
-                anchors.rightMargin: 40
-                font.family: Theme.titleFontFamily
-                font.pixelSize: 23
-                color: Theme.textColor
-            }
-
-            TlpSettings {
-                id: tlpPanel
-                anchors.top: tlpTitle.bottom
-                anchors.topMargin: 15
-                anchors.left: parent.left
-                anchors.leftMargin: 30
-                anchors.right: parent.right
-                anchors.rightMargin: 40
-                height: implicitHeight
-            }
-
         }
     }
 

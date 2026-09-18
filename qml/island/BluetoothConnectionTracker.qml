@@ -150,7 +150,9 @@ Item {
 
             Component.onCompleted: root.sync(true)
             Component.onDestruction: Qt.callLater(function() {
-                root.sync(true);
+                if (typeof root !== "undefined" && root) {
+                    root.sync(true);
+                }
             })
 
             Connections {
