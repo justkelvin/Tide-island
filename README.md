@@ -33,6 +33,8 @@
   <a href="#common-commands">Common Commands</a>
   ·
   <a href="#notification-centre">Notification Centre</a>
+  ·
+  <a href="#hyde--waybar-integration">HyDE / Waybar Integration</a>
 </p>
 
 ---
@@ -234,6 +236,27 @@ systemctl --user stop tide-island
 ```bash
 journalctl --user -u tide-island -f
 ```
+
+<br>
+
+## HyDE / Waybar Integration
+
+This fork can run Tide embedded in a HyDE Waybar bar instead of as a fully
+independent panel:
+
+- Tide watches `~/.config/waybar/theme.css` and tints its capsule background
+  with Waybar's `@define-color main-bg` color, blended with the
+  `islandBackgroundOpacity` setting, so it visually matches your active
+  Waybar theme.
+- Tide's window sets `exclusionMode: ExclusionMode.Ignore` and renders on the
+  Wayland `Overlay` layer under the `tide-island` namespace, so it shares
+  Waybar's top strip instead of reserving its own space and pushing Waybar
+  down (or being pushed below it).
+
+A ready-to-use Waybar layout/style preset and Tide configuration matching
+this setup are provided in [`integrations/hyde`](integrations/hyde/README.md),
+along with full installation steps and notes on avoiding duplicate
+notifications with Dunst.
 
 <br>
 

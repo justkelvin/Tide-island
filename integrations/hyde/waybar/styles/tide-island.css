@@ -1,0 +1,10 @@
+@import "../../../.local/share/waybar/styles/hyprdots.css";
+
+/* Optional spacer retained for layouts that place Tide above a center module. */
+#custom-tide-spacer {
+    min-width: 164px;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    color: transparent;
+}

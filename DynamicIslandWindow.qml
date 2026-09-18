@@ -1,5 +1,7 @@
+import QtCore
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.Mpris
 import IslandBackend
@@ -59,6 +61,26 @@ PanelWindow {
     property string autoHideRevealSource: "none"
 
     readonly property var userConfig: UserConfig
+    property color waybarMainBackground: StyleTokens.black
+
+    function refreshWaybarMainBackground() {
+        const css = waybarThemeFile.text();
+        const match = css.match(/@define-color\s+main-bg\s+(#[0-9a-fA-F]{6})\s*;/);
+        if (match)
+            waybarMainBackground = match[1];
+    }
+
+    FileView {
+        id: waybarThemeFile
+
+        path: StandardPaths.writableLocation(StandardPaths.ConfigLocation) + "/waybar/theme.css"
+        preload: true
+        watchChanges: true
+        printErrors: false
+
+        onLoaded: root.refreshWaybarMainBackground()
+        onTextChanged: root.refreshWaybarMainBackground()
+    }
 
     Loader {
         id: hyprlandIntegrationLoader
@@ -147,11 +169,16 @@ PanelWindow {
     onRequestedWindowHeightChanged: root.reconcileWindowHeight()
     Component.onCompleted: root.retainedWindowHeight = root.requestedWindowHeight
 
-    exclusiveZone: Math.ceil(root.baseExclusiveZone * root.exclusiveZoneProgress)
-    WlrLayershell.layer: islandContainer.wallpaperPickerLayerVisible
-        || islandContainer.applicationLauncherLayerVisible
-        ? WlrLayer.Overlay
-        : WlrLayer.Top
+    // HyDE/Waybar integration: share Waybar's top strip without reserving a
+    // second exclusive zone. Tide remains a separate layer-shell surface.
+    // (Do not also bind exclusiveZone here: Quickshell's exclusiveZone setter
+    // forces exclusionMode back to Normal as a side effect, which silently
+    // breaks Ignore mode the moment that binding re-fires.)
+    exclusionMode: ExclusionMode.Ignore
+    // Tide is visually embedded in Waybar but remains a separate surface.
+    // Keep it above Waybar so the transparent panel cannot obscure the island.
+    WlrLayershell.namespace: "tide-island"
+    WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: {
         if (islandContainer.wallpaperPickerLayerVisible
                 || islandContainer.applicationLauncherLayerVisible)
@@ -1790,7 +1817,14 @@ PanelWindow {
             )
             color: root.overviewContentVisible
                 ? root.overviewCapsuleColor
-                : (notificationHistorySurface ? "#080808" : Qt.rgba(0, 0, 0, userConfig.islandBackgroundOpacity / 100.0))
+                : (notificationHistorySurface
+                    ? "#080808"
+                    : Qt.rgba(
+                        root.waybarMainBackground.r,
+                        root.waybarMainBackground.g,
+                        root.waybarMainBackground.b,
+                        userConfig.islandBackgroundOpacity / 100.0
+                    ))
             y: userConfig.islandTopMargin
                 - (1 - root.autoHideProgress) * (targetHeight + userConfig.islandTopMargin + 8)
             x: parent ? parent.width * userConfig.islandPositionX / 100 - width / 2 : 0
