@@ -519,7 +519,7 @@ build_tide_island() {
   local root cache_dir build_dir
   root="$(repo_root)"
   cache_dir="$(installer_cache_dir)"
-  build_dir="$root/build-release-installer"
+  build_dir="$cache_dir/tide-island-build"
   mkdir -p "$cache_dir"
 
   log "Configuring Tide Island"

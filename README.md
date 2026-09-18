@@ -5,14 +5,6 @@
 </p>
 
 <p align="center">
-  <sub>
-    <a href="./README.md">English</a>
-     · 
-    <a href="./README.zh-CN.md">简体中文</a>
-  </sub>
-</p>
-
-<p align="center">
   <a href="https://github.com/enhaoswen/Tide-island/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/enhaoswen/Tide-island?style=flat-square&color=8aadf4"></a>
   <a href="https://github.com/enhaoswen/Tide-island/issues"><img alt="GitHub issues" src="https://img.shields.io/github/issues/enhaoswen/Tide-island?style=flat-square&color=8aadf4"></a>
   <a href="https://aur.archlinux.org/packages/tide-island"><img alt="AUR package" src="https://img.shields.io/aur/version/tide-island?style=flat-square&label=AUR&color=8aadf4"></a>

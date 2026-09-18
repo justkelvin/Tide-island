@@ -244,7 +244,7 @@ install(FILES
 
 
 # Install launcher
-configure_file(tide-island-launcher ${CMAKE_CURRENT_BINARY_DIR}/tide-island @ONLY)
+configure_file(packaging/tide-island-launcher ${CMAKE_CURRENT_BINARY_DIR}/tide-island @ONLY)
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/tide-island DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # Install helper executables
@@ -253,7 +253,7 @@ install(TARGETS lyricsmpris
 )
 
 # Install desktop entry
-install(FILES tide-island.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+install(FILES packaging/tide-island.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
 
 # Install systemd user service
-install(FILES tide-island.service DESTINATION lib/systemd/user)
+install(FILES packaging/tide-island.service DESTINATION lib/systemd/user)
