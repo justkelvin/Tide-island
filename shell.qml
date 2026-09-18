@@ -144,10 +144,6 @@ Scope {
         function togglePlayer() {
             shellRoot.forFocusedWindow((window) => window.togglePlayerWindow());
         }
-
-        function toggleNotificationCenter() {
-            shellRoot.forFocusedWindow((window) => window.toggleNotificationCenterWindow());
-        }
     }
 
     Connections {

@@ -23,8 +23,6 @@
   ·
   <a href="#common-commands">Common Commands</a>
   ·
-  <a href="#notification-centre">Notification Centre</a>
-  ·
   <a href="#hyde--waybar-integration">HyDE / Waybar Integration</a>
 </p>
 
@@ -65,7 +63,7 @@ It's built with Quickshell, QML, and C++/Qt 6. Most of the effort went into maki
 - Music player
 - Lyrics displayer
 - Custom page
-- Notification Centre
+- Notification popups
 
 
 

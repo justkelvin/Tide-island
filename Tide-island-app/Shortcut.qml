@@ -44,13 +44,6 @@ PagePanel {
                 "method": "togglePlayer"
             },
             {
-                "action": "Notification history",
-                "mods": "SUPER",
-                "key": "N",
-                "target": "tide",
-                "method": "toggleNotificationCenter"
-            },
-            {
                 "action": "Toggle island",
                 "mods": "SUPER",
                 "key": "F",

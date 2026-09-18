@@ -87,10 +87,7 @@ PanelWindow {
     readonly property real capsuleWindowHeight: Math.ceil(
         userConfig.islandTopMargin + mainCapsule.targetHeight + 12
     )
-    readonly property real requestedWindowHeight: Math.max(
-        root.notificationCenterWindowHeight,
-        root.capsuleWindowHeight
-    )
+    readonly property real requestedWindowHeight: root.capsuleWindowHeight
     // Grow the layer surface immediately, but keep the old extent while the
     // capsule finishes its collapse animation. A later expansion interrupts
     // the pending shrink instead of letting a stale timer clip new content.
@@ -177,9 +174,6 @@ PanelWindow {
         : 0
     readonly property real topGestureInputHeight: topGestureInputActive
         ? (autoHideEnabled ? autoHideRevealHeight : root.baseExclusiveZone)
-        : 0
-    readonly property real notificationCenterWindowHeight: islandContainer.notificationCenterLayerVisible
-        ? userConfig.islandTopMargin + (notificationCenterLoader.item ? notificationCenterLoader.item.contentHeight : 400) + 6
         : 0
 
     Behavior on autoHideProgress {
@@ -346,12 +340,6 @@ PanelWindow {
             islandContainer.showExpandedPlayer(false);
     }
 
-    function toggleNotificationCenterWindow() {
-        if (islandContainer.islandState === "notification_center")
-            islandContainer.smartRestoreState();
-        else
-            islandContainer.showNotificationCenter();
-    }
 
     onAutoHideEnabledChanged: {
         if (autoHideEnabled)
@@ -418,7 +406,6 @@ PanelWindow {
         property string notificationBody: ""
         property bool notificationExpanded: false
         property var bluetoothExpandedDevice: null
-        property var notificationHistoryModel: ListModel {}
         readonly property var cavaLevels: systemState.cavaLevels
         property real swipeTransitionProgress: 0
         property string workspaceOriginSide: "none"
@@ -475,7 +462,6 @@ PanelWindow {
         readonly property bool expandedLayerVisible: islandState === "expanded"
         readonly property bool bluetoothExpandedLayerVisible: islandState === "bluetooth_expanded"
         readonly property bool notificationLayerVisible: islandState === "notification"
-        readonly property bool notificationCenterLayerVisible: islandState === "notification_center"
         readonly property var activePlayer: mediaController.activePlayer
         readonly property string lyricsDisplayText: mediaController.displayText
         readonly property string currentTrack: mediaController.currentTrack
@@ -591,19 +577,6 @@ PanelWindow {
                 return;
             case "closeExpandedPlayer":
                 if (islandState === "expanded")
-                    smartRestoreState();
-                return;
-            case "toggleNotificationCenter":
-                if (islandState === "notification_center")
-                    smartRestoreState();
-                else
-                    showNotificationCenter();
-                return;
-            case "openNotificationCenter":
-                showNotificationCenter();
-                return;
-            case "closeNotificationCenter":
-                if (islandState === "notification_center")
                     smartRestoreState();
                 return;
             case "toggleLyrics":
@@ -908,18 +881,6 @@ PanelWindow {
             notificationExpanded = false;
             islandState = "notification";
             restartAutoHideTimer(notificationAutoHideInterval);
-            // Store in notification history
-                if (notificationHistoryModel) {
-                    notificationHistoryModel.insert(0, {
-                        appName: cleanedAppName !== "" ? cleanedAppName : "Notification",
-                        summary: resolvedSummary,
-                        body: cleanedSummary !== "" ? cleanedBody : "",
-                        timestamp: new Date()
-                    });
-                    if (notificationHistoryModel.count > 50)
-                        notificationHistoryModel.remove(50, notificationHistoryModel.count - 50);
-                }
-
         }
 
         function toggleNotificationExpansionIfNeeded() {
@@ -1006,14 +967,6 @@ PanelWindow {
             restartAutoHideTimer(bluetoothExpandedAutoHideInterval);
         }
 
-        function showNotificationCenter() {
-            cancelSideSwipeSettle();
-            abortSideTransientMode();
-            clearTransientCapsule();
-            islandState = "notification_center";
-            mainCapsule.displayedWidth = mainCapsule.baseTargetWidth;
-            stopAutoHideTimer();
-        }
 
 
         function showCustomCapsule() {
@@ -1130,9 +1083,8 @@ PanelWindow {
             id: mainCapsule
             z: 5
             property int morphDuration: 400
-            readonly property bool notificationHistorySurface: islandContainer.islandState === "notification_center"
-            property real outlineWidth: notificationHistorySurface ? 1 : 0
-            property color outlineColor: notificationHistorySurface ? "#1affffff" : StyleTokens.clearBlack
+            property real outlineWidth: 0
+            property color outlineColor: StyleTokens.clearBlack
             property real displayedWidth: baseTargetWidth
             readonly property real baseTargetWidth: {
                 if (sideTransientRestoreTimer.running) {
@@ -1158,8 +1110,6 @@ PanelWindow {
                     return islandContainer.customCapsuleWidth;
                 case "lyrics":
                     return islandContainer.lyricsCapsuleWidth;
-                case "notification_center":
-                    return 410;
                 case "expanded":
                 case "bluetooth_expanded":
                     return 410;
@@ -1175,8 +1125,6 @@ PanelWindow {
             }
             readonly property real targetHeight: {
                 switch (islandContainer.islandState) {
-                case "notification_center":
-                    return notificationCenterLoader.item ? notificationCenterLoader.item.contentHeight : 200;
                 case "expanded":
                 case "bluetooth_expanded":
                     return 165;
@@ -1190,8 +1138,6 @@ PanelWindow {
             }
             readonly property real targetRadius: {
                 switch (islandContainer.islandState) {
-                case "notification_center":
-                    return mainCapsule.targetHeight * 36 / 165;
                 case "expanded":
                 case "bluetooth_expanded":
                     return 40;
@@ -1213,14 +1159,12 @@ PanelWindow {
             readonly property real sideSwipePreviewWidth: mainCapsule.sideSwipeWidthForProgress(
                 islandContainer.swipeTransitionProgress
             )
-            color: notificationHistorySurface
-                ? "#080808"
-                : Qt.rgba(
-                    root.waybarMainBackground.r,
-                    root.waybarMainBackground.g,
-                    root.waybarMainBackground.b,
-                    userConfig.islandBackgroundOpacity / 100.0
-                )
+            color: Qt.rgba(
+                root.waybarMainBackground.r,
+                root.waybarMainBackground.g,
+                root.waybarMainBackground.b,
+                userConfig.islandBackgroundOpacity / 100.0
+            )
             y: userConfig.islandTopMargin
                 - (1 - root.autoHideProgress) * (targetHeight + userConfig.islandTopMargin + 8)
             x: parent ? parent.width * userConfig.islandPositionX / 100 - width / 2 : 0
@@ -1679,28 +1623,6 @@ PanelWindow {
                         onExpansionToggleRequested: {
                             islandContainer.suppressCapsuleClick(true);
                             islandContainer.toggleNotificationExpansionIfNeeded();
-                        }
-                    }
-                }
-            }
-
-
-            Loader {
-                id: notificationCenterLoader
-                anchors.fill: parent
-                active: islandContainer.notificationCenterLayerVisible
-                asynchronous: false
-                visible: active
-
-                sourceComponent: Component {
-                    NotificationCenterLayer {
-                        notificationModel: islandContainer.notificationHistoryModel
-                        iconFontFamily: root.iconFontFamily
-                        textFontFamily: root.textFontFamily
-                        heroFontFamily: root.heroFontFamily
-
-                        onClearAllRequested: {
-                            islandContainer.notificationHistoryModel.clear();
                         }
                     }
                 }

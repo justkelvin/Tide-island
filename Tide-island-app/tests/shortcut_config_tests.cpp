@@ -40,7 +40,7 @@ private slots:
     void defaultsDoNotIncludeWorkspaceOverview();
     void defaultsCycleIslandViewsWithArrowKeys();
     void legacyArrowShortcutsMigrateToBidirectionalCycle();
-    void defaultsIncludeNotificationHistory();
+    void defaultsDoNotIncludeNotificationHistory();
     void disabledShortcutPersistsAndIsNotGenerated();
     void disabledShortcutUpdatesActiveHyprlandLuaBlock();
     void configAppColorSchemePersists();
@@ -136,7 +136,7 @@ void ShortcutConfigTests::legacyArrowShortcutsMigrateToBidirectionalCycle()
     QVERIFY(migratedLeft);
 }
 
-void ShortcutConfigTests::defaultsIncludeNotificationHistory()
+void ShortcutConfigTests::defaultsDoNotIncludeNotificationHistory()
 {
     QTemporaryDir configHome;
     QVERIFY(configHome.isValid());
@@ -148,12 +148,10 @@ void ShortcutConfigTests::defaultsIncludeNotificationHistory()
     for (const QVariant &value : backend.shortcutBindings()) {
         const QVariantMap binding = value.toMap();
         foundNotificationHistory = foundNotificationHistory
-            || (binding.value(QStringLiteral("mods")).toString() == QStringLiteral("SUPER")
-                && binding.value(QStringLiteral("key")).toString() == QStringLiteral("N")
-                && binding.value(QStringLiteral("target")).toString() == QStringLiteral("tide")
+            || (binding.value(QStringLiteral("target")).toString() == QStringLiteral("tide")
                 && binding.value(QStringLiteral("method")).toString() == QStringLiteral("toggleNotificationCenter"));
     }
-    QVERIFY(foundNotificationHistory);
+    QVERIFY(!foundNotificationHistory);
 }
 
 void ShortcutConfigTests::configAppColorSchemePersists()
@@ -222,7 +220,7 @@ void ShortcutConfigTests::disabledShortcutPersistsAndIsNotGenerated()
 
     QVERIFY(reloaded.applyShortcutBindings(reloaded.shortcutBindings()));
     const QString managedConfig = readTextFile(configHome.path() + QStringLiteral("/tide-island/hyprland-shortcuts.conf"));
-    QVERIFY(managedConfig.contains(QStringLiteral("toggleNotificationCenter")));
+    QVERIFY(managedConfig.contains(QStringLiteral("showClock")));
     QVERIFY(!managedConfig.contains(QStringLiteral("togglePlayer")));
 
     qputenv("PATH", originalPath);
@@ -271,7 +269,7 @@ void ShortcutConfigTests::disabledShortcutUpdatesActiveHyprlandLuaBlock()
     QVERIFY(updatedLua.contains(QStringLiteral("local preserved = true")));
     QVERIFY(updatedLua.contains(QStringLiteral("Tide Island shortcuts: begin")));
     QVERIFY(updatedLua.contains(QStringLiteral("for i = 1, 10 do")));
-    QVERIFY(updatedLua.contains(QStringLiteral("toggleNotificationCenter")));
+    QVERIFY(updatedLua.contains(QStringLiteral("showClock")));
     QVERIFY(!updatedLua.contains(QStringLiteral("togglePlayer")));
 
     qputenv("PATH", originalPath);

@@ -53,7 +53,6 @@ QVariantList defaultShortcutBindings()
         shortcutMap(QStringLiteral("SUPER"), QStringLiteral("left"), QStringLiteral("tide"), QStringLiteral("swipeLeft")),
         shortcutMap(QStringLiteral("SUPER"), QStringLiteral("down"), QStringLiteral("tide"), QStringLiteral("showClock")),
         shortcutMap(QStringLiteral("SUPER"), QStringLiteral("M"), QStringLiteral("tide"), QStringLiteral("togglePlayer")),
-        shortcutMap(QStringLiteral("SUPER"), QStringLiteral("N"), QStringLiteral("tide"), QStringLiteral("toggleNotificationCenter")),
         shortcutMap(QStringLiteral("SUPER"), QStringLiteral("F"), QStringLiteral("island"), QStringLiteral("toggle")),
     };
 }
@@ -104,12 +103,17 @@ ShortcutBinding bindingFromVariant(const QVariant &value)
     };
 }
 
+bool isNotificationCenterBinding(const ShortcutBinding &binding)
+{
+    return binding.method.compare(QStringLiteral("toggleNotificationCenter"), Qt::CaseInsensitive) == 0;
+}
+
 QVariantList filteredShortcutBindings(const QVariantList &shortcutBindings)
 {
     QVariantList filtered;
     for (const QVariant &value : shortcutBindings) {
         const ShortcutBinding binding = bindingFromVariant(value);
-        if (isOverviewBinding(binding))
+        if (isOverviewBinding(binding) || isNotificationCenterBinding(binding))
             continue;
         filtered.append(value);
     }
