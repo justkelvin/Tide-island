@@ -282,9 +282,9 @@ ApplicationWindow {
         id: closeBtn
         z: 90
         anchors.top: parent.top
-        anchors.topMargin: 16
+        anchors.topMargin: 10
         anchors.right: parent.right
-        anchors.rightMargin: 16
+        anchors.rightMargin: 14
         width: 32
         height: 32
         radius: 16

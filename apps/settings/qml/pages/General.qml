@@ -74,7 +74,7 @@ PagePanel {
             spacing: 24
 
             Column {
-                width: parent.width
+                width: parent.width - 40
                 spacing: 4
 
                 Text {
@@ -86,6 +86,8 @@ PagePanel {
                 }
 
                 Text {
+                    width: parent.width
+                    wrapMode: Text.WordWrap
                     text: "Configure the capsule dimensions, screen positioning, transparency, and modules."
                     color: Theme.muted
                     font.family: Theme.fontFamily

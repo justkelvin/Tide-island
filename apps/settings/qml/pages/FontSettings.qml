@@ -104,7 +104,7 @@ PagePanel {
             spacing: 24
 
             Column {
-                width: parent.width
+                width: parent.width - 40
                 spacing: 4
 
                 Text {
@@ -116,6 +116,8 @@ PagePanel {
                 }
 
                 Text {
+                    width: parent.width
+                    wrapMode: Text.WordWrap
                     text: "Configure font families, scale sizes, and glyph rendering for the island."
                     color: Theme.muted
                     font.family: Theme.fontFamily
