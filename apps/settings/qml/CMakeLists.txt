@@ -18,6 +18,14 @@ qt_add_qml_module(tide-island-config-app
         components/PagePanel.qml
         components/ConfigTextField.qml
         components/CustomPage.qml
+        components/ActionButton.qml
+        components/TideSwitch.qml
+        components/TideSlider.qml
+        components/SegmentedControl.qml
+        components/CardGroup.qml
+        components/SettingRow.qml
+        components/CardDivider.qml
+        components/SvgIcon.qml
 )
 
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/TideIsland

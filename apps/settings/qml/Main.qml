@@ -6,360 +6,366 @@ import "components"
 
 ApplicationWindow {
     id: window
+
     visible: true
-    width: 1000
-    height: 600
-    title: "Tide Island Config Application"
-    color: Theme.totalBgColor
-    palette.window: Theme.totalBgColor
-    palette.windowText: Theme.textColor
-    palette.base: Theme.inputBgColor
-    palette.alternateBase: Theme.componentBgColor
-    palette.text: Theme.textColor
-    palette.button: Theme.mutedButtonColor
-    palette.buttonText: Theme.mutedButtonTextColor
-    palette.highlight: Theme.selectedColor
-    palette.highlightedText: Theme.buttonTextColor
-    palette.placeholderText: Theme.subtleTextColor
+    width: 960
+    height: 620
+    minimumWidth: 800
+    minimumHeight: 520
+    title: "Tide Island Preferences"
+    color: Theme.surface
 
     property int currentPage: 1
 
     Behavior on color {
-        ColorAnimation { duration: Theme.animationDuration }
+        ColorAnimation { duration: Theme.motion }
     }
 
     function pageForIndex(index) {
         switch (index) {
-        case 1:
-            return generalPage
-        case 2:
-            return fontPage
-        case 3:
-            return shortcutPage
-        case 4:
-            return interactionPage
-        default:
-            return null
+        case 1: return generalPage
+        case 2: return interactionPage
+        case 3: return fontPage
+        case 4: return shortcutPage
+        default: return null
         }
     }
 
     function selectPage(index) {
-        if (index === currentPage) {
-            return
-        }
-
-        const nextPage = pageForIndex(index)
-        if (!nextPage) {
-            return
-        }
+        if (index === currentPage) return
 
         const previousPage = pageForIndex(currentPage)
+        const nextPage = pageForIndex(index)
         currentPage = index
 
-        if (previousPage) {
-            previousPage.hidePage()
-        }
-
-        if (nextPage) {
-            nextPage.showPage()
-        }
+        if (previousPage) previousPage.hidePage()
+        if (nextPage) nextPage.showPage()
     }
 
-    Rectangle{// main split line
-        id:mainSplitLine
-        height: parent.height - 60
-        width:2
-        color: Theme.splitLineColor
-        x: 180
-        y: 30
+    Row {
+        anchors.fill: parent
 
-        DragHandler {
-            target: parent
-            xAxis.enabled: true
-            yAxis.enabled: false
-            xAxis.minimum: 50
-            xAxis.maximum: 250
-        }
+        // Left Sidebar
+        Rectangle {
+            id: sidebar
+            width: 220
+            height: parent.height
+            color: Theme.surfaceElevated
+            border.width: 0
 
-        MouseArea{
-            anchors.fill:parent
-            acceptedButtons: Qt.NoButton
-            cursorShape: Qt.SizeHorCursor
-        }
-    }
+            Behavior on color { ColorAnimation { duration: Theme.motion } }
 
-    Item{
-        id: outline
-        width: mainSplitLine.x
-        height:window.height
-        
-        Text{
-            id: title
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: 80
-            color: Theme.textColor
-            text: tideIslandText.width > mainSplitLine.x ? "T" : "Tide Island"
-            font.pixelSize: 23
-            font.family: Theme.titleFontFamily
-
-            TextMetrics {
-                id: tideIslandText
-                font: islandButton.font
-                text: "Tide Island"
+            // Right border
+            Rectangle {
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: 1
+                color: Theme.divider
             }
 
-            Behavior on color {ColorAnimation{ duration:Theme.animationDuration}}
-
-            MouseArea{
-                hoverEnabled: true
+            Column {
                 anchors.fill: parent
-                onEntered: title.color = Theme.selectedColor
-                onExited: title.color = Theme.textColor
-                onClicked: Qt.openUrlExternally("https://github.com/enhaoswen/Tide-island")
-            }
-        }
+                anchors.margins: 16
+                spacing: 20
 
-        Text{
-            id: islandButton
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: 210
-            color: currentPage === 1 ? Theme.selectedColor : Theme.textColor
-            text: islandButtonText.width > mainSplitLine.x ? "G" : "General"
-            font.family: Theme.titleFontFamily
-            font.pixelSize: 23
+                // Header / Branding
+                Row {
+                    spacing: 12
+                    width: parent.width
 
-            TextMetrics {
-                id: islandButtonText
-                font: islandButton.font
-                text: "General"
-            }
+                    // Minimalist Island Capsule Logo
+                    Rectangle {
+                        width: 36
+                        height: 36
+                        radius: 18
+                        color: Theme.card
+                        border.width: 1
+                        border.color: Theme.outline
+                        anchors.verticalCenter: parent.verticalCenter
 
-            Behavior on color {ColorAnimation{ duration:Theme.animationDuration}}
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: 18
+                            height: 8
+                            radius: 4
+                            color: Theme.accent
+                        }
+                    }
 
-            MouseArea{
-                anchors.fill:parent
+                    Column {
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 1
 
-                onClicked: {
-                    selectPage(1)
+                        Text {
+                            text: "Tide Island"
+                            color: Theme.text
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 15
+                            font.weight: Font.DemiBold
+                        }
+
+                        Text {
+                            text: "Preferences"
+                            color: Theme.muted
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 11
+                        }
+                    }
+                }
+
+                // Divider
+                Rectangle {
+                    width: parent.width
+                    height: 1
+                    color: Theme.divider
+                }
+
+                // Navigation Items
+                Column {
+                    width: parent.width
+                    spacing: 4
+
+                    NavItem {
+                        iconSource: "qrc:/resources/icons/nav-general.svg"
+                        label: "General"
+                        pageIndex: 1
+                        isSelected: window.currentPage === 1
+                        onClicked: window.selectPage(1)
+                    }
+
+                    NavItem {
+                        iconSource: "qrc:/resources/icons/nav-interaction.svg"
+                        label: "Interaction"
+                        pageIndex: 2
+                        isSelected: window.currentPage === 2
+                        onClicked: window.selectPage(2)
+                    }
+
+                    NavItem {
+                        iconSource: "qrc:/resources/icons/nav-typography.svg"
+                        label: "Typography"
+                        pageIndex: 3
+                        isSelected: window.currentPage === 3
+                        onClicked: window.selectPage(3)
+                    }
+
+                    NavItem {
+                        iconSource: "qrc:/resources/icons/nav-shortcuts.svg"
+                        label: "Shortcuts"
+                        pageIndex: 4
+                        isSelected: window.currentPage === 4
+                        onClicked: window.selectPage(4)
+                    }
+                }
+
+                Item {
+                    // Spacer
+                    width: parent.width
+                    height: sidebar.height - y - bottomColumn.height - 32
+                }
+
+                // Bottom Sidebar Area
+                Column {
+                    id: bottomColumn
+                    width: parent.width
+                    spacing: 12
+
+                    // Dark / Light Mode Switcher
+                    Rectangle {
+                        width: parent.width
+                        height: 36
+                        radius: Theme.radiusControl
+                        color: Theme.card
+                        border.width: 1
+                        border.color: themeToggleMouse.containsMouse ? Theme.accent : Theme.outline
+
+                        Behavior on border.color { ColorAnimation { duration: Theme.motion } }
+
+                        Row {
+                            anchors.centerIn: parent
+                            spacing: 8
+
+                            SvgIcon {
+                                source: Theme.darkMode ? "qrc:/resources/icons/mode-dark.svg" : "qrc:/resources/icons/mode-light.svg"
+                                iconSize: 16
+                                color: Theme.accent
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+
+                            Text {
+                                text: Theme.darkMode ? "Dark Mode" : "Light Mode"
+                                color: Theme.text
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 12
+                                font.weight: Font.Medium
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+
+                        MouseArea {
+                            id: themeToggleMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: backend.setColorScheme(Theme.darkMode ? "light" : "dark")
+                        }
+                    }
+
+                    // Links / Info
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "Tide Island for Hyprland"
+                        color: Theme.subtle
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 10
+
+                        MouseArea {
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: Qt.openUrlExternally("https://github.com/enhaoswen/Tide-island")
+                        }
+                    }
                 }
             }
         }
 
-        Text{
-            id: fontButton
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: 265
-            color: currentPage === 2 ? Theme.selectedColor : Theme.textColor
-            text: fontButtonText.width > mainSplitLine.x ? "F" : "Font"
-            font.family: Theme.titleFontFamily
-            font.pixelSize: 23
+        // Main Content Area
+        Item {
+            id: contentArea
+            width: parent.width - sidebar.width
+            height: parent.height
 
-            TextMetrics {
-                id: fontButtonText
-                font: fontButton.font
-                text: "Font"
-            }
-
-            Behavior on color {ColorAnimation{ duration:Theme.animationDuration}}
-
-            MouseArea{
-                anchors.fill:parent
-
-                onClicked: {
-                    selectPage(2)
-                }
-            }
-        }
-
-        Text{
-            id: shortcutButton
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: 320
-            color: currentPage === 3 ? Theme.selectedColor : Theme.textColor
-            text: shortcutButtonText.width > mainSplitLine.x ? "S" : "Shortcut"
-            font.family: Theme.titleFontFamily
-            font.pixelSize: 23
-
-            TextMetrics {
-                id: shortcutButtonText
-                font: shortcutButton.font
-                text: "Shortcut"
-            }
-
-            Behavior on color {ColorAnimation{ duration:Theme.animationDuration}}
-
-            MouseArea{
-                anchors.fill:parent
-
-                onClicked: {
-                    selectPage(3)
-                }
-            }
-        }
-
-        Text{
-            id: interactionButton
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: 375
-            color: currentPage === 4 ? Theme.selectedColor : Theme.textColor
-            text: interactionButtonText.width > mainSplitLine.x ? "I" : "Interaction"
-            font.family: Theme.titleFontFamily
-            font.pixelSize: 23
-
-            TextMetrics {
-                id: interactionButtonText
-                font:interactionButton.font
-                text: "Interaction"
-            }
-
-            Behavior on color {ColorAnimation{ duration:Theme.animationDuration}}
-
-            MouseArea{
-                anchors.fill:parent
-
-                onClicked: {
-                    selectPage(4)
-                }
-            }
-        }
-
-        Text {
-            id: appearanceButton
-
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 42
-            text: Theme.darkMode ? "Dark" : "Light"
-            color: Theme.textColor
-            font.family: Theme.titleFontFamily
-            font.pixelSize: 23
-
-            Behavior on color {
-                ColorAnimation { duration: Theme.animationDuration }
-            }
-
-            MouseArea {
+            General {
+                id: generalPage
                 anchors.fill: parent
-                anchors.margins: -10
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onEntered: appearanceButton.color = Theme.selectedColor
-                onExited: appearanceButton.color = Theme.textColor
-                onClicked: backend.setColorScheme(Theme.darkMode ? "light" : "dark")
+                visible: true
+                opacity: 1
+            }
+
+            Interaction {
+                id: interactionPage
+                anchors.fill: parent
+                visible: false
+                opacity: 0
+            }
+
+            FontSettings {
+                id: fontPage
+                anchors.fill: parent
+                visible: false
+                opacity: 0
+            }
+
+            Shortcut {
+                id: shortcutPage
+                anchors.fill: parent
+                visible: false
+                opacity: 0
             }
         }
-
     }
 
-
-
-    Item{
-        id: page
-        anchors.left: mainSplitLine.right
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-
-        General{
-            id: generalPage           
-            anchors.fill:parent
-            visible: true
-            opacity: 1
-        }
-
-        FontSettings {
-            id: fontPage
-            anchors.fill: parent
-            visible: false
-            opacity: 0
-        }
-
-        Shortcut {
-            id: shortcutPage
-            anchors.fill: parent
-            visible: false
-            opacity: 0
-        }
-
-        Interaction {
-            id: interactionPage
-            anchors.fill: parent
-            visible: false
-            opacity: 0
-        }
-
-    }
-
+    // Config Error Banner (if file corrupted)
     Rectangle {
         id: configErrorBanner
 
         readonly property bool hasError: ConfigStore.errorString.length > 0
 
-        z: 20
+        z: 100
         visible: hasError
         opacity: hasError ? 1 : 0
-        anchors.left: mainSplitLine.right
-        anchors.leftMargin: 24
+        anchors.left: parent.left
+        anchors.leftMargin: 240
         anchors.right: parent.right
-        anchors.rightMargin: 24
+        anchors.rightMargin: 20
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: 18
-        height: Math.max(48, errorText.implicitHeight + 20)
-        radius: 8
-        color: Theme.errorBgColor
+        anchors.bottomMargin: 16
+        height: Math.max(46, errorText.implicitHeight + 16)
+        radius: Theme.radiusControl
+        color: Theme.errorBg
         border.width: 1
-        border.color: Theme.errorBorderColor
+        border.color: Theme.errorBorder
 
-        Behavior on opacity { NumberAnimation { duration: Theme.animationDuration } }
+        Behavior on opacity { NumberAnimation { duration: Theme.motion } }
 
-        Text {
-            id: errorText
-
-            anchors.left: parent.left
-            anchors.leftMargin: 16
-            anchors.right: rewriteButton.left
-            anchors.rightMargin: 16
-            anchors.verticalCenter: parent.verticalCenter
-            text: "Config file error: " + ConfigStore.errorString
-            color: Theme.errorTextColor
-            wrapMode: Text.Wrap
-            maximumLineCount: 2
-            elide: Text.ElideRight
-            font.family: Theme.textFontFamily
-            font.pixelSize: 13
-        }
-
-        Rectangle {
-            id: rewriteButton
-
-            width: 112
-            height: 32
-            anchors.right: parent.right
-            anchors.rightMargin: 10
-            anchors.verticalCenter: parent.verticalCenter
-            radius: 6
-            color: rewriteMouse.pressed ? Theme.buttonPressedColor
-                                        : rewriteMouse.containsMouse ? Theme.buttonHoverColor
-                                                                    : Theme.buttonColor
-
-            Behavior on color { ColorAnimation { duration: Theme.animationDuration } }
+        Row {
+            anchors.fill: parent
+            anchors.margins: 12
+            spacing: 12
 
             Text {
-                anchors.centerIn: parent
-                text: "Rewrite"
-                color: Theme.buttonTextColor
-                font.family: Theme.textFontFamily
-                font.pixelSize: 13
+                id: errorText
+                width: parent.width - rewriteBtn.width - parent.spacing
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Config error: " + ConfigStore.errorString
+                color: Theme.error
+                font.family: Theme.fontFamily
+                font.pixelSize: 12
+                wrapMode: Text.Wrap
+                elide: Text.ElideRight
             }
 
-            MouseArea {
-                id: rewriteMouse
-
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
+            ActionButton {
+                id: rewriteBtn
+                text: "Rewrite & Fix"
+                variant: "danger"
+                anchors.verticalCenter: parent.verticalCenter
                 onClicked: ConfigStore.save()
             }
+        }
+    }
+
+    component NavItem: Rectangle {
+        id: item
+        property string iconSource: ""
+        property string label: ""
+        property int pageIndex: 1
+        property bool isSelected: false
+
+        signal clicked()
+
+        width: parent.width
+        height: 38
+        radius: Theme.radiusControl
+        color: item.isSelected ? Theme.accentSoft : (itemMouse.containsMouse ? Theme.hover : "transparent")
+
+        Behavior on color { ColorAnimation { duration: Theme.motion } }
+
+        Row {
+            anchors.left: parent.left
+            anchors.leftMargin: 12
+            anchors.right: parent.right
+            anchors.rightMargin: 12
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 12
+
+            SvgIcon {
+                source: item.iconSource
+                iconSize: 18
+                color: item.isSelected ? Theme.accent : (itemMouse.containsMouse ? Theme.text : Theme.muted)
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Text {
+                text: item.label
+                color: item.isSelected ? Theme.accent : (itemMouse.containsMouse ? Theme.text : Theme.muted)
+                font.family: Theme.fontFamily
+                font.pixelSize: 13
+                font.weight: item.isSelected ? Font.DemiBold : Font.Medium
+                anchors.verticalCenter: parent.verticalCenter
+
+                Behavior on color { ColorAnimation { duration: Theme.motion } }
+            }
+        }
+
+        MouseArea {
+            id: itemMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: item.clicked()
         }
     }
 }

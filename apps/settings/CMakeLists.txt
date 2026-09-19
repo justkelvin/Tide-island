@@ -16,6 +16,8 @@ find_package(Qt6 REQUIRED COMPONENTS
     Quick
     QuickControls2
     QuickDialogs2
+    Svg
+    Core5Compat
 )
 
 qt_policy(SET QTP0004 NEW)
@@ -37,6 +39,8 @@ target_link_libraries(tide-island-config-app PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::QuickDialogs2
+    Qt6::Svg
+    Qt6::Core5Compat
 )
 
 add_subdirectory(qml)
