@@ -84,28 +84,11 @@ PanelWindow {
             height: Math.ceil(mainCapsule.height)
         }
     }
-    readonly property real capsuleWindowHeight: Math.ceil(
-        userConfig.islandTopMargin + mainCapsule.targetHeight + 12
-    )
-    readonly property real requestedWindowHeight: root.capsuleWindowHeight
-    // Grow the layer surface immediately, but keep the old extent while the
-    // capsule finishes its collapse animation. A later expansion interrupts
-    // the pending shrink instead of letting a stale timer clip new content.
-    property real retainedWindowHeight: 0
-    implicitHeight: Math.max(root.requestedWindowHeight, root.retainedWindowHeight)
+    // Fixed surface extent avoids compositor-level layer-shell resize jitter, slide
+    // animations, and swapchain reallocations. Input hit-testing remains strictly
+    // bounded to the active capsule geometry via the window mask above.
+    implicitHeight: Math.max(280, Math.ceil(userConfig.islandTopMargin + 260))
 
-    function reconcileWindowHeight() {
-        if (root.requestedWindowHeight >= root.retainedWindowHeight) {
-            windowShrinkTimer.stop();
-            root.retainedWindowHeight = root.requestedWindowHeight;
-            return;
-        }
-
-        windowShrinkTimer.restart();
-    }
-
-    onRequestedWindowHeightChanged: root.reconcileWindowHeight()
-    Component.onCompleted: root.retainedWindowHeight = root.requestedWindowHeight
 
     // HyDE/Waybar integration: share Waybar's top strip without reserving a
     // second exclusive zone. Tide remains a separate layer-shell surface.
@@ -363,12 +346,6 @@ PanelWindow {
         }
     }
 
-    Timer {
-        id: windowShrinkTimer
-        interval: 1000
-        repeat: false
-        onTriggered: root.retainedWindowHeight = root.requestedWindowHeight
-    }
 
     Timer {
         id: autoHideHideTimer
