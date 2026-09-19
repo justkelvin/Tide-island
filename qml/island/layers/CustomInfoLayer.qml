@@ -1,5 +1,6 @@
 import QtQuick
 import IslandBackend
+import "../../components"
 
 Item {
     id: root
@@ -108,7 +109,7 @@ Item {
                 width: implicitWidth
                 height: implicitHeight
 
-                SwipeCavaBars {
+                CavaBars {
                     id: cavaBars
                     visible: parent.isCava
                     anchors.centerIn: parent

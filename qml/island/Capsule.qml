@@ -2,7 +2,8 @@ import QtQuick
 import Quickshell
 import Quickshell.Services.Mpris
 import IslandBackend
-import "../common"
+import "layers"
+import "../components"
 
 Rectangle {
     id: root
@@ -147,7 +148,7 @@ Rectangle {
         onLoaded: islandController.syncCustomCapsuleWidth()
 
         sourceComponent: Component {
-            SwipeCustomInfoLayer {
+            CustomInfoLayer {
                 items: islandController.customLeftItems
                 cavaLevels: islandController.cavaLevels
                 timeText: timeObj.currentTime
@@ -178,7 +179,7 @@ Rectangle {
         onLoaded: islandController.syncLyricsCapsuleWidth()
 
         sourceComponent: Component {
-            SwipeLyricsLayer {
+            LyricsLayer {
                 lyricText: islandController.lyricsDisplayText
                 currentArtUrl: islandController.currentArtUrl
                 cavaLevels: islandController.cavaLevels
@@ -269,7 +270,7 @@ Rectangle {
         visible: active
 
         sourceComponent: Component {
-            ExpandedPlayerLayer {
+            PlayerLayer {
                 currentArtUrl: islandController.currentArtUrl
                 currentTrack: islandController.currentTrack
                 currentArtist: islandController.currentArtist
@@ -297,7 +298,7 @@ Rectangle {
         visible: active
 
         sourceComponent: Component {
-            BluetoothExpandedLayer {
+            BluetoothLayer {
                 device: islandController.bluetoothExpandedDevice
                 volumeLevel: islandController.currentVolume
                 iconText: ""

@@ -1,6 +1,5 @@
 import QtQuick
 import Quickshell.Hyprland
-import "../common"
 
 Item {
     id: root

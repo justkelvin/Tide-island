@@ -1,6 +1,7 @@
 import QtQuick
 import Qt5Compat.GraphicalEffects
 import IslandBackend
+import "../../components"
 
 Item {
     id: root
@@ -255,7 +256,7 @@ Item {
             }
         }
 
-        SwipeCavaBars {
+        CavaBars {
             id: cavaBars
 
             anchors.right: parent.right

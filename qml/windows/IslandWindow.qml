@@ -3,7 +3,9 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import IslandBackend
-import "../common"
+import "../components"
+import "../hyprland"
+import "../waybar"
 import "../island"
 
 PanelWindow {
@@ -25,7 +27,7 @@ PanelWindow {
     readonly property var userConfig: UserConfig
     readonly property alias waybarMainBackground: waybarTheme.mainBackground
 
-    WaybarThemeWatcher {
+    WaybarTheme {
         id: waybarTheme
     }
 
@@ -34,7 +36,7 @@ PanelWindow {
 
         active: true
         asynchronous: false
-        source: "../island/HyprlandWindowIntegration.qml"
+        source: "../hyprland/HyprlandWindowIntegration.qml"
     }
 
     Binding {
@@ -48,8 +50,6 @@ PanelWindow {
     anchors { top: true; left: true; right: true }
 
     mask: Region {
-        // Input is the union of the island's visible surfaces plus a compact top
-        // gesture strip. The gesture strip must not grow with expanded content.
         Region {
             x: Math.floor(root.topGestureInputX)
             y: 0
@@ -66,20 +66,9 @@ PanelWindow {
         }
     }
 
-    // Fixed surface extent avoids compositor-level layer-shell resize jitter, slide
-    // animations, and swapchain reallocations. Input hit-testing remains strictly
-    // bounded to the active capsule geometry via the window mask above.
     implicitHeight: Math.max(280, Math.ceil(userConfig.islandTopMargin + 260))
-
-    // HyDE/Waybar integration: share Waybar's top strip without reserving a
-    // second exclusive zone. Tide remains a separate layer-shell surface.
-    // (Do not also bind exclusiveZone here: Quickshell's exclusiveZone setter
-    // forces exclusionMode back to Normal as a side effect, which silently
-    // breaks Ignore mode the moment that binding re-fires.)
     exclusionMode: ExclusionMode.Ignore
 
-    // Tide is visually embedded in Waybar but remains a separate surface.
-    // Keep it above Waybar so the transparent panel cannot obscure the island.
     WlrLayershell.namespace: "tide-island"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: {
@@ -110,7 +99,7 @@ PanelWindow {
     readonly property bool hoverExpandEnabled: configuredHoverExpandAction > 0
     readonly property bool topGestureInputActive: islandContainer.canShowSideSwipe
 
-    IslandAutoHide {
+    AutoHide {
         id: autoHide
         window: root
         islandController: islandContainer
@@ -164,12 +153,12 @@ PanelWindow {
         islandContainer.togglePlayerWindow();
     }
 
-    IslandContainer {
+    StateMachine {
         id: islandContainer
         windowRoot: root
     }
 
-    IslandRootGestureArea {
+    RootGestureArea {
         anchors.fill: parent
         enabled: root.topGestureInputActive
         islandController: islandContainer

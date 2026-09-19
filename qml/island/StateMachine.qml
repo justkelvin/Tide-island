@@ -1,7 +1,8 @@
 import QtQuick
 import Quickshell
 import IslandBackend
-import "../common"
+import "../components"
+import "../hyprland"
 
 FocusScope {
     id: root
@@ -121,12 +122,12 @@ FocusScope {
         }
     }
 
-    IslandClock {
+    Clock {
         id: timeObj
         clockFormat: userConfig.clockFormat
     }
 
-    IslandMprisController {
+    MprisController {
         id: mediaController
 
         expanded: root.islandState === "expanded"
@@ -143,7 +144,7 @@ FocusScope {
         }
     }
 
-    IslandSystemState {
+    SystemState {
         id: systemState
 
         configuredLeftSwipeItems: userConfig.dynamicIslandLeftSwipeItems
@@ -750,7 +751,7 @@ FocusScope {
         }
     }
 
-    IslandCapsule {
+    Capsule {
         id: mainCapsule
         windowRoot: root.windowRoot
         islandController: root
