@@ -2,13 +2,12 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import IslandBackend
+import "qml/windows"
 
 Scope {
     id: shellRoot
 
     readonly property bool screenRecordingActive: SystemServices.screenRecordingActive
-    property bool focusEnabled: false
-    property bool nightLightEnabled: false
     property bool shuttingDown: false
     property bool islandAutoHideRuntimeEnabled: true
 
@@ -24,65 +23,10 @@ Scope {
     }
 
     function showNotificationAll(appName, summary, body) {
-        if (focusEnabled)
-            return;
-
         shellRoot.forEachWindow((window) => {
             if (window && window.showNotification)
                 window.showNotification(appName, summary, body);
         });
-    }
-
-    function anyOverviewOpen() {
-        if (CompositorBackend.compositor === "niri")
-            return false;
-
-        const windows = panelVariants.instances ? panelVariants.instances : [];
-        for (let index = 0; index < windows.length; index++) {
-            const window = windows[index];
-            if (window && window.overviewPhase !== "closed")
-                return true;
-        }
-
-        return false;
-    }
-
-    function prepareOverviewAll() {
-        if (CompositorBackend.compositor === "niri")
-            return;
-
-        shellRoot.forEachWindow((window) => window.prepareOverview());
-    }
-
-    function cancelPreparedOverviewAll() {
-        if (CompositorBackend.compositor === "niri")
-            return;
-
-        shellRoot.forEachWindow((window) => window.cancelPreparedOverview());
-    }
-
-    function openOverviewAll() {
-        if (CompositorBackend.compositor === "niri")
-            return;
-
-        shellRoot.forEachWindow((window) => window.openOverview());
-    }
-
-    function closeOverviewAll() {
-        if (CompositorBackend.compositor === "niri")
-            return;
-
-        shellRoot.forEachWindow((window) => window.closeOverview());
-    }
-
-    function toggleOverviewAll() {
-        if (CompositorBackend.compositor === "niri")
-            return;
-
-        if (shellRoot.anyOverviewOpen())
-            shellRoot.closeOverviewAll();
-        else
-            shellRoot.openOverviewAll();
     }
 
     function anyIslandShown() {
@@ -124,19 +68,6 @@ Scope {
         });
     }
 
-    function refreshOverviewWallpaperCaches(wallpaperPath) {
-        shellRoot.forEachWindow((window) => {
-            if (window
-                    && wallpaperPath !== undefined
-                    && wallpaperPath !== null
-                    && String(wallpaperPath) !== "") {
-                window.wallpaperPickerActiveWallpaper = String(wallpaperPath);
-            }
-            if (window && window.prewarmWallpaperCache)
-                window.prewarmWallpaperCache();
-        });
-    }
-
     function forFocusedWindow(callback) {
         const windows = panelVariants.instances ? panelVariants.instances : [];
         let fallbackWindow = null;
@@ -152,26 +83,6 @@ Scope {
 
         if (fallbackWindow)
             callback(fallbackWindow);
-    }
-
-    IpcHandler {
-        target: "overview"
-
-        function toggle() {
-            shellRoot.toggleOverviewAll();
-        }
-
-        function open() {
-            shellRoot.openOverviewAll();
-        }
-
-        function close() {
-            shellRoot.closeOverviewAll();
-        }
-
-        function refreshWallpaperCache() {
-            shellRoot.refreshOverviewWallpaperCaches();
-        }
     }
 
     IpcHandler {
@@ -234,22 +145,6 @@ Scope {
         function togglePlayer() {
             shellRoot.forFocusedWindow((window) => window.togglePlayerWindow());
         }
-
-        function toggleControlCenter() {
-            shellRoot.forFocusedWindow((window) => window.toggleControlCenterWindow());
-        }
-
-        function toggleNotificationCenter() {
-            shellRoot.forFocusedWindow((window) => window.toggleNotificationCenterWindow());
-        }
-
-        function toggleWallpaperPicker() {
-            shellRoot.forFocusedWindow((window) => window.toggleWallpaperPickerWindow());
-        }
-
-        function toggleApplicationLauncher() {
-            shellRoot.forFocusedWindow((window) => window.toggleApplicationLauncherWindow());
-        }
     }
 
     Connections {
@@ -274,7 +169,7 @@ Scope {
 
         model: Quickshell.screens
 
-        DynamicIslandWindow {
+        IslandWindow {
             required property var modelData
 
             screen: modelData

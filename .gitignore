@@ -68,6 +68,7 @@ CODE_QUALITY_REVIEW.md
 # Local agent/tooling state
 .agents/
 .codex/
+CLAUDE.md
 
 # IDEs/editors
 .vscode/
@@ -81,4 +82,3 @@ CODE_QUALITY_REVIEW.md
 # OS files
 .DS_Store
 Thumbs.db
-compilar.sh

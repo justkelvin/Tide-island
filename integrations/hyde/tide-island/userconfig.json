@@ -1,0 +1,18 @@
+{
+    "clockFormat": "24",
+    "dynamicIslandLeftSwipeItems": [
+        "cava",
+        "battery"
+    ],
+    "heroFontFamily": "Inter Display",
+    "iconFontFamily": "JetBrainsMono Nerd Font",
+    "islandAutoHideEnabled": false,
+    "islandBackgroundOpacity": 100,
+    "islandExclusiveZone": 0,
+    "islandHeight": 32,
+    "islandPositionX": 50,
+    "islandTopMargin": 3,
+    "islandWidth": 140,
+    "timeFontFamily": "SF Pro Rounded",
+    "textFontFamily": "Inter Display"
+}

@@ -1,0 +1,13 @@
+<RCC>
+    <qresource prefix="/">
+        <file>resources/fonts/InterVariable.ttf</file>
+        <file>resources/fonts/Lora-Regular.ttf</file>
+        <file>resources/icons/nav-general.svg</file>
+        <file>resources/icons/nav-interaction.svg</file>
+        <file>resources/icons/nav-typography.svg</file>
+        <file>resources/icons/nav-shortcuts.svg</file>
+        <file>resources/icons/mode-dark.svg</file>
+        <file>resources/icons/mode-light.svg</file>
+        <file>resources/icons/close.svg</file>
+    </qresource>
+</RCC>

@@ -4,7 +4,7 @@ pkgver=1.0.35
 pkgrel=1
 _srcdir=Tide-island-$pkgver
 _builddir=build-$pkgver
-pkgdesc="A dynamic island for Hyprland and niri using Quickshell"
+pkgdesc="A dynamic island for Hyprland using Quickshell"
 arch=('x86_64')
 url="https://github.com/enhaoswen/Tide-island"
 license=('GPL-3.0-only')
@@ -13,7 +13,6 @@ depends=(
     'qt6-declarative'
     'qt6-5compat'
     'qt6-wayland'
-    'qt6-connectivity'
     'qt6-svg'
     'wireplumber'
     'pipewire'
@@ -30,20 +29,8 @@ makedepends=('cmake')
 options=('!debug' '!strip')
 optdepends=(
     'hyprland: for Hyprland compositor integration'
-    'niri: for niri compositor integration'
     'hyprsunset: for Night Light on Hyprland'
-    'gammastep: for Night Light on niri or generic Wayland sessions'
     'cava: for audio visualizer'
-    'imagemagick: for wallpaper thumbnails'
-    'awww: for applying wallpapers from the wallpaper picker'
-    'python-pywal: for generating colors from the selected wallpaper'
-    'networkmanager: for wifi control'
-    'iwd: for wifi control'
-    'swaync: for the Focus do-not-disturb toggle'
-    'tlp: for TLP power profile controls'
-    'polkit: for applying TLP profiles via pkexec'
-    'sudo: alternative for applying TLP profiles'
-    'zenity: for Ask-mode TLP password prompts when no Polkit agent is running'
 )
 conflicts=('tide-island-git')
 install='tide-island.install'

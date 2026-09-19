@@ -229,7 +229,6 @@ apt_install_dependencies() {
     libudev-dev libdrm-dev libwayland-dev wayland-protocols
     libgbm-dev vulkan-headers libjemalloc-dev libcli11-dev spirv-tools
     wireplumber pulseaudio-utils brightnessctl dbus upower bluez
-    policykit-1 zenity network-manager
   )
 
   log "Installing Debian/Ubuntu build and runtime dependencies"
@@ -265,7 +264,6 @@ dnf_install_dependencies() {
     systemd-devel libdrm-devel wayland-devel wayland-protocols-devel
     mesa-libgbm-devel vulkan-headers jemalloc-devel cli11-devel spirv-tools-devel
     wireplumber pulseaudio-utils brightnessctl dbus-daemon upower bluez bluez-tools
-    polkit zenity NetworkManager
   )
 
   log "Installing Fedora/RHEL build and runtime dependencies"
@@ -298,7 +296,6 @@ zypper_install_dependencies() {
     systemd-devel libdrm-devel wayland-devel wayland-protocols-devel
     Mesa-libgbm-devel vulkan-headers libjemalloc-devel cli11-devel spirv-tools-devel
     wireplumber pulseaudio-utils brightnessctl dbus-1 upower bluez
-    polkit zenity NetworkManager
   )
 
   log "Installing openSUSE build and runtime dependencies"
@@ -519,7 +516,7 @@ build_tide_island() {
   local root cache_dir build_dir
   root="$(repo_root)"
   cache_dir="$(installer_cache_dir)"
-  build_dir="$root/build-release-installer"
+  build_dir="$cache_dir/tide-island-build"
   mkdir -p "$cache_dir"
 
   log "Configuring Tide Island"
