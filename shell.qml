@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import IslandBackend
+import "qml/windows"
 
 Scope {
     id: shellRoot
@@ -168,7 +169,7 @@ Scope {
 
         model: Quickshell.screens
 
-        DynamicIslandWindow {
+        IslandWindow {
             required property var modelData
 
             screen: modelData

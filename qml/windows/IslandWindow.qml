@@ -5,8 +5,8 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.Mpris
 import IslandBackend
-import "qml/common"
-import "qml/island"
+import "../common"
+import "../island"
 
 PanelWindow {
     id: root
@@ -54,7 +54,7 @@ PanelWindow {
 
         active: true
         asynchronous: false
-        source: "qml/island/HyprlandWindowIntegration.qml"
+        source: "../island/HyprlandWindowIntegration.qml"
     }
 
     Binding {
