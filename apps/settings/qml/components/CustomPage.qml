@@ -10,17 +10,17 @@ Rectangle {
     readonly property string configKey: "dynamicIslandLeftSwipeItems"
     readonly property var defaultItems: ["cava", "battery"]
     readonly property string iconFontFamily: String(ConfigStore.value("iconFontFamily", "JetBrainsMono Nerd Font"))
-    readonly property int selectedSpacing: 8
+    readonly property int selectedSpacing: 12
     readonly property var componentDefinitions: [
-        { itemId: "time", displayName: "Time", previewText: "12:34", previewIcon: "", previewKind: "text", previewWidth: 76 },
-        { itemId: "date", displayName: "Date", previewText: "Fri, Jul 03", previewIcon: "", previewKind: "text", previewWidth: 112 },
-        { itemId: "battery", displayName: "Battery", previewText: "76%", previewIcon: "", previewKind: "battery", previewWidth: 92 },
-        { itemId: "volume", displayName: "Volume", previewText: "42%", previewIcon: "\u{F057E}", previewKind: "iconText", previewWidth: 82 },
-        { itemId: "brightness", displayName: "Brightness", previewText: "68%", previewIcon: "\u{F00E0}", previewKind: "iconText", previewWidth: 82 },
-        { itemId: "workspace", displayName: "Workspace", previewText: "Workspace 2", previewIcon: "", previewKind: "text", previewWidth: 118 },
-        { itemId: "cpu", displayName: "CPU", previewText: "CPU 38%", previewIcon: "\u{F035B}", previewKind: "iconText", previewWidth: 96 },
-        { itemId: "ram", displayName: "RAM", previewText: "RAM 61%", previewIcon: "\u{F061A}", previewKind: "iconText", previewWidth: 96 },
-        { itemId: "cava", displayName: "Cava", previewText: "", previewIcon: "", previewKind: "cava", previewWidth: 76 }
+        { itemId: "time", displayName: "Time", previewText: "12:34", previewIcon: "", previewKind: "text" },
+        { itemId: "date", displayName: "Date", previewText: "Fri, Jul 03", previewIcon: "", previewKind: "text" },
+        { itemId: "battery", displayName: "Battery", previewText: "76%", previewIcon: "", previewKind: "battery" },
+        { itemId: "volume", displayName: "Volume", previewText: "42%", previewIcon: "\u{F057E}", previewKind: "iconText" },
+        { itemId: "brightness", displayName: "Brightness", previewText: "68%", previewIcon: "\u{F00E0}", previewKind: "iconText" },
+        { itemId: "workspace", displayName: "Workspace", previewText: "Workspace 2", previewIcon: "", previewKind: "text" },
+        { itemId: "cpu", displayName: "CPU", previewText: "38%", previewIcon: "\u{F035B}", previewKind: "iconText" },
+        { itemId: "ram", displayName: "RAM", previewText: "61%", previewIcon: "\u{F061A}", previewKind: "iconText" },
+        { itemId: "cava", displayName: "Cava", previewText: "", previewIcon: "", previewKind: "cava" }
     ]
 
     property bool dragActive: false
@@ -32,13 +32,12 @@ Rectangle {
     property real dragPointerOffsetX: 0
     property real dragPointerOffsetY: 0
     property string dragZone: ""
-    readonly property bool dragPreviewUsesIslandStyle: dragFromSelection && dragZone === "island"
+    readonly property bool dragPreviewUsesIslandStyle: dragZone === "island" || dragFromSelection
 
-    color: Theme.cardBgColor
-    radius: 16
-    border.width: 1
-    border.color: Theme.splitLineColor
-    implicitHeight: selectorColumn.implicitHeight + 36
+    color: "transparent"
+    radius: 0
+    border.width: 0
+    implicitHeight: selectorColumn.implicitHeight + 16
 
     ListModel {
         id: selectedModel
@@ -47,18 +46,12 @@ Rectangle {
     Component.onCompleted: loadFromConfig()
 
     function listValues(rawItems) {
-        if (!rawItems)
-            return [];
-
-        if (Array.isArray(rawItems))
-            return rawItems;
-
-        if (typeof rawItems === "string")
-            return [rawItems];
+        if (!rawItems) return [];
+        if (Array.isArray(rawItems)) return rawItems;
+        if (typeof rawItems === "string") return [rawItems];
 
         const length = Number(rawItems.length);
-        if (!isFinite(length) || length < 0)
-            return [];
+        if (!isFinite(length) || length < 0) return [];
 
         const resolved = [];
         for (let index = 0; index < Math.floor(length); index++)
@@ -98,9 +91,20 @@ Rectangle {
         return definition ? definition.previewKind : "text";
     }
 
-    function previewWidth(itemId) {
-        const definition = definitionForId(itemId);
-        return definition ? definition.previewWidth : 76;
+    function previewWidth(itemId, inIsland) {
+        const isIsland = inIsland === true;
+        switch (normalizeItemId(itemId)) {
+        case "time": return isIsland ? 48 : 74;
+        case "date": return isIsland ? 80 : 96;
+        case "battery": return isIsland ? 42 : 102;
+        case "volume": return isIsland ? 52 : 82;
+        case "brightness": return isIsland ? 52 : 84;
+        case "workspace": return isIsland ? 88 : 108;
+        case "cpu": return isIsland ? 52 : 82;
+        case "ram": return isIsland ? 52 : 82;
+        case "cava": return isIsland ? 50 : 96;
+        default: return isIsland ? 60 : 80;
+        }
     }
 
     function displayName(itemId) {
@@ -131,8 +135,7 @@ Rectangle {
 
         for (let index = 0; index < source.length; index++) {
             const itemId = normalizeItemId(source[index]);
-            if (!isSupported(itemId) || seen[itemId])
-                continue;
+            if (!isSupported(itemId) || seen[itemId]) continue;
 
             selectedModel.append({ itemId: itemId });
             seen[itemId] = true;
@@ -148,8 +151,7 @@ Rectangle {
 
     function addItem(itemId, targetIndex) {
         const normalizedId = normalizeItemId(itemId);
-        if (!isSupported(normalizedId) || containsSelected(normalizedId))
-            return;
+        if (!isSupported(normalizedId) || containsSelected(normalizedId)) return;
 
         const insertIndex = Math.max(0, Math.min(selectedModel.count, targetIndex));
         selectedModel.insert(insertIndex, { itemId: normalizedId });
@@ -157,21 +159,18 @@ Rectangle {
     }
 
     function moveItem(fromIndex, targetIndex) {
-        if (fromIndex < 0 || fromIndex >= selectedModel.count)
-            return;
+        if (fromIndex < 0 || fromIndex >= selectedModel.count) return;
 
         const boundedTarget = Math.max(0, Math.min(selectedModel.count, targetIndex));
         const nextIndex = fromIndex < boundedTarget ? boundedTarget - 1 : boundedTarget;
-        if (fromIndex === nextIndex)
-            return;
+        if (fromIndex === nextIndex) return;
 
         selectedModel.move(fromIndex, nextIndex, 1);
         notifySelectionChanged();
     }
 
     function removeItem(index) {
-        if (index < 0 || index >= selectedModel.count)
-            return;
+        if (index < 0 || index >= selectedModel.count) return;
 
         selectedModel.remove(index, 1);
         notifySelectionChanged();
@@ -185,7 +184,7 @@ Rectangle {
     function refreshDragZone(rootX, rootY) {
         if (containsRootPoint(paletteDropZone, rootX, rootY)) {
             dragZone = "palette";
-        } else if (containsRootPoint(islandPreview, rootX, rootY)) {
+        } else if (containsRootPoint(islandStage, rootX, rootY)) {
             dragZone = "island";
         } else {
             dragZone = "";
@@ -217,19 +216,16 @@ Rectangle {
         const sourceId = dragItemId;
 
         if (containsRootPoint(paletteDropZone, point.x, point.y)) {
-            if (wasFromSelection)
-                removeItem(sourceIndex);
+            if (wasFromSelection) removeItem(sourceIndex);
             clearDrag();
             return;
         }
 
-        if (containsRootPoint(islandPreview, point.x, point.y)) {
+        if (containsRootPoint(islandStage, point.x, point.y)) {
             const islandPoint = root.mapToItem(islandPreview, point.x, point.y);
             const targetIndex = targetIndexForIslandX(islandPoint.x, wasFromSelection ? sourceIndex : -1);
-            if (wasFromSelection)
-                moveItem(sourceIndex, targetIndex);
-            else
-                addItem(sourceId, targetIndex);
+            if (wasFromSelection) moveItem(sourceIndex, targetIndex);
+            else addItem(sourceId, targetIndex);
         }
 
         clearDrag();
@@ -248,19 +244,15 @@ Rectangle {
     }
 
     function selectedContentWidth(excludedIndex) {
-        let width = 0;
+        let total = 0;
         let visibleCount = 0;
         for (let index = 0; index < selectedModel.count; index++) {
-            if (index === excludedIndex)
-                continue;
-
-            width += previewWidth(selectedModel.get(index).itemId);
+            if (index === excludedIndex) continue;
+            total += previewWidth(selectedModel.get(index).itemId, true);
             visibleCount++;
         }
-
-        if (visibleCount > 1)
-            width += selectedSpacing * (visibleCount - 1);
-        return width;
+        if (visibleCount > 1) total += selectedSpacing * (visibleCount - 1);
+        return total;
     }
 
     function targetIndexForIslandX(localX, excludedIndex) {
@@ -268,13 +260,9 @@ Rectangle {
         let cursorX = (islandPreview.width - contentWidth) / 2;
 
         for (let index = 0; index < selectedModel.count; index++) {
-            if (index === excludedIndex)
-                continue;
-
-            const itemWidth = previewWidth(selectedModel.get(index).itemId);
-            if (localX < cursorX + itemWidth / 2)
-                return index;
-
+            if (index === excludedIndex) continue;
+            const itemWidth = previewWidth(selectedModel.get(index).itemId, true);
+            if (localX < cursorX + itemWidth / 2) return index;
             cursorX += itemWidth + selectedSpacing;
         }
 
@@ -283,26 +271,65 @@ Rectangle {
 
     Column {
         id: selectorColumn
-
         anchors.top: parent.top
-        anchors.topMargin: 18
         anchors.left: parent.left
-        anchors.leftMargin: 18
         anchors.right: parent.right
-        anchors.rightMargin: 18
-        spacing: 18
+        spacing: 16
+
+        Column {
+            width: parent.width
+            spacing: 4
+
+            Text {
+                text: "Available Modules"
+                color: Theme.text
+                font.family: Theme.fontFamily
+                font.pixelSize: 13
+                font.weight: Font.DemiBold
+            }
+
+            Text {
+                text: "Drag modules into the Dynamic Island below to display them on swipe, or drag them back here to remove."
+                color: Theme.muted
+                font.family: Theme.fontFamily
+                font.pixelSize: 11
+                wrapMode: Text.Wrap
+                width: parent.width
+            }
+        }
 
         Item {
             id: paletteDropZone
-
             width: parent.width
-            height: paletteFlow.implicitHeight
+            height: paletteFlow.implicitHeight + (root.dragActive && root.dragFromSelection ? 24 : 0)
+
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: -4
+                radius: Theme.radiusControl
+                color: root.dragZone === "palette" ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.12) : "transparent"
+                border.width: 1
+                border.color: root.dragZone === "palette" ? Theme.error : (root.dragActive && root.dragFromSelection ? Theme.outline : "transparent")
+                visible: root.dragActive && root.dragFromSelection
+                z: 0
+
+                Text {
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 4
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: "Drop here to remove from Dynamic Island"
+                    color: root.dragZone === "palette" ? Theme.error : Theme.muted
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 11
+                    font.weight: Font.Medium
+                }
+            }
 
             Flow {
                 id: paletteFlow
-
                 width: parent.width
-                spacing: 10
+                spacing: 8
+                z: 1
 
                 Repeater {
                     model: root.componentDefinitions
@@ -317,24 +344,35 @@ Rectangle {
             }
         }
 
-        Item {
-            id: islandStage
-
+        Rectangle {
             width: parent.width
-            height: 124
+            height: 1
+            color: Theme.divider
+        }
+
+        Rectangle {
+            id: islandStage
+            width: parent.width
+            height: 110
+            radius: Theme.radiusControl
+            color: Theme.darkMode ? "#0c0d12" : "#181922"
+            border.width: 1
+            border.color: Theme.outline
+            clip: true
 
             Rectangle {
                 id: islandPreview
 
                 readonly property real wantedWidth: selectedModel.count > 0
-                    ? selectedContentWidth(root.dragFromSelection ? root.dragSelectedIndex : -1) + 46
-                    : 220
+                    ? selectedContentWidth(root.dragFromSelection ? root.dragSelectedIndex : -1) + 48
+                    : 240
 
                 anchors.centerIn: parent
-                width: Math.min(parent.width - 44, Math.max(220, wantedWidth))
-                height: 48
+                width: Math.min(parent.width - 32, Math.max(240, wantedWidth))
+                height: 44
                 radius: height / 2
-                color: "#050505"
+                color: "#000000"
+                border.width: 0
                 clip: true
 
                 Behavior on width {
@@ -347,16 +385,15 @@ Rectangle {
                 Text {
                     anchors.centerIn: parent
                     visible: selectedModel.count === 0
-                    text: "+"
-                    color: "#66ffffff"
-                    font.family: Theme.textFontFamily
-                    font.pixelSize: 24
-                    font.weight: Font.DemiBold
+                    text: "+ Drag modules here"
+                    color: Qt.rgba(1, 1, 1, 0.45)
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 12
+                    font.weight: Font.Medium
                 }
 
                 Row {
                     id: selectedRow
-
                     visible: selectedModel.count > 0
                     anchors.centerIn: parent
                     height: 36
@@ -367,7 +404,6 @@ Rectangle {
 
                         Item {
                             id: selectedSlot
-
                             width: root.isDraggingSelection(index) ? 0 : selectedChip.width
                             height: selectedChip.height
 
@@ -380,7 +416,6 @@ Rectangle {
 
                             PreviewChip {
                                 id: selectedChip
-
                                 itemId: model.itemId
                                 fromSelection: true
                                 selectedIndex: index
@@ -394,7 +429,6 @@ Rectangle {
 
     PreviewChip {
         id: dragPreview
-
         visible: root.dragActive
         itemId: root.dragItemId
         fromSelection: root.dragPreviewUsesIslandStyle
@@ -418,29 +452,41 @@ Rectangle {
         readonly property string chipKind: root.previewKind(itemId)
         readonly property string chipText: root.previewText(itemId)
         readonly property string chipIcon: root.previewIcon(itemId)
+        readonly property string chipName: root.displayName(itemId)
         readonly property bool draggable: interactive && (fromSelection || !paletteDisabled)
         readonly property bool hiddenByDrag: root.dragActive
             && root.dragItemId === itemId
             && root.dragFromSelection === fromSelection
             && (!fromSelection || root.dragSelectedIndex === selectedIndex)
 
-        width: root.previewWidth(itemId)
+        readonly property bool inIsland: fromSelection || (floating && root.dragPreviewUsesIslandStyle)
+
+        width: root.previewWidth(itemId, chip.inIsland)
         height: 34
-        radius: 6
-        color: !chip.fromSelection && chip.draggable && chipMouse.containsMouse
-            ? Theme.controlHoverColor
-            : "transparent"
-        border.width: !chip.fromSelection && chip.draggable ? 1 : 0
-        border.color: chipMouse.containsMouse ? Theme.inputHoverBorderColor : Theme.inputBorderColor
-        opacity: hiddenByDrag ? 0 : (paletteDisabled ? 0.34 : 1)
+        radius: chip.inIsland ? 17 : Theme.radiusControl
+        color: {
+            if (chip.inIsland) {
+                return chipMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent";
+            }
+            if (paletteDisabled) {
+                return Theme.surfaceElevated;
+            }
+            return chipMouse.containsMouse ? Theme.cardHover : Theme.surfaceElevated;
+        }
+        border.width: chip.inIsland ? 0 : 1
+        border.color: {
+            if (chip.inIsland) return "transparent";
+            if (paletteDisabled) return "transparent";
+            return chipMouse.containsMouse ? Theme.accent : Theme.outline;
+        }
+        opacity: hiddenByDrag ? 0 : (paletteDisabled ? 0.35 : 1.0)
         z: root.dragActive && hiddenByDrag ? 0 : 1
 
-        Behavior on color { ColorAnimation { duration: Theme.animationDuration } }
-        Behavior on border.color { ColorAnimation { duration: Theme.animationDuration } }
+        Behavior on color { ColorAnimation { duration: Theme.motion } }
+        Behavior on border.color { ColorAnimation { duration: Theme.motion } }
 
         Row {
             id: chipContent
-
             anchors.centerIn: parent
             spacing: 6
 
@@ -449,29 +495,49 @@ Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
             }
 
+            Text {
+                visible: chip.chipKind === "battery" && !chip.inIsland
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Battery"
+                color: Theme.text
+                font.family: Theme.fontFamily
+                font.pixelSize: 12
+                font.weight: Font.Medium
+            }
+
             CavaPreview {
                 visible: chip.chipKind === "cava"
                 anchors.verticalCenter: parent.verticalCenter
-                barColor: chip.fromSelection ? "white" : Theme.selectedColor
+            }
+
+            Text {
+                visible: chip.chipKind === "cava" && !chip.inIsland
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Cava"
+                color: Theme.text
+                font.family: Theme.fontFamily
+                font.pixelSize: 12
+                font.weight: Font.Medium
             }
 
             Text {
                 visible: chip.chipIcon !== "" && chip.chipKind !== "battery" && chip.chipKind !== "cava"
                 anchors.verticalCenter: parent.verticalCenter
                 text: chip.chipIcon
-                color: chip.fromSelection ? "white" : Theme.selectedColor
+                color: chip.inIsland ? "white" : Theme.accent
                 font.family: root.iconFontFamily
-                font.pixelSize: 15
+                font.pixelSize: 13
             }
 
             Text {
-                visible: chip.chipKind !== "cava"
+                visible: chip.chipKind !== "battery" && chip.chipKind !== "cava"
                 anchors.verticalCenter: parent.verticalCenter
-                text: chip.chipText
-                color: chip.fromSelection ? "white" : Theme.textColor
-                font.family: Theme.textFontFamily
-                font.pixelSize: 14
-                font.weight: Font.DemiBold
+                text: chip.inIsland ? chip.chipText : chip.chipText
+                color: chip.inIsland ? "white" : Theme.text
+                font.family: Theme.fontFamily
+                font.pixelSize: 12
+                font.weight: chip.inIsland ? Font.Bold : Font.Medium
+                font.letterSpacing: chip.inIsland ? -0.15 : 0
                 elide: Text.ElideRight
                 wrapMode: Text.NoWrap
             }
@@ -479,10 +545,10 @@ Rectangle {
 
         MouseArea {
             id: chipMouse
-
             anchors.fill: parent
             enabled: chip.draggable
             hoverEnabled: true
+            preventStealing: true
             cursorShape: chip.draggable ? Qt.OpenHandCursor : Qt.ArrowCursor
 
             property real pressX: 0
@@ -497,9 +563,7 @@ Rectangle {
             }
 
             onPositionChanged: function(mouse) {
-                if (!pressed)
-                    return;
-
+                if (!pressed) return;
                 const dx = mouse.x - pressX;
                 const dy = mouse.y - pressY;
                 if (!dragStarted && Math.sqrt(dx * dx + dy * dy) >= 4) {
@@ -523,50 +587,64 @@ Rectangle {
                 root.clearDrag();
             }
         }
-
     }
 
     component BatteryPreview: Item {
-        width: 28
-        height: 14
+        id: bat
+        property int level: 76
+        property color emptyColor: Qt.rgba(1, 1, 1, 0.56)
+        property color fillColor: "white"
+
+        width: 37
+        height: 17
 
         Rectangle {
-            anchors.fill: parent
-            anchors.rightMargin: 4
-            radius: 4
-            color: "transparent"
-            border.color: "#8e8e93"
-            border.width: 1
+            id: batBody
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width - 3
+            height: parent.height
+            radius: 6
+            color: bat.emptyColor
+            clip: true
 
             Rectangle {
                 anchors.left: parent.left
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
-                anchors.margins: 2
-                width: (parent.width - 4) * 0.76
-                radius: 2
-                color: "#34c759"
+                width: Math.max(12, parent.width * (bat.level / 100.0))
+                radius: 6
+                color: bat.fillColor
+            }
+
+            Text {
+                anchors.centerIn: parent
+                text: String(bat.level)
+                color: "black"
+                font.pixelSize: 12
+                font.family: Theme.fontFamily
+                font.weight: Font.DemiBold
             }
         }
 
         Rectangle {
-            width: 3
-            height: 7
+            width: 2
+            height: 5
             radius: 1
-            color: "#8e8e93"
-            anchors.right: parent.right
+            color: bat.fillColor
+            anchors.left: batBody.right
+            anchors.leftMargin: 1
             anchors.verticalCenter: parent.verticalCenter
         }
     }
 
     component CavaPreview: Item {
         id: cavaPreview
-
-        property color barColor: Theme.selectedColor
+        property color barColor: "white"
         readonly property var levels: [0.35, 0.8, 0.55, 0.95, 0.48, 0.7, 0.4]
 
-        width: 56
-        height: 18
+        width: 44
+        height: 16
 
         Row {
             anchors.centerIn: parent
@@ -576,9 +654,9 @@ Rectangle {
                 model: cavaPreview.levels
 
                 Rectangle {
-                    width: 4
-                    height: Math.max(5, Math.round(cavaPreview.height * modelData))
-                    radius: 2
+                    width: 3.5
+                    height: Math.max(4, Math.round(cavaPreview.height * modelData))
+                    radius: 1.75
                     anchors.verticalCenter: parent.verticalCenter
                     color: cavaPreview.barColor
                 }
