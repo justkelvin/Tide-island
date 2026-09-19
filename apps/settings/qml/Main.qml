@@ -277,6 +277,40 @@ ApplicationWindow {
         }
     }
 
+    // Top-right Close Button
+    Rectangle {
+        id: closeBtn
+        z: 90
+        anchors.top: parent.top
+        anchors.topMargin: 16
+        anchors.right: parent.right
+        anchors.rightMargin: 16
+        width: 32
+        height: 32
+        radius: 16
+        color: closeMouse.pressed ? Theme.pressed : (closeMouse.containsMouse ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.12) : Theme.card)
+        border.width: 1
+        border.color: closeMouse.containsMouse ? Theme.error : Theme.outline
+
+        Behavior on color { ColorAnimation { duration: Theme.motion } }
+        Behavior on border.color { ColorAnimation { duration: Theme.motion } }
+
+        SvgIcon {
+            anchors.centerIn: parent
+            source: "qrc:/resources/icons/close.svg"
+            iconSize: 14
+            color: closeMouse.containsMouse ? Theme.error : Theme.muted
+        }
+
+        MouseArea {
+            id: closeMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: window.close()
+        }
+    }
+
     // Config Error Banner (if file corrupted)
     Rectangle {
         id: configErrorBanner

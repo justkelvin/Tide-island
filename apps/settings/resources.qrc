@@ -8,5 +8,6 @@
         <file>resources/icons/nav-shortcuts.svg</file>
         <file>resources/icons/mode-dark.svg</file>
         <file>resources/icons/mode-light.svg</file>
+        <file>resources/icons/close.svg</file>
     </qresource>
 </RCC>
