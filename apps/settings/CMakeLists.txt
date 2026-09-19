@@ -20,10 +20,14 @@ find_package(Qt6 REQUIRED COMPONENTS
 )
 
 qt_add_executable(tide-island-config-app
-    main.cpp
-    backend.hpp
-    backend.cpp
+    src/main.cpp
+    src/backend.hpp
+    src/backend.cpp
     resources.qrc
+)
+
+target_include_directories(tide-island-config-app PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 target_link_libraries(tide-island-config-app PRIVATE
@@ -37,12 +41,12 @@ target_link_libraries(tide-island-config-app PRIVATE
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/shortcut_config_tests.cpp")
     add_executable(tide_island_shortcut_config_tests
         tests/shortcut_config_tests.cpp
-        backend.hpp
-        backend.cpp
+        src/backend.hpp
+        src/backend.cpp
     )
 
     target_include_directories(tide_island_shortcut_config_tests PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
     )
 
     target_link_libraries(tide_island_shortcut_config_tests PRIVATE
