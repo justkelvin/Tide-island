@@ -32,79 +32,6 @@ target_link_libraries(lyricsmpris PRIVATE
     Qt6::DBus
 )
 
-enable_testing()
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/lyricsmpris_core_tests.cpp")
-    add_executable(lyricsmpris_tests
-        tests/lyricsmpris_core_tests.cpp
-        src/daemons/lyricsmpris/CjkVariantNormalizer.h
-        src/daemons/lyricsmpris/CjkVariantNormalizer.cpp
-        src/daemons/lyricsmpris/LyricsCore.h
-        src/daemons/lyricsmpris/LyricsCore.cpp
-    )
-
-    target_include_directories(lyricsmpris_tests PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/daemons/lyricsmpris
-    )
-
-    target_link_libraries(lyricsmpris_tests PRIVATE
-        Qt6::Core
-        Qt6::Test
-    )
-
-    add_test(NAME lyricsmpris_core COMMAND lyricsmpris_tests)
-endif()
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/user_config_backend_tests.cpp")
-    add_executable(user_config_backend_tests
-        tests/user_config_backend_tests.cpp
-        src/plugin/UserConfigBackend.h
-        src/plugin/UserConfigBackend.cpp
-    )
-
-    target_include_directories(user_config_backend_tests PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin
-    )
-
-    target_link_libraries(user_config_backend_tests PRIVATE
-        Qt6::Core
-        Qt6::Qml
-        Qt6::Test
-    )
-
-    add_test(NAME user_config_backend COMMAND user_config_backend_tests)
-endif()
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/lyricsmpris_runtime_tests.cpp")
-    add_executable(lyricsmpris_runtime_tests
-        tests/lyricsmpris_runtime_tests.cpp
-    )
-
-    target_link_libraries(lyricsmpris_runtime_tests PRIVATE
-        Qt6::Core
-        Qt6::DBus
-        Qt6::Network
-        Qt6::Test
-    )
-
-    target_include_directories(lyricsmpris_runtime_tests PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/daemons/lyricsmpris
-    )
-
-    add_dependencies(lyricsmpris_runtime_tests lyricsmpris)
-
-    find_program(DBUS_RUN_SESSION_EXECUTABLE NAMES dbus-run-session REQUIRED)
-    add_test(
-        NAME lyricsmpris_runtime
-        COMMAND "${DBUS_RUN_SESSION_EXECUTABLE}" --
-            "${CMAKE_COMMAND}" -E env
-            TIDE_ISLAND_RUNTIME_TEST_ISOLATED=1
-            "LYRICSMPRIS_TEST_EXECUTABLE=$<TARGET_FILE:lyricsmpris>"
-            "$<TARGET_FILE:lyricsmpris_runtime_tests>"
-    )
-    set_tests_properties(lyricsmpris_runtime PROPERTIES TIMEOUT 20)
-endif()
-
 add_subdirectory(apps/settings)
 
 # Main Native Plugin Module (Combining all C++ components)
@@ -144,6 +71,9 @@ target_link_libraries(IslandBackend PRIVATE
     Qt6::Concurrent
     ${UDEV_LIB}
 )
+
+enable_testing()
+add_subdirectory(tests)
 
 # Installation Rules
 include(GNUInstallDirs)

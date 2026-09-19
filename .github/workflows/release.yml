@@ -53,7 +53,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Test installer branches
-        run: tests/installer_tests.sh
+        run: tests/integration/installer_tests.sh
 
       - name: Configure Tide Island
         run: |
