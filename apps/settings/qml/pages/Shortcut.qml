@@ -1,5 +1,6 @@
 import QtQuick
 import TideIsland 1.0
+import "../components"
 
 PagePanel {
     id: root

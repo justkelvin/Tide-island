@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import TideIsland 1.0
+import "../components"
 
 PagePanel {
     id: root

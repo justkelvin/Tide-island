@@ -1,6 +1,8 @@
 import QtQuick
 import QtQuick.Controls
 import TideIsland 1.0
+import "pages"
+import "components"
 
 ApplicationWindow {
     id: window

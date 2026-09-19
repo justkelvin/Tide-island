@@ -54,10 +54,10 @@ QtObject {
     readonly property string fontFamily: textFontFamily
 
     readonly property FontLoader textFont: FontLoader {
-        source: "qrc:/RES/InterVariable.ttf"
+        source: "qrc:/resources/fonts/InterVariable.ttf"
     }
 
     readonly property FontLoader titleFont: FontLoader {
-        source: "qrc:/RES/Lora-Regular.ttf"
+        source: "qrc:/resources/fonts/Lora-Regular.ttf"
     }
 }

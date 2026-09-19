@@ -19,6 +19,8 @@ find_package(Qt6 REQUIRED COMPONENTS
     Test
 )
 
+qt_policy(SET QTP0004 NEW)
+
 qt_add_executable(tide-island-config-app
     src/main.cpp
     src/backend.hpp
@@ -57,35 +59,10 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/shortcut_config_tests.cpp")
     add_test(NAME tide_island_shortcut_config COMMAND tide_island_shortcut_config_tests)
 endif()
 
-set_source_files_properties(Theme.qml ConfigStore.qml PROPERTIES
-    QT_QML_SINGLETON_TYPE TRUE
-)
-
-qt_add_qml_module(tide-island-config-app
-    URI TideIsland
-    VERSION 1.0
-    RESOURCE_PREFIX /qt/qml
-
-    QML_FILES
-        Main.qml
-        Theme.qml
-        ConfigStore.qml
-        PagePanel.qml
-        ConfigTextField.qml
-        General.qml
-        CustomPage.qml
-        FontSettings.qml
-        Interaction.qml
-        Shortcut.qml
-)
+add_subdirectory(qml)
 
 install(TARGETS tide-island-config-app
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
-
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/TideIsland
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/qt6/qml
-    PATTERN "*.qrc" EXCLUDE
 )
 
 install(FILES tide-island-config.desktop
