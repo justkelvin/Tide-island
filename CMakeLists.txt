@@ -12,18 +12,18 @@ find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Network DBus Test Concurrent)
 find_library(UDEV_LIB NAMES udev REQUIRED)
 
 add_executable(lyricsmpris
-    lyricsmpris/main.cpp
-    lyricsmpris/CjkVariantNormalizer.h
-    lyricsmpris/CjkVariantNormalizer.cpp
-    lyricsmpris/LyricsCore.h
-    lyricsmpris/LyricsCore.cpp
-    lyricsmpris/ProviderNetworkPolicy.h
-    lyricsmpris/LyricsMprisApp.h
-    lyricsmpris/LyricsMprisApp.cpp
+    src/daemons/lyricsmpris/main.cpp
+    src/daemons/lyricsmpris/CjkVariantNormalizer.h
+    src/daemons/lyricsmpris/CjkVariantNormalizer.cpp
+    src/daemons/lyricsmpris/LyricsCore.h
+    src/daemons/lyricsmpris/LyricsCore.cpp
+    src/daemons/lyricsmpris/ProviderNetworkPolicy.h
+    src/daemons/lyricsmpris/LyricsMprisApp.h
+    src/daemons/lyricsmpris/LyricsMprisApp.cpp
 )
 
 target_include_directories(lyricsmpris PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/lyricsmpris
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/daemons/lyricsmpris
 )
 
 target_link_libraries(lyricsmpris PRIVATE
@@ -37,14 +37,14 @@ enable_testing()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/lyricsmpris_core_tests.cpp")
     add_executable(lyricsmpris_tests
         tests/lyricsmpris_core_tests.cpp
-        lyricsmpris/CjkVariantNormalizer.h
-        lyricsmpris/CjkVariantNormalizer.cpp
-        lyricsmpris/LyricsCore.h
-        lyricsmpris/LyricsCore.cpp
+        src/daemons/lyricsmpris/CjkVariantNormalizer.h
+        src/daemons/lyricsmpris/CjkVariantNormalizer.cpp
+        src/daemons/lyricsmpris/LyricsCore.h
+        src/daemons/lyricsmpris/LyricsCore.cpp
     )
 
     target_include_directories(lyricsmpris_tests PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/lyricsmpris
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/daemons/lyricsmpris
     )
 
     target_link_libraries(lyricsmpris_tests PRIVATE
@@ -58,12 +58,12 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/user_config_backend_tests.cpp")
     add_executable(user_config_backend_tests
         tests/user_config_backend_tests.cpp
-        backend/UserConfigBackend.h
-        backend/UserConfigBackend.cpp
+        src/plugin/UserConfigBackend.h
+        src/plugin/UserConfigBackend.cpp
     )
 
     target_include_directories(user_config_backend_tests PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/backend
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin
     )
 
     target_link_libraries(user_config_backend_tests PRIVATE
@@ -88,7 +88,7 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/lyricsmpris_runtime_tests.cpp")
     )
 
     target_include_directories(lyricsmpris_runtime_tests PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/lyricsmpris
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/daemons/lyricsmpris
     )
 
     add_dependencies(lyricsmpris_runtime_tests lyricsmpris)
@@ -107,21 +107,21 @@ endif()
 
 add_subdirectory(Tide-island-app)
 
-# Main Backend Module (Combining all C++ components)
+# Main Native Plugin Module (Combining all C++ components)
 qt_add_qml_module(IslandBackend
     URI IslandBackend
     VERSION 1.0
     RESOURCE_PREFIX /qt/qml
     OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/IslandBackend
     SOURCES
-        backend/SysBackend.h
-        backend/SysBackend.cpp
-        backend/SystemServices.h
-        backend/SystemServices.cpp
-        backend/StyleTokensBackend.h
-        backend/StyleTokensBackend.cpp
-        backend/UserConfigBackend.h
-        backend/UserConfigBackend.cpp
+        src/plugin/SysBackend.h
+        src/plugin/SysBackend.cpp
+        src/plugin/SystemServices.h
+        src/plugin/SystemServices.cpp
+        src/plugin/StyleTokensBackend.h
+        src/plugin/StyleTokensBackend.cpp
+        src/plugin/UserConfigBackend.h
+        src/plugin/UserConfigBackend.cpp
 )
 
 # The QML plugin is installed below lib/qt6/qml/IslandBackend while its backing
@@ -132,7 +132,7 @@ set_target_properties(IslandBackendplugin PROPERTIES
 )
 
 target_include_directories(IslandBackend PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/backend
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin
 )
 
 target_link_libraries(IslandBackend PRIVATE
