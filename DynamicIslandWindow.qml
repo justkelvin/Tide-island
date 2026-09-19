@@ -365,7 +365,7 @@ PanelWindow {
 
     Timer {
         id: windowShrinkTimer
-        interval: mainCapsule ? (mainCapsule.morphDuration + 20) : 420
+        interval: 1000
         repeat: false
         onTriggered: root.retainedWindowHeight = root.requestedWindowHeight
     }
