@@ -105,7 +105,7 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/lyricsmpris_runtime_tests.cpp")
     set_tests_properties(lyricsmpris_runtime PROPERTIES TIMEOUT 20)
 endif()
 
-add_subdirectory(Tide-island-app)
+add_subdirectory(apps/settings)
 
 # Main Native Plugin Module (Combining all C++ components)
 qt_add_qml_module(IslandBackend
