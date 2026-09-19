@@ -10,39 +10,22 @@ Rectangle {
     property alias inputMethodHints: field.inputMethodHints
     property alias validator: field.validator
     property alias field: field
-    property int textPixelSize: 15
+    property int textPixelSize: 13
 
     signal accepted()
     signal editingFinished()
 
     readonly property bool hovered: hoverHandler.hovered
 
-    radius: 6
-    color: field.activeFocus ? Theme.cardBgColor
-                             : hovered ? Theme.inputHoverBgColor
-                                       : Theme.inputBgColor
+    radius: Theme.radiusControl
+    color: field.activeFocus ? Theme.card : hovered ? Theme.cardHover : Theme.surfaceElevated
     border.width: 1
-    border.color: field.activeFocus ? Theme.focusBorderColor
-                                    : hovered ? Theme.inputHoverBorderColor
-                                              : Theme.inputBorderColor
+    border.color: field.activeFocus ? Theme.accent : hovered ? Theme.muted : Theme.outline
     implicitWidth: 100
-    implicitHeight: 36
+    implicitHeight: 34
 
-    Behavior on color { ColorAnimation { duration: Theme.animationDuration } }
-    Behavior on border.color { ColorAnimation { duration: Theme.animationDuration } }
-
-    Rectangle {
-        anchors.fill: parent
-        anchors.margins: -3
-        z: -1
-        radius: control.radius + 3
-        color: "transparent"
-        border.width: 3
-        border.color: Theme.focusRingColor
-        opacity: field.activeFocus ? 1 : 0
-
-        Behavior on opacity { NumberAnimation { duration: Theme.animationDuration } }
-    }
+    Behavior on color { ColorAnimation { duration: Theme.motion } }
+    Behavior on border.color { ColorAnimation { duration: Theme.motion } }
 
     HoverHandler {
         id: hoverHandler
@@ -53,14 +36,14 @@ Rectangle {
         id: field
         background: null
         anchors.fill: parent
-        color: Theme.textColor
-        placeholderTextColor: Theme.subtleTextColor
-        selectionColor: Theme.selectedColor
-        selectedTextColor: Theme.buttonTextColor
-        font.family: Theme.textFontFamily
+        color: Theme.text
+        placeholderTextColor: Theme.subtle
+        selectionColor: Theme.accentSoftHover
+        selectedTextColor: Theme.text
+        font.family: Theme.fontFamily
         font.pixelSize: control.textPixelSize
-        leftPadding: 10
-        rightPadding: 10
+        leftPadding: 12
+        rightPadding: 12
         verticalAlignment: TextInput.AlignVCenter
 
         onAccepted: control.accepted()
