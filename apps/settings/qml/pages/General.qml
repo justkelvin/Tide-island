@@ -1,37 +1,42 @@
-import TideIsland 1.0
-import QtQuick.Controls
 import QtQuick
+import QtQuick.Controls
+import TideIsland 1.0
 import "../components"
 
 PagePanel {
     id: root
 
+    property int revision: 0
+
     function intValue(key, fallback) {
-        return String(ConfigStore.value(key, fallback))
+        revision
+        const val = ConfigStore.value(key, fallback)
+        const parsed = Number(val)
+        return isNaN(parsed) ? fallback : Math.round(parsed)
     }
 
     function saveInt(key, value, fallback, minimumValue, maximumValue) {
-        if (String(value).trim().length === 0) {
+        if (value === undefined || value === null || String(value).trim().length === 0)
             return fallback
-        }
 
         const parsedValue = Number(value)
-        if (isNaN(parsedValue)) {
+        if (isNaN(parsedValue))
             return fallback
-        }
 
-        const roundedValue = Math.min(maximumValue, Math.max(minimumValue, Math.round(parsedValue)))
-        ConfigStore.setValue(key, roundedValue)
+        const boundedValue = Math.min(maximumValue, Math.max(minimumValue, Math.round(parsedValue)))
+        ConfigStore.setValue(key, boundedValue)
         ConfigStore.save()
-        return roundedValue
+        revision += 1
+        return boundedValue
     }
 
     Flickable {
         id: scroller
         anchors.fill: parent
+        anchors.rightMargin: 4
         clip: true
         contentWidth: width
-        contentHeight: content.height
+        contentHeight: contentColumn.implicitHeight + 40
         boundsBehavior: Flickable.StopAtBounds
         boundsMovement: Flickable.StopAtBounds
         interactive: false
@@ -48,304 +53,260 @@ PagePanel {
             }
         }
 
-        Item {
-            id: content
-            width: scroller.width
-            height: customPagePanel.y + customPagePanel.height + 40
+        ScrollBar.vertical: ScrollBar {
+            id: vbar
+            active: vbar.hovered || vbar.pressed
+            policy: ScrollBar.AsNeeded
+            contentItem: Rectangle {
+                implicitWidth: 4
+                radius: 2
+                color: Theme.muted
+                opacity: vbar.active ? 0.6 : 0
+                Behavior on opacity { NumberAnimation { duration: Theme.motion } }
+            }
+        }
 
-            Text {
-                id: title
-                font.family: Theme.titleFontFamily
-                text: "General"
-                color: Theme.textColor
-                font.pixelSize: 30
-                x: 60
-                y: 50
+        Column {
+            id: contentColumn
+            width: parent.width - 24
+            x: 12
+            y: 12
+            spacing: 24
+
+            Column {
+                width: parent.width
+                spacing: 4
+
+                Text {
+                    text: "General"
+                    color: Theme.text
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 22
+                    font.weight: Font.DemiBold
+                }
+
+                Text {
+                    text: "Configure the capsule dimensions, screen positioning, transparency, and modules."
+                    color: Theme.muted
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 13
+                }
             }
 
-            Text {
-                id: apperanceTitle
-                text: "Island apperance"
-                anchors.top: title.bottom
-                anchors.topMargin: 34
-                anchors.left: parent.left
-                anchors.leftMargin: 32
-                anchors.right: parent.right
-                anchors.rightMargin: 40
-                font.family: Theme.titleFontFamily
-                font.pixelSize: 23
-                color: Theme.textColor
-            }
+            CardGroup {
+                title: "Dimensions & Placement"
+                description: "Physical dimensions and offset of the resting Dynamic Island capsule."
 
-            Rectangle {
-                id: apperance
-                color: Theme.cardBgColor
-                radius: 16
-                border.width: 1
-                border.color: Theme.splitLineColor
+                SettingRow {
+                    title: "Island Width"
+                    description: "Base width of the island capsule in clock mode (px)"
 
-                anchors.top: apperanceTitle.bottom
-                anchors.topMargin: 15
-                anchors.left: parent.left
-                anchors.leftMargin: 30
-                anchors.right: parent.right
-                anchors.rightMargin: 40
-                height: apperanceColumn.implicitHeight + 36
+                    Row {
+                        spacing: 10
+                        anchors.verticalCenter: parent.verticalCenter
 
-                Column {
-                    id: apperanceColumn
+                        TideSlider {
+                            id: widthSlider
+                            from: 80
+                            to: 360
+                            stepSize: 2
+                            value: root.intValue("islandWidth", 140)
+                            onMoved: root.saveInt("islandWidth", value, 140, 80, 500)
+                            width: 140
+                        }
 
-                    anchors.top: parent.top
-                    anchors.topMargin: 18
-                    anchors.left: parent.left
-                    anchors.leftMargin: 18
-                    anchors.right: parent.right
-                    anchors.rightMargin: 18
-                    spacing: 16
-
-                    ConfigRow {
-                        title: "Island Width"
-                        description: "Width of island in clock mode"
-                        keyName: "islandWidth"
-                        fallbackText: "140"
-                        numeric: true
-                        width: parent.width
+                        ConfigTextField {
+                            text: String(Math.round(widthSlider.value))
+                            implicitWidth: 64
+                            validator: IntValidator { bottom: 60; top: 600 }
+                            onEditingFinished: widthSlider.value = root.saveInt("islandWidth", text, 140, 60, 600)
+                        }
                     }
+                }
 
-                    SplitLine { width: parent.width }
+                CardDivider {}
 
-                    ConfigRow {
-                        title: "Island Height"
-                        description: "Height of island in clock mode"
-                        keyName: "islandHeight"
-                        fallbackText: "38"
-                        numeric: true
-                        width: parent.width
+                SettingRow {
+                    title: "Island Height"
+                    description: "Base height of the island capsule in clock mode (px)"
+
+                    Row {
+                        spacing: 10
+                        anchors.verticalCenter: parent.verticalCenter
+
+                        TideSlider {
+                            id: heightSlider
+                            from: 26
+                            to: 64
+                            stepSize: 1
+                            value: root.intValue("islandHeight", 38)
+                            onMoved: root.saveInt("islandHeight", value, 38, 20, 100)
+                            width: 140
+                        }
+
+                        ConfigTextField {
+                            text: String(Math.round(heightSlider.value))
+                            implicitWidth: 64
+                            validator: IntValidator { bottom: 20; top: 100 }
+                            onEditingFinished: heightSlider.value = root.saveInt("islandHeight", text, 38, 20, 100)
+                        }
                     }
+                }
 
-                    SplitLine { width: parent.width }
+                CardDivider {}
 
-                    ConfigRow {
-                        title: "Background Transparency"
-                        description: "Opacity of the island background (0 = fully transparent, 100 = solid)"
-                        keyName: "islandBackgroundOpacity"
-                        fallbackText: "60"
-                        numeric: true
-                        minimumValue: 0
-                        maximumValue: 100
-                        width: parent.width
+                SettingRow {
+                    title: "Top Margin"
+                    description: "Distance from the top edge of the screen to the capsule (px)"
+
+                    Row {
+                        spacing: 10
+                        anchors.verticalCenter: parent.verticalCenter
+
+                        TideSlider {
+                            id: topMarginSlider
+                            from: 0
+                            to: 40
+                            stepSize: 1
+                            value: root.intValue("islandTopMargin", 4)
+                            onMoved: root.saveInt("islandTopMargin", value, 4, 0, 100)
+                            width: 140
+                        }
+
+                        ConfigTextField {
+                            text: String(Math.round(topMarginSlider.value))
+                            implicitWidth: 64
+                            validator: IntValidator { bottom: 0; top: 100 }
+                            onEditingFinished: topMarginSlider.value = root.saveInt("islandTopMargin", text, 4, 0, 100)
+                        }
                     }
+                }
 
-                    SplitLine { width: parent.width }
+                CardDivider {}
 
-                    ClockFormatRow { width: parent.width }
+                SettingRow {
+                    title: "Reserved Top Space"
+                    description: "Screen exclusive zone reserved for the capsule (px)"
 
-                    SplitLine { width: parent.width }
+                    Row {
+                        spacing: 10
+                        anchors.verticalCenter: parent.verticalCenter
 
-                    ConfigRow {
-                        title: "Reserved Top Space"
-                        description: "Screen space reserved for the island (exclusive zone)"
-                        keyName: "islandExclusiveZone"
-                        fallbackText: "45"
-                        numeric: true
-                        minimumValue: 0
-                        width: parent.width
+                        TideSlider {
+                            id: exclusiveZoneSlider
+                            from: 0
+                            to: 80
+                            stepSize: 1
+                            value: root.intValue("islandExclusiveZone", 45)
+                            onMoved: root.saveInt("islandExclusiveZone", value, 45, 0, 200)
+                            width: 140
+                        }
+
+                        ConfigTextField {
+                            text: String(Math.round(exclusiveZoneSlider.value))
+                            implicitWidth: 64
+                            validator: IntValidator { bottom: 0; top: 200 }
+                            onEditingFinished: exclusiveZoneSlider.value = root.saveInt("islandExclusiveZone", text, 45, 0, 200)
+                        }
                     }
+                }
 
-                    SplitLine { width: parent.width }
+                CardDivider {}
 
-                    ConfigRow {
-                        title: "Top Margin"
-                        description: "Distance between the island and the top of the screen"
-                        keyName: "islandTopMargin"
-                        fallbackText: "4"
-                        numeric: true
-                        minimumValue: 0
-                        width: parent.width
-                    }
+                SettingRow {
+                    title: "Horizontal Position"
+                    description: "Horizontal alignment across the display (0% = Left, 50% = Center, 100% = Right)"
 
-                    SplitLine { width: parent.width }
+                    Row {
+                        spacing: 10
+                        anchors.verticalCenter: parent.verticalCenter
 
-                    ConfigRow {
-                        title: "Island Position"
-                        description: "X position of island"
-                        keyName: "islandPositionX"
-                        fallbackText: "50"
-                        numeric: true
-                        minimumValue: 0
-                        maximumValue: 100
-                        width: parent.width
+                        TideSlider {
+                            id: positionXSlider
+                            from: 0
+                            to: 100
+                            stepSize: 1
+                            value: root.intValue("islandPositionX", 50)
+                            onMoved: root.saveInt("islandPositionX", value, 50, 0, 100)
+                            width: 140
+                        }
+
+                        Text {
+                            text: Math.round(positionXSlider.value) + "%"
+                            color: Theme.muted
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 13
+                            font.weight: Font.Medium
+                            width: 44
+                            horizontalAlignment: Text.AlignRight
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
                     }
                 }
             }
 
-            Text {
-                id: customPageTitle
-                text: "Custom Page"
-                anchors.top: apperance.bottom
-                anchors.topMargin: 34
-                anchors.left: parent.left
-                anchors.leftMargin: 32
-                anchors.right: parent.right
-                anchors.rightMargin: 40
-                font.family: Theme.titleFontFamily
-                font.pixelSize: 23
-                color: Theme.textColor
-            }
+            CardGroup {
+                title: "Appearance & Clock"
+                description: "Visual surface characteristics and time formatting."
 
-            CustomPage {
-                id: customPagePanel
-                anchors.top: customPageTitle.bottom
-                anchors.topMargin: 15
-                anchors.left: parent.left
-                anchors.leftMargin: 30
-                anchors.right: parent.right
-                anchors.rightMargin: 40
-                height: implicitHeight
-            }
-        }
-    }
+                SettingRow {
+                    title: "Background Opacity"
+                    description: "Opacity of the capsule background surface (0 = fully transparent, 100 = solid)"
 
-    component SplitLine: Rectangle {
-        height: 1
-        color: Theme.splitLineColor
-    }
+                    Row {
+                        spacing: 10
+                        anchors.verticalCenter: parent.verticalCenter
 
-    component ConfigRow: Item {
-        id: row
+                        TideSlider {
+                            id: opacitySlider
+                            from: 0
+                            to: 100
+                            stepSize: 1
+                            value: root.intValue("islandBackgroundOpacity", 60)
+                            onMoved: root.saveInt("islandBackgroundOpacity", value, 60, 0, 100)
+                            width: 140
+                        }
 
-        property string title: ""
-        property string description: ""
-        property string keyName: ""
-        property string fallbackText: ""
-        property bool numeric: false
-        property int minimumValue: 1
-        property int maximumValue: 1000
-
-        height: 49
-
-        Text {
-            id: rowTitle
-            text: row.title
-            font.family: Theme.textFontFamily
-            font.pixelSize: 18
-            color: Theme.textColor
-            anchors.top: parent.top
-            anchors.left: parent.left
-        }
-
-        Text {
-            text: row.description
-            font.family: Theme.textFontFamily
-            font.pixelSize: 14
-            anchors.top: rowTitle.bottom
-            anchors.topMargin: 5
-            anchors.left: rowTitle.left
-            color: Theme.subtleTextColor
-        }
-
-        ConfigTextField {
-            id: field
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            width: row.numeric ? 100 : 230
-            height: 36
-            placeholderText: row.fallbackText
-            inputMethodHints: row.numeric ? Qt.ImhDigitsOnly : Qt.ImhNone
-            validator: row.numeric ? intValidator : null
-
-            Component.onCompleted: {
-                text = root.intValue(row.keyName, Number(row.fallbackText))
-            }
-
-            onAccepted: row.commit()
-            onEditingFinished: row.commit()
-        }
-
-        IntValidator {
-            id: intValidator
-            bottom: row.minimumValue
-            top: row.maximumValue
-        }
-
-        function commit() {
-            if (numeric) {
-                field.text = String(root.saveInt(row.keyName, field.text, Number(row.fallbackText), row.minimumValue, row.maximumValue))
-            }
-        }
-    }
-
-    component ClockFormatRow: Item {
-        id: clockRow
-
-        property string selectedFormat: String(ConfigStore.value("clockFormat", "12")) === "24" ? "24" : "12"
-
-        height: 49
-
-        Text {
-            id: clockTitle
-            text: "Clock Format"
-            font.family: Theme.textFontFamily
-            font.pixelSize: 18
-            color: Theme.textColor
-            anchors.top: parent.top
-            anchors.left: parent.left
-        }
-
-        Text {
-            text: "Choose 12-hour or 24-hour time"
-            font.family: Theme.textFontFamily
-            font.pixelSize: 14
-            anchors.top: clockTitle.bottom
-            anchors.topMargin: 5
-            anchors.left: clockTitle.left
-            color: Theme.subtleTextColor
-        }
-
-        Row {
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 6
-
-            Repeater {
-                model: ["12", "24"]
-
-                Rectangle {
-                    id: formatButton
-                    readonly property bool selected: clockRow.selectedFormat === modelData
-
-                    width: 82
-                    height: 36
-                    radius: 7
-                    color: selected ? Theme.cardBgColor
-                                    : formatMouse.pressed ? Theme.controlPressedColor
-                                                          : Theme.componentBgColor
-                    border.width: 1
-                    border.color: Theme.inputBorderColor
-
-                    Behavior on color { ColorAnimation { duration: Theme.animationDuration } }
-                    Behavior on border.color { ColorAnimation { duration: Theme.animationDuration } }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: modelData + " hour"
-                        color: formatButton.selected ? Theme.textColor : Theme.secondaryTextColor
-                        font.family: Theme.textFontFamily
-                        font.pixelSize: 14
-                        font.weight: formatButton.selected ? Font.DemiBold : Font.Normal
-                    }
-
-                    MouseArea {
-                        id: formatMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            clockRow.selectedFormat = modelData
-                            ConfigStore.setValue("clockFormat", modelData)
-                            ConfigStore.save()
+                        Text {
+                            text: Math.round(opacitySlider.value) + "%"
+                            color: Theme.muted
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 13
+                            font.weight: Font.Medium
+                            width: 44
+                            horizontalAlignment: Text.AlignRight
+                            anchors.verticalCenter: parent.verticalCenter
                         }
                     }
+                }
+
+                CardDivider {}
+
+                SettingRow {
+                    title: "Clock Format"
+                    description: "Time display standard on the resting capsule"
+
+                    SegmentedControl {
+                        options: [
+                            { label: "12-Hour", value: "12" },
+                            { label: "24-Hour", value: "24" }
+                        ]
+                        currentValue: String(ConfigStore.value("clockFormat", "12"))
+                        onSelected: function(val) {
+                            ConfigStore.setValue("clockFormat", val)
+                            ConfigStore.save()
+                        }
+                        implicitWidth: 160
+                    }
+                }
+            }
+
+            CardGroup {
+                title: "Custom Page Layout"
+                description: "Customize the items displayed when swiping left onto the custom info view."
+
+                CustomPage {
+                    width: parent.width
                 }
             }
         }

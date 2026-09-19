@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import TideIsland 1.0
 import "../components"
 
@@ -17,45 +18,46 @@ PagePanel {
     function allShortcutDefinitions() {
         return [
             {
-                "action": "Next island view",
+                "action": "Next Island View",
+                "description": "Cycle forward to the next island view (lyrics / custom)",
                 "mods": "SUPER",
                 "key": "right",
                 "target": "tide",
                 "method": "swipeRight"
             },
             {
-                "action": "Previous island view",
+                "action": "Previous Island View",
+                "description": "Cycle backward to the previous island view",
                 "mods": "SUPER",
                 "key": "left",
                 "target": "tide",
                 "method": "swipeLeft"
             },
             {
-                "action": "Clock view",
+                "action": "Clock View",
+                "description": "Quickly return to the main clock idle view",
                 "mods": "SUPER",
                 "key": "down",
                 "target": "tide",
                 "method": "showClock"
             },
             {
-                "action": "Music player",
+                "action": "Music Player",
+                "description": "Toggle the expanded music player controls and artwork",
                 "mods": "SUPER",
                 "key": "M",
                 "target": "tide",
                 "method": "togglePlayer"
             },
             {
-                "action": "Toggle island",
+                "action": "Toggle Island",
+                "description": "Force show or hide the island capsule",
                 "mods": "SUPER",
                 "key": "F",
                 "target": "island",
                 "method": "toggle"
             }
         ]
-    }
-
-    function supportedShortcutDefinitions() {
-        return allShortcutDefinitions()
     }
 
     function beginCapture(index) {
@@ -91,11 +93,6 @@ PagePanel {
         return shortcut.target + ":" + shortcut.method
     }
 
-    function rawSavedShortcutBindings() {
-        const value = ConfigStore.value("shortcutBindings", [])
-        return Array.isArray(value) ? value : []
-    }
-
     function shortcutBindingsForBackend() {
         const bindings = []
         for (let i = 0; i < shortcuts.length; ++i) {
@@ -116,7 +113,7 @@ PagePanel {
     }
 
     function loadShortcutBindings() {
-        shortcuts = supportedShortcutDefinitions()
+        shortcuts = allShortcutDefinitions()
 
         const saved = backend.shortcutBindings()
         const byIdentity = ({})
@@ -135,52 +132,20 @@ PagePanel {
         shortcutRevision += 1
     }
 
+    Component.onCompleted: loadShortcutBindings()
+
     function shortcutCommand(shortcut) {
         return "/usr/bin/quickshell ipc --any-display -p /usr/share/tide-island call "
             + shortcut.target + " " + shortcut.method
     }
 
-    function luaQuote(value) {
-        return "\"" + String(value).replace(/\\/g, "\\\\").replace(/"/g, "\\\"") + "\""
-    }
-
-    function modNames(modifiers) {
-        const names = []
-        if (modifiers & Qt.MetaModifier)
-            names.push("SUPER")
-        if (modifiers & Qt.ShiftModifier)
-            names.push("SHIFT")
-        if (modifiers & Qt.ControlModifier)
-            names.push("CTRL")
-        if (modifiers & Qt.AltModifier)
-            names.push("ALT")
-        return names
-    }
-
-    function modifierNameForKey(key) {
-        switch (key) {
-        case Qt.Key_Meta:
-        case Qt.Key_Super_L:
-        case Qt.Key_Super_R:
-            return "SUPER"
-        case Qt.Key_Shift:
-            return "SHIFT"
-        case Qt.Key_Control:
-            return "CTRL"
-        case Qt.Key_Alt:
-            return "ALT"
-        default:
-            return ""
-        }
+    function isModifierToken(value) {
+        return value === "SUPER" || value === "SHIFT" || value === "CTRL" || value === "ALT"
     }
 
     function appendUnique(values, value) {
         if (value.length > 0 && values.indexOf(value) < 0)
             values.push(value)
-    }
-
-    function isModifierToken(value) {
-        return value === "SUPER" || value === "SHIFT" || value === "CTRL" || value === "ALT"
     }
 
     function updateCapturedShortcut(tokens) {
@@ -229,11 +194,10 @@ PagePanel {
             }
 
             if (!replaced) {
-                if (tokens.length < 3) {
+                if (tokens.length < 3)
                     tokens.push(token)
-                } else {
+                else
                     tokens[tokens.length - 1] = token
-                }
             }
         }
 
@@ -261,57 +225,32 @@ PagePanel {
             return "F" + (key - Qt.Key_F1 + 1)
 
         switch (key) {
-        case Qt.Key_Tab:
-            return "TAB"
-        case Qt.Key_Left:
-            return "left"
-        case Qt.Key_Right:
-            return "right"
-        case Qt.Key_Up:
-            return "up"
-        case Qt.Key_Down:
-            return "down"
-        case Qt.Key_Space:
-            return "space"
+        case Qt.Key_Tab: return "TAB"
+        case Qt.Key_Left: return "left"
+        case Qt.Key_Right: return "right"
+        case Qt.Key_Up: return "up"
+        case Qt.Key_Down: return "down"
+        case Qt.Key_Space: return "space"
         case Qt.Key_Return:
-        case Qt.Key_Enter:
-            return "return"
-        case Qt.Key_Backspace:
-            return "backspace"
-        case Qt.Key_Delete:
-            return "delete"
-        case Qt.Key_Insert:
-            return "insert"
-        case Qt.Key_Home:
-            return "home"
-        case Qt.Key_End:
-            return "end"
-        case Qt.Key_PageUp:
-            return "page_up"
-        case Qt.Key_PageDown:
-            return "page_down"
-        case Qt.Key_Minus:
-            return "minus"
-        case Qt.Key_Equal:
-            return "equal"
-        case Qt.Key_BracketLeft:
-            return "bracketleft"
-        case Qt.Key_BracketRight:
-            return "bracketright"
-        case Qt.Key_Backslash:
-            return "backslash"
-        case Qt.Key_Semicolon:
-            return "semicolon"
-        case Qt.Key_Apostrophe:
-            return "apostrophe"
-        case Qt.Key_Comma:
-            return "comma"
-        case Qt.Key_Period:
-            return "period"
-        case Qt.Key_Slash:
-            return "slash"
-        case Qt.Key_QuoteLeft:
-            return "grave"
+        case Qt.Key_Enter: return "return"
+        case Qt.Key_Backspace: return "backspace"
+        case Qt.Key_Delete: return "delete"
+        case Qt.Key_Insert: return "insert"
+        case Qt.Key_Home: return "home"
+        case Qt.Key_End: return "end"
+        case Qt.Key_PageUp: return "page_up"
+        case Qt.Key_PageDown: return "page_down"
+        case Qt.Key_Minus: return "minus"
+        case Qt.Key_Equal: return "equal"
+        case Qt.Key_BracketLeft: return "bracketleft"
+        case Qt.Key_BracketRight: return "bracketright"
+        case Qt.Key_Backslash: return "backslash"
+        case Qt.Key_Semicolon: return "semicolon"
+        case Qt.Key_Apostrophe: return "apostrophe"
+        case Qt.Key_Comma: return "comma"
+        case Qt.Key_Period: return "period"
+        case Qt.Key_Slash: return "slash"
+        case Qt.Key_QuoteLeft: return "grave"
         default:
             return text && text.length === 1 ? text : ""
         }
@@ -319,164 +258,73 @@ PagePanel {
 
     function displayToken(value) {
         switch (String(value)) {
-        case "SUPER":
-            return "Super"
-        case "SHIFT":
-            return "Shift"
-        case "CTRL":
-            return "Ctrl"
-        case "ALT":
-            return "Alt"
-        case "TAB":
-            return "Tab"
-        case "left":
-            return "Left"
-        case "right":
-            return "Right"
-        case "up":
-            return "Up"
-        case "down":
-            return "Down"
-        case "space":
-            return "Space"
-        case "return":
-            return "Return"
-        case "backspace":
-            return "Backspace"
-        case "delete":
-            return "Delete"
-        case "insert":
-            return "Insert"
-        case "home":
-            return "Home"
-        case "end":
-            return "End"
-        case "page_up":
-            return "Page Up"
-        case "page_down":
-            return "Page Down"
+        case "SUPER": return "Super"
+        case "SHIFT": return "Shift"
+        case "CTRL": return "Ctrl"
+        case "ALT": return "Alt"
+        case "TAB": return "Tab"
+        case "left": return "← Left"
+        case "right": return "→ Right"
+        case "up": return "↑ Up"
+        case "down": return "↓ Down"
+        case "space": return "Space"
+        case "return": return "Return"
+        case "backspace": return "Backspace"
+        case "delete": return "Delete"
         default:
-            return String(value).length === 1 ? String(value).toUpperCase() : String(value)
+            return String(value).toUpperCase()
         }
-    }
-
-    function displayChord(mods, key) {
-        const parts = []
-        const modParts = String(mods).split(" ")
-        for (let i = 0; i < modParts.length; ++i) {
-            if (modParts[i].length > 0)
-                parts.push(displayToken(modParts[i]))
-        }
-        if (String(key).length > 0)
-            parts.push(displayToken(key))
-        return parts.join(" + ")
-    }
-
-    function displayTokens(tokens) {
-        const parts = []
-        for (let i = 0; i < tokens.length; ++i)
-            parts.push(displayToken(tokens[i]))
-        return parts.join(" + ")
-    }
-
-    function shortcutDisplay(index) {
-        shortcutRevision
-        captureTokenRevision
-        if (captureIndex === index && captureTokens.length > 0)
-            return displayTokens(captureTokens)
-        if (captureIndex === index)
-            return "Press keys"
-
-        const shortcut = shortcuts[index]
-        return String(shortcut.key).length === 0
-            ? "Disable"
-            : displayChord(shortcut.mods, shortcut.key)
-    }
-
-    function handleShortcutKey(event) {
-        if (captureIndex < 0)
-            return
-
-        if (event.key === Qt.Key_Escape) {
-            endCapture()
-            event.accepted = true
-            return
-        }
-
-        if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
-                && captureTokens.length === 0) {
-            disableShortcut(captureIndex)
-            event.accepted = true
-            return
-        }
-
-        if (event.key === Qt.Key_Backspace) {
-            const tokens = captureTokens.slice()
-            tokens.pop()
-            setCaptureTokens(tokens)
-            event.accepted = true
-            return
-        }
-
-        const mods = modNames(event.modifiers)
-        const modifierName = modifierNameForKey(event.key)
-        for (let i = 0; i < mods.length; ++i)
-            addCaptureToken(mods[i])
-
-        const key = hyprKeyName(event.key, event.text)
-        addCaptureToken(modifierName.length > 0 ? modifierName : key)
-        event.accepted = true
-    }
-
-    function hyprlandConfCommands() {
-        shortcutRevision
-        const lines = []
-        for (let i = 0; i < shortcuts.length; ++i) {
-            const shortcut = shortcuts[i]
-            if (String(shortcut.key).length === 0)
-                continue
-            lines.push("bind = " + shortcut.mods + ", " + shortcut.key + ", exec, " + shortcutCommand(shortcut))
-        }
-        return lines.join("\n")
-    }
-
-    function hyprlandLuaCommands() {
-        shortcutRevision
-        const lines = []
-        for (let i = 0; i < shortcuts.length; ++i) {
-            const shortcut = shortcuts[i]
-            if (String(shortcut.key).length === 0)
-                continue
-            const modifiers = String(shortcut.mods).split(" ").filter(function(value) {
-                return value.length > 0
-            })
-            const chord = modifiers.concat([displayToken(shortcut.key)]).join(" + ")
-            lines.push("hl.bind("
-                + luaQuote(chord) + ", "
-                + "hl.dsp.exec_cmd("
-                + luaQuote(shortcutCommand(shortcut))
-                + "))")
-        }
-        return lines.join("\n")
     }
 
     Item {
         id: keyCapture
-        focus: true
+        focus: root.captureIndex >= 0
+
         Keys.onPressed: function(event) {
-            root.handleShortcutKey(event)
+            if (root.captureIndex < 0) return
+
+            if (event.key === Qt.Key_Escape) {
+                root.endCapture()
+                event.accepted = true
+                return
+            }
+
+            if (event.key === Qt.Key_Meta || event.key === Qt.Key_Super_L || event.key === Qt.Key_Super_R) {
+                root.addCaptureToken("SUPER")
+                event.accepted = true
+                return
+            }
+            if (event.key === Qt.Key_Shift) {
+                root.addCaptureToken("SHIFT")
+                event.accepted = true
+                return
+            }
+            if (event.key === Qt.Key_Control) {
+                root.addCaptureToken("CTRL")
+                event.accepted = true
+                return
+            }
+            if (event.key === Qt.Key_Alt) {
+                root.addCaptureToken("ALT")
+                event.accepted = true
+                return
+            }
+
+            const keyName = root.hyprKeyName(event.key, event.text)
+            if (keyName.length > 0) {
+                root.addCaptureToken(keyName)
+                event.accepted = true
+            }
         }
     }
 
-    Component.onCompleted: loadShortcutBindings()
-
     Flickable {
         id: scroller
-
         anchors.fill: parent
+        anchors.rightMargin: 4
         clip: true
         contentWidth: width
-        contentHeight: content.height
+        contentHeight: contentColumn.implicitHeight + 40
         boundsBehavior: Flickable.StopAtBounds
         boundsMovement: Flickable.StopAtBounds
         interactive: false
@@ -493,349 +341,191 @@ PagePanel {
             }
         }
 
-        Item {
-            id: content
+        ScrollBar.vertical: ScrollBar {
+            id: vbar
+            active: vbar.hovered || vbar.pressed
+            policy: ScrollBar.AsNeeded
+            contentItem: Rectangle {
+                implicitWidth: 4
+                radius: 2
+                color: Theme.muted
+                opacity: vbar.active ? 0.6 : 0
+                Behavior on opacity { NumberAnimation { duration: Theme.motion } }
+            }
+        }
 
-            width: scroller.width
-            height: pageColumn.implicitHeight + 100
+        Column {
+            id: contentColumn
+            width: parent.width - 24
+            x: 12
+            y: 12
+            spacing: 24
 
             Column {
-                id: pageColumn
-
-                x: 30
-                y: 50
-                width: Math.max(260, parent.width - 70)
-                spacing: 34
+                width: parent.width
+                spacing: 4
 
                 Text {
-                    text: "Shortcut"
-                    color: Theme.textColor
-                    font.family: Theme.titleFontFamily
-                    font.pixelSize: 30
+                    text: "Shortcuts"
+                    color: Theme.text
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 22
+                    font.weight: Font.DemiBold
                 }
 
                 Text {
-                    text: "Supported shortcuts"
-                    color: Theme.textColor
-                    font.family: Theme.titleFontFamily
-                    font.pixelSize: 23
-                    font.weight: Font.Normal
+                    text: "Global Hyprland keybindings to interact with and toggle the island."
+                    color: Theme.muted
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 13
                 }
+            }
 
-                Text {
-                    width: parent.width
-                    text: "Current desktop: " + compositorName + "."
-                    color: Theme.subtleTextColor
-                    wrapMode: Text.WordWrap
-                    font.family: Theme.textFontFamily
-                    font.pixelSize: 14
-                }
+            CardGroup {
+                title: "Island Shortcuts"
+                description: "Keybindings are managed and applied directly to your Hyprland configuration."
 
-                Text {
-                    width: parent.width
-                    text: "Island shortcuts call Quickshell IPC and can be reused in shell scripts; the default island action is toggle."
-                    color: Theme.subtleTextColor
-                    wrapMode: Text.WordWrap
-                    font.family: Theme.textFontFamily
-                    font.pixelSize: 14
-                }
+                Repeater {
+                    model: root.shortcuts
 
-                Text {
-                    width: parent.width
-                    text: "To disable an action, click its shortcut field and press Enter without entering any keys."
-                    color: Theme.subtleTextColor
-                    wrapMode: Text.WordWrap
-                    font.family: Theme.textFontFamily
-                    font.pixelSize: 14
-                }
+                    Item {
+                        width: parent.width
+                        implicitHeight: rowContent.implicitHeight + 8
 
-                Rectangle {
-                    width: parent.width
-                    height: shortcutColumn.implicitHeight + 30
-                    radius: 16
-                    color: Theme.cardBgColor
-                    border.width: 1
-                    border.color: Theme.splitLineColor
+                        readonly property bool isRecording: root.captureIndex === index
+                        readonly property bool hasBinding: modelData.key.length > 0
 
-                    Column {
-                        id: shortcutColumn
+                        Column {
+                            id: rowContent
+                            width: parent.width
+                            spacing: 12
 
-                        anchors.top: parent.top
-                        anchors.topMargin: 15
-                        anchors.left: parent.left
-                        anchors.leftMargin: 18
-                        anchors.right: parent.right
-                        anchors.rightMargin: 18
-                        spacing: 12
-
-                        Repeater {
-                            model: root.shortcuts
-
-                            ShortcutRow {
+                            Row {
                                 width: parent.width
-                                shortcutIndex: index
-                                action: modelData.action
-                                showSeparator: index < root.shortcuts.length - 1
+                                spacing: 16
+
+                                Column {
+                                    width: parent.width - actionButtons.width - parent.spacing
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 2
+
+                                    Text {
+                                        text: modelData.action
+                                        color: Theme.text
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 13
+                                        font.weight: Font.Medium
+                                    }
+
+                                    Text {
+                                        text: modelData.description
+                                        color: Theme.muted
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 11
+                                        wrapMode: Text.Wrap
+                                        width: parent.width
+                                    }
+                                }
+
+                                Row {
+                                    id: actionButtons
+                                    spacing: 8
+                                    anchors.verticalCenter: parent.verticalCenter
+
+                                    // Key badge or recording indicator
+                                    Rectangle {
+                                        height: 32
+                                        implicitWidth: Math.max(60, badgeText.implicitWidth + 20)
+                                        radius: Theme.radiusSmall
+                                        color: isRecording ? Theme.accentSoft : Theme.surfaceElevated
+                                        border.width: 1
+                                        border.color: isRecording ? Theme.accent : Theme.outline
+
+                                        Behavior on color { ColorAnimation { duration: Theme.motion } }
+                                        Behavior on border.color { ColorAnimation { duration: Theme.motion } }
+
+                                        Text {
+                                            id: badgeText
+                                            anchors.centerIn: parent
+                                            text: {
+                                                if (isRecording) {
+                                                    return root.captureTokens.length > 0
+                                                        ? root.captureTokens.map(root.displayToken).join(" + ")
+                                                        : "Press keys..."
+                                                }
+                                                if (!hasBinding)
+                                                    return "Unbound"
+
+                                                const parts = []
+                                                if (modelData.mods.length > 0)
+                                                    parts.push(modelData.mods.split(" ").map(root.displayToken).join(" + "))
+                                                if (modelData.key.length > 0)
+                                                    parts.push(root.displayToken(modelData.key))
+                                                return parts.join(" + ")
+                                            }
+                                            color: isRecording ? Theme.accent : (hasBinding ? Theme.text : Theme.subtle)
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: 12
+                                            font.weight: (isRecording || hasBinding) ? Font.DemiBold : Font.Normal
+                                        }
+                                    }
+
+                                    ActionButton {
+                                        text: isRecording ? "Cancel" : "Record"
+                                        variant: isRecording ? "danger" : "secondary"
+                                        onClicked: {
+                                            if (isRecording)
+                                                root.endCapture()
+                                            else
+                                                root.beginCapture(index)
+                                        }
+                                    }
+
+                                    ActionButton {
+                                        visible: hasBinding && !isRecording
+                                        text: "Clear"
+                                        variant: "ghost"
+                                        onClicked: root.disableShortcut(index)
+                                    }
+                                }
+                            }
+
+                            CardDivider {
+                                visible: index < root.shortcuts.length - 1
                             }
                         }
                     }
                 }
-
-                CopyBox {
-                    width: parent.width
-                    title: "Hyprland.conf"
-                    pathLabel: "~/.config/hypr/hyprland.conf"
-                    description: "Paste these binds there, or reuse the island toggle command in your own scripts."
-                    code: root.hyprlandConfCommands()
-                }
-
-                CopyBox {
-                    width: parent.width
-                    title: "Lua"
-                    pathLabel: "~/.config/hypr/hyprland.lua"
-                    description: "Use this variant when your Hyprland bindings are generated from Lua."
-                    code: root.hyprlandLuaCommands()
-                }
-
-            }
-        }
-    }
-
-    component ShortcutRow: Item {
-        id: row
-
-        property int shortcutIndex: -1
-        property string action: ""
-        property bool showSeparator: false
-        readonly property bool capturing: root.captureIndex === shortcutIndex
-
-        height: 48
-
-        Text {
-            id: actionText
-
-            anchors.left: parent.left
-            anchors.right: shortcutButton.left
-            anchors.rightMargin: 18
-            anchors.verticalCenter: parent.verticalCenter
-            text: row.action
-            color: Theme.textColor
-            elide: Text.ElideRight
-            font.family: Theme.textFontFamily
-            font.pixelSize: 16
-            font.weight: Font.Normal
-        }
-
-        Rectangle {
-            id: shortcutButton
-
-            width: Math.min(190, Math.max(128, parent.width * 0.36))
-            height: 34
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            radius: 6
-            color: row.capturing ? Theme.cardBgColor
-                                 : shortcutMouse.containsMouse ? Theme.controlHoverColor
-                                                               : "transparent"
-            border.width: 1
-            border.color: row.capturing ? Theme.focusBorderColor
-                                        : shortcutMouse.containsMouse ? Theme.inputHoverBorderColor
-                                                                     : Theme.inputBorderColor
-
-            Behavior on color { ColorAnimation { duration: Theme.animationDuration } }
-            Behavior on border.color { ColorAnimation { duration: Theme.animationDuration } }
-
-            Rectangle {
-                anchors.fill: parent
-                anchors.margins: -3
-                z: -1
-                radius: shortcutButton.radius + 3
-                color: "transparent"
-                border.width: 3
-                border.color: Theme.focusRingColor
-                opacity: row.capturing ? 1 : 0
-
-                Behavior on opacity { NumberAnimation { duration: Theme.animationDuration } }
             }
 
-            Text {
-                anchors.centerIn: parent
-                width: parent.width - 20
-                text: root.shortcutDisplay(row.shortcutIndex)
-                color: row.capturing ? Theme.selectedColor : Theme.secondaryTextColor
-                elide: Text.ElideRight
-                horizontalAlignment: Text.AlignHCenter
-                font.family: Theme.textFontFamily
-                font.pixelSize: 14
-                font.weight: row.capturing ? Font.DemiBold : Font.Normal
-            }
+            CardGroup {
+                title: "Compositor Integration"
+                description: "Tide Island binds to Hyprland via Quickshell IPC."
 
-            MouseArea {
-                id: shortcutMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
+                SettingRow {
+                    title: "Active Compositor"
+                    description: root.supportsHyprlandShortcutSnippets
+                        ? "Hyprland detected. Shortcuts are written to hyprland-shortcuts.conf / hyprland.lua automatically."
+                        : "Keybinding management requires Hyprland."
 
-                onClicked: root.beginCapture(row.shortcutIndex)
-            }
-        }
+                    Rectangle {
+                        height: 28
+                        implicitWidth: compText.implicitWidth + 18
+                        radius: 14
+                        color: Theme.accentSoft
+                        border.width: 1
+                        border.color: Theme.accent
 
-        Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            height: 1
-            color: Theme.splitLineColor
-            visible: row.showSeparator
-        }
-    }
-
-    component CopyBox: Rectangle {
-        id: box
-
-        property string title: ""
-        property string pathLabel: ""
-        property string description: ""
-        property string code: ""
-        property bool copied: false
-
-        height: boxColumn.implicitHeight + 30
-        radius: 16
-        color: Theme.cardBgColor
-        border.width: 1
-        border.color: Theme.splitLineColor
-
-        Column {
-            id: boxColumn
-
-            anchors.top: parent.top
-            anchors.topMargin: 15
-            anchors.left: parent.left
-            anchors.leftMargin: 18
-            anchors.right: parent.right
-            anchors.rightMargin: 18
-            spacing: 12
-
-            Row {
-                width: parent.width
-                height: Math.max(34, boxTitle.implicitHeight)
-                spacing: 12
-
-                Text {
-                    id: boxTitle
-
-                    width: Math.max(110, parent.width - copyBadge.width - parent.spacing)
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: box.title
-                    color: Theme.textColor
-                    elide: Text.ElideRight
-                    font.family: Theme.titleFontFamily
-                    font.pixelSize: 23
-                }
-
-                Rectangle {
-                    id: copyBadge
-
-                    width: Math.max(74, copyBadgeText.implicitWidth + 24)
-                    height: 34
-                    radius: 6
-                    color: box.copied ? Theme.selectedColor
-                                      : copyMouse.containsMouse ? Theme.mutedButtonHoverColor
-                                                                : Theme.mutedButtonColor
-                    border.width: 1
-                    border.color: box.copied ? Theme.selectedColor
-                                             : copyMouse.containsMouse ? Theme.inputHoverBorderColor
-                                                                       : Theme.inputBorderColor
-
-                    Behavior on color {
-                        ColorAnimation { duration: Theme.animationDuration }
-                    }
-
-                    Behavior on border.color {
-                        ColorAnimation { duration: Theme.animationDuration }
-                    }
-
-                    Text {
-                        id: copyBadgeText
-
-                        anchors.centerIn: parent
-                        text: box.copied ? "Copied" : "Copy"
-                        color: box.copied ? Theme.buttonTextColor : Theme.mutedButtonTextColor
-                        font.family: Theme.textFontFamily
-                        font.pixelSize: 14
-                        font.weight: Font.DemiBold
-
-                        Behavior on color {
-                            ColorAnimation { duration: Theme.animationDuration }
+                        Text {
+                            id: compText
+                            anchors.centerIn: parent
+                            text: root.compositorName
+                            color: Theme.accent
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 12
+                            font.weight: Font.DemiBold
                         }
                     }
-                }
-            }
-
-            Text {
-                width: parent.width
-                text: box.pathLabel
-                color: Theme.subtleTextColor
-                elide: Text.ElideRight
-                font.family: Theme.textFontFamily
-                font.pixelSize: 14
-            }
-
-            Text {
-                width: parent.width
-                text: box.description
-                color: Theme.subtleTextColor
-                wrapMode: Text.WordWrap
-                visible: box.description.length > 0
-                font.family: Theme.textFontFamily
-                font.pixelSize: 14
-            }
-
-            Rectangle {
-                width: parent.width
-                height: codeText.implicitHeight + 24
-                radius: 6
-                color: Theme.inputBgColor
-                border.width: 1
-                border.color: Theme.inputBorderColor
-
-                Text {
-                    id: codeText
-
-                    anchors.top: parent.top
-                    anchors.topMargin: 12
-                    anchors.left: parent.left
-                    anchors.leftMargin: 12
-                    anchors.right: parent.right
-                    anchors.rightMargin: 12
-                    text: box.code
-                    color: Theme.textColor
-                    wrapMode: Text.WrapAnywhere
-                    font.family: "monospace"
-                    font.pixelSize: 13
-                    lineHeight: 1.18
-                }
-            }
-        }
-
-        Timer {
-            id: copyResetTimer
-            interval: 1200
-            repeat: false
-            onTriggered: box.copied = false
-        }
-
-        MouseArea {
-            id: copyMouse
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-
-            onClicked: {
-                root.endCapture()
-                if (backend.copyToClipboard(box.code)) {
-                    box.copied = true
-                    copyResetTimer.restart()
                 }
             }
         }

@@ -7,140 +7,49 @@ PagePanel {
     id: root
 
     readonly property string playerAction: "toggleExpandedPlayer"
-    readonly property var mouseButtonOptions: [
-        { "label": "Left", "value": 1 },
-        { "label": "Middle", "value": 2 },
-        { "label": "Right", "value": 3 }
-    ]
-    readonly property var hoverActionOptions: [
-        { "label": "Disabled", "value": 0 },
-        { "label": "Music Player", "value": 1 }
-    ]
-
     property int revision: 0
 
     function normalizedButton(value, fallback) {
-        const parsedValue = Number(value)
-        if (parsedValue === 1 || parsedValue === 2 || parsedValue === 3)
-            return parsedValue
-        return fallback
+        const parsed = Number(value)
+        return (parsed === 1 || parsed === 2 || parsed === 3) ? parsed : fallback
     }
 
     function normalizedHoverAction(value) {
-        const parsedValue = Number(value)
-        if (parsedValue === 0 || parsedValue === 1)
-            return parsedValue
-        return 1
+        const parsed = Number(value)
+        return (parsed === 0 || parsed === 1) ? parsed : 1
     }
 
     function normalizedAutoHideDelay(value) {
-        const parsedValue = Number(value)
-        if (isNaN(parsedValue))
-            return 1000
-        return Math.min(10000, Math.max(100, Math.round(parsedValue)))
+        const parsed = Number(value)
+        return isNaN(parsed) ? 1000 : Math.min(10000, Math.max(100, Math.round(parsed)))
     }
 
     function boolValue(key, fallback) {
+        revision
         const value = ConfigStore.value(key, fallback)
         return value === true || value === "true"
     }
 
-    function buttonForAction(actionName, fallback) {
+    function buttonForAction(fallback) {
         revision
-
-        const primaryAction = String(ConfigStore.value("dynamicIslandPrimaryAction", root.playerAction))
-        if (primaryAction === actionName)
-            return normalizedButton(ConfigStore.value("dynamicIslandPrimaryButton", fallback), fallback)
-
-        return fallback
+        return normalizedButton(ConfigStore.value("dynamicIslandPrimaryButton", fallback), fallback)
     }
 
-    function saveClickMappings(playerButton) {
+    function saveClickButton(button) {
         ConfigStore.setValue("dynamicIslandPrimaryAction", root.playerAction)
-        ConfigStore.setValue("dynamicIslandPrimaryButton", playerButton)
+        ConfigStore.setValue("dynamicIslandPrimaryButton", button)
         ConfigStore.setValue("dynamicIslandSecondaryAction", "")
-        ConfigStore.save()
-        revision += 1
-    }
-
-    function setButtonForAction(actionName, button) {
-        if (actionName === root.playerAction) {
-            saveClickMappings(button)
-        }
-    }
-
-    function hoverActionValue() {
-        revision
-        return normalizedHoverAction(ConfigStore.value("hoverExpandAction", 1))
-    }
-
-    function setHoverAction(value) {
-        ConfigStore.setValue("hoverExpandAction", value)
-        ConfigStore.save()
-        revision += 1
-    }
-
-    function islandAutoHideEnabled() {
-        revision
-        return boolValue("islandAutoHideEnabled", true)
-    }
-
-    function setIslandAutoHideEnabled(enabled) {
-        ConfigStore.setValue("islandAutoHideEnabled", enabled)
-        ConfigStore.save()
-        revision += 1
-    }
-
-    function islandShowWorkspaceOnAutoHide() {
-        return boolValue("islandShowWorkspaceOnAutoHide", true)
-    }
-
-    function setIslandShowWorkspaceOnAutoHide(enabled) {
-        ConfigStore.setValue("islandShowWorkspaceOnAutoHide", enabled)
-        ConfigStore.save()
-    }
-
-    function islandAutoHideDelayMs() {
-        revision
-        return normalizedAutoHideDelay(ConfigStore.value("islandAutoHideDelayMs", 1000))
-    }
-
-    function hideDelaySecondsText() {
-        const seconds = islandAutoHideDelayMs() / 1000
-        if (Math.abs(seconds - Math.round(seconds)) < 0.001)
-            return String(Math.round(seconds))
-        return String(Math.round(seconds * 10) / 10)
-    }
-
-    function saveCustomHideDelay(value) {
-        const parsedValue = Number(String(value).trim())
-        const seconds = isNaN(parsedValue) ? islandAutoHideDelayMs() / 1000 : parsedValue
-        const boundedSeconds = Math.min(10, Math.max(0.1, seconds))
-        const delayMs = normalizedAutoHideDelay(boundedSeconds * 1000)
-        ConfigStore.setValue("islandAutoHideDelayMs", delayMs)
-        ConfigStore.save()
-        revision += 1
-        return delayMs / 1000
-    }
-
-    function autoExpandOnTrackChange() {
-        revision
-        return !boolValue("disableAutoExpandOnTrackChange", false)
-    }
-
-    function setAutoExpandOnTrackChange(enabled) {
-        ConfigStore.setValue("disableAutoExpandOnTrackChange", !enabled)
         ConfigStore.save()
         revision += 1
     }
 
     Flickable {
         id: scroller
-
         anchors.fill: parent
+        anchors.rightMargin: 4
         clip: true
         contentWidth: width
-        contentHeight: content.height
+        contentHeight: contentColumn.implicitHeight + 40
         boundsBehavior: Flickable.StopAtBounds
         boundsMovement: Flickable.StopAtBounds
         interactive: false
@@ -157,584 +66,176 @@ PagePanel {
             }
         }
 
-        Item {
-            id: content
-
-            width: scroller.width
-            height: playerPanel.y + playerPanel.height + 40
-
-            Text {
-                id: title
-
-                text: "Interaction"
-                x: 60
-                y: 50
-                color: Theme.textColor
-                font.family: Theme.titleFontFamily
-                font.pixelSize: 30
-            }
-
-            Text {
-                id: clickTitle
-
-                text: "Click"
-                anchors.top: title.bottom
-                anchors.topMargin: 40
-                anchors.left: parent.left
-                anchors.leftMargin: 32
-                anchors.right: parent.right
-                anchors.rightMargin: 40
-                color: Theme.textColor
-                font.family: Theme.titleFontFamily
-                font.pixelSize: 23
-            }
-
-            Rectangle {
-                id: clickPanel
-
-                color: Theme.cardBgColor
-                radius: 16
-                border.width: 1
-                border.color: Theme.splitLineColor
-                anchors.top: clickTitle.bottom
-                anchors.topMargin: 15
-                anchors.left: parent.left
-                anchors.leftMargin: 30
-                anchors.right: parent.right
-                anchors.rightMargin: 40
-                height: clickColumn.implicitHeight + 30
-
-                Column {
-                    id: clickColumn
-
-                    anchors.top: parent.top
-                    anchors.topMargin: 15
-                    anchors.left: parent.left
-                    anchors.leftMargin: 18
-                    anchors.right: parent.right
-                    anchors.rightMargin: 18
-                    spacing: 15
-
-                    ActionButtonRow {
-                        title: "Music Player"
-                        description: "Mouse button that toggles the player"
-                        actionName: root.playerAction
-                        fallbackButton: 1
-                        width: parent.width
-                    }
-                }
-            }
-
-            Text {
-                id: hoverTitle
-
-                text: "Hover"
-                anchors.top: clickPanel.bottom
-                anchors.topMargin: 34
-                anchors.left: parent.left
-                anchors.leftMargin: 32
-                anchors.right: parent.right
-                anchors.rightMargin: 40
-                color: Theme.textColor
-                font.family: Theme.titleFontFamily
-                font.pixelSize: 23
-            }
-
-            Rectangle {
-                id: hoverPanel
-
-                color: Theme.cardBgColor
-                radius: 16
-                border.width: 1
-                border.color: Theme.splitLineColor
-                anchors.top: hoverTitle.bottom
-                anchors.topMargin: 15
-                anchors.left: parent.left
-                anchors.leftMargin: 30
-                anchors.right: parent.right
-                anchors.rightMargin: 40
-                height: hoverColumn.implicitHeight + 30
-
-                Column {
-                    id: hoverColumn
-
-                    anchors.top: parent.top
-                    anchors.topMargin: 15
-                    anchors.left: parent.left
-                    anchors.leftMargin: 18
-                    anchors.right: parent.right
-                    anchors.rightMargin: 18
-                    spacing: 15
-
-                    HoverActionRow {
-                        width: parent.width
-                    }
-
-                    SplitLine { width: parent.width }
-
-                    AutoHideRow {
-                        width: parent.width
-                    }
-
-                    ShowWorkspaceAutoHideRow {
-                        width: parent.width
-                    }
-
-                    SplitLine { width: parent.width }
-
-                    HideDelayRow {
-                        width: parent.width
-                    }
-                }
-            }
-
-            Text {
-                id: playerTitle
-
-                text: "Player"
-                anchors.top: hoverPanel.bottom
-                anchors.topMargin: 34
-                anchors.left: parent.left
-                anchors.leftMargin: 32
-                anchors.right: parent.right
-                anchors.rightMargin: 40
-                color: Theme.textColor
-                font.family: Theme.titleFontFamily
-                font.pixelSize: 23
-            }
-
-            Rectangle {
-                id: playerPanel
-
-                color: Theme.cardBgColor
-                radius: 16
-                border.width: 1
-                border.color: Theme.splitLineColor
-                anchors.top: playerTitle.bottom
-                anchors.topMargin: 15
-                anchors.left: parent.left
-                anchors.leftMargin: 30
-                anchors.right: parent.right
-                anchors.rightMargin: 40
-                height: playerColumn.implicitHeight + 30
-
-                Column {
-                    id: playerColumn
-
-                    anchors.top: parent.top
-                    anchors.topMargin: 15
-                    anchors.left: parent.left
-                    anchors.leftMargin: 18
-                    anchors.right: parent.right
-                    anchors.rightMargin: 18
-
-                    AutoExpandTrackRow {
-                        width: parent.width
-                    }
-                }
-            }
-        }
-    }
-
-    component SplitLine: Rectangle {
-        height: 1
-        color: Theme.splitLineColor
-    }
-
-    component ActionButtonRow: Item {
-        id: row
-
-        property string title: ""
-        property string description: ""
-        property string actionName: ""
-        property int fallbackButton: 1
-
-        height: 49
-
-        Text {
-            id: rowTitle
-
-            text: row.title
-            anchors.left: parent.left
-            anchors.top: parent.top
-            color: Theme.textColor
-            font.family: Theme.textFontFamily
-            font.pixelSize: 18
-        }
-
-        Text {
-            text: row.description
-            anchors.left: rowTitle.left
-            anchors.top: rowTitle.bottom
-            anchors.topMargin: 5
-            width: Math.max(80, parent.width - buttonGroup.width - 28)
-            color: Theme.subtleTextColor
-            elide: Text.ElideRight
-            font.family: Theme.textFontFamily
-            font.pixelSize: 14
-        }
-
-        ButtonGroup {
-            id: buttonGroup
-
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            options: root.mouseButtonOptions
-            selectedValue: root.buttonForAction(row.actionName, row.fallbackButton)
-
-            onSelected: function(value) {
-                root.setButtonForAction(row.actionName, value)
-            }
-        }
-    }
-
-    component HoverActionRow: Item {
-        id: row
-
-        height: 49
-
-        Text {
-            id: rowTitle
-
-            text: "Hover Expand"
-            anchors.left: parent.left
-            anchors.top: parent.top
-            color: Theme.textColor
-            font.family: Theme.textFontFamily
-            font.pixelSize: 18
-        }
-
-        Text {
-            text: "Choose what opens when the island is hovered"
-            anchors.left: rowTitle.left
-            anchors.top: rowTitle.bottom
-            anchors.topMargin: 5
-            width: Math.max(80, parent.width - hoverGroup.width - 28)
-            color: Theme.subtleTextColor
-            elide: Text.ElideRight
-            font.family: Theme.textFontFamily
-            font.pixelSize: 14
-        }
-
-        ButtonGroup {
-            id: hoverGroup
-
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            options: root.hoverActionOptions
-            selectedValue: root.hoverActionValue()
-
-            onSelected: function(value) {
-                root.setHoverAction(value)
-            }
-        }
-    }
-
-    component AutoExpandTrackRow: Item {
-        id: row
-
-        height: 49
-
-        Text {
-            id: rowTitle
-
-            text: "Auto Expand Player"
-            anchors.left: parent.left
-            anchors.top: parent.top
-            color: Theme.textColor
-            font.family: Theme.textFontFamily
-            font.pixelSize: 18
-        }
-
-        Text {
-            text: "Open the music player when the current track changes"
-            anchors.left: rowTitle.left
-            anchors.top: rowTitle.bottom
-            anchors.topMargin: 5
-            width: Math.max(80, parent.width - autoExpandSwitch.width - 28)
-            color: Theme.subtleTextColor
-            elide: Text.ElideRight
-            font.family: Theme.textFontFamily
-            font.pixelSize: 14
-        }
-
-        StyledSwitch {
-            id: autoExpandSwitch
-
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            checked: root.autoExpandOnTrackChange()
-
-            onToggled: function(checked) {
-                root.setAutoExpandOnTrackChange(checked)
-            }
-        }
-    }
-
-    component AutoHideRow: Item {
-        id: row
-
-        height: 49
-
-        Text {
-            id: rowTitle
-
-            text: "Auto Hide"
-            anchors.left: parent.left
-            anchors.top: parent.top
-            color: Theme.textColor
-            font.family: Theme.textFontFamily
-            font.pixelSize: 18
-        }
-
-        Text {
-            text: "Hide the island until the pointer reaches the top edge"
-            anchors.left: rowTitle.left
-            anchors.top: rowTitle.bottom
-            anchors.topMargin: 5
-            width: Math.max(80, parent.width - autoHideSwitch.width - 28)
-            color: Theme.subtleTextColor
-            elide: Text.ElideRight
-            font.family: Theme.textFontFamily
-            font.pixelSize: 14
-        }
-
-        StyledSwitch {
-            id: autoHideSwitch
-
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            checked: root.islandAutoHideEnabled()
-
-            onToggled: function(checked) {
-                root.setIslandAutoHideEnabled(checked)
-            }
-        }
-    }
-
-component ShowWorkspaceAutoHideRow: Item {
-        id: row
-        height: 49
-
-        enabled: root.islandAutoHideEnabled()
-        opacity: enabled ? 1.0 : 0.4
-
-        Text {
-            id: rowTitle
-            text: "Show Workspace Change"
-            anchors.left: parent.left
-            anchors.leftMargin: 24
-            anchors.top: parent.top
-            color: Theme.textColor
-            font.family: Theme.textFontFamily
-            font.pixelSize: 16
-        }
-
-        Text {
-            text: "Show pop-up when island is auto-hidden"
-            anchors.left: rowTitle.left
-            anchors.top: rowTitle.bottom
-            anchors.topMargin: 5
-            width: Math.max(80, parent.width - workspaceSwitch.width - 52)
-            color: Theme.subtleTextColor
-            elide: Text.ElideRight
-            font.family: Theme.textFontFamily
-            font.pixelSize: 13
-        }
-
-        StyledSwitch {
-            id: workspaceSwitch
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            
-            Component.onCompleted: checked = root.islandShowWorkspaceOnAutoHide()
-
-            onToggled: function(checkedValue) {
-                root.setIslandShowWorkspaceOnAutoHide(checkedValue)
-                checked = checkedValue 
-            }
-        }
-    }
-
-    component HideDelayRow: Item {
-        id: row
-
-        height: 49
-
-        Text {
-            id: rowTitle
-
-            text: "Hide Delay"
-            anchors.left: parent.left
-            anchors.top: parent.top
-            color: Theme.textColor
-            font.family: Theme.textFontFamily
-            font.pixelSize: 18
-        }
-
-        Text {
-            text: "Delay after the pointer leaves the island"
-            anchors.left: rowTitle.left
-            anchors.top: rowTitle.bottom
-            anchors.topMargin: 5
-            width: Math.max(80, parent.width - delayControls.width - 28)
-            color: Theme.subtleTextColor
-            elide: Text.ElideRight
-            font.family: Theme.textFontFamily
-            font.pixelSize: 14
-        }
-
-        Row {
-            id: delayControls
-
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 8
-
-            ConfigTextField {
-                id: delayField
-
-                width: 72
-                height: 36
-                textPixelSize: 14
-                placeholderText: "1"
-                inputMethodHints: Qt.ImhFormattedNumbersOnly
-                validator: DoubleValidator {
-                    bottom: 0.1
-                    top: 10
-                    decimals: 1
-                    notation: DoubleValidator.StandardNotation
-                }
-
-                Component.onCompleted: text = root.hideDelaySecondsText()
-                onAccepted: row.commitCustomDelay()
-                onEditingFinished: row.commitCustomDelay()
-            }
-
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: "s"
-                color: Theme.subtleTextColor
-                font.family: Theme.textFontFamily
-                font.pixelSize: 14
+        ScrollBar.vertical: ScrollBar {
+            id: vbar
+            active: vbar.hovered || vbar.pressed
+            policy: ScrollBar.AsNeeded
+            contentItem: Rectangle {
+                implicitWidth: 4
+                radius: 2
+                color: Theme.muted
+                opacity: vbar.active ? 0.6 : 0
+                Behavior on opacity { NumberAnimation { duration: Theme.motion } }
             }
         }
 
-        function commitCustomDelay() {
-            delayField.text = String(root.saveCustomHideDelay(delayField.text))
-        }
-    }
+        Column {
+            id: contentColumn
+            width: parent.width - 24
+            x: 12
+            y: 12
+            spacing: 24
 
-    component StyledSwitch: Item {
-        id: control
+            Column {
+                width: parent.width
+                spacing: 4
 
-        signal toggled(bool checked)
-
-        property bool checked: false
-
-        width: 48
-        height: 26
-
-        Rectangle {
-            id: track
-
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: 40
-            height: 24
-            radius: 12
-            color: control.checked ? Theme.accentColor : Theme.componentBgColor
-            border.width: 1
-            border.color: control.checked ? Theme.accentColor : Theme.inputBorderColor
-
-            Behavior on color {
-                ColorAnimation { duration: 180; easing.type: Easing.InOutQuad }
-            }
-        }
-
-        Rectangle {
-            id: knob
-
-            width: 18
-            height: 18
-            radius: 9
-            x: control.checked ? 22 : 6
-            y: 3
-            color: Theme.cardBgColor
-            border.width: 0
-
-            Behavior on x {
-                NumberAnimation { duration: 180; easing.type: Easing.InOutQuad }
-            }
-
-        }
-
-        MouseArea {
-            id: switchMouse
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-
-            onClicked: control.toggled(!control.checked)
-        }
-    }
-
-    component ButtonGroup: Row {
-        id: group
-
-        signal selected(int value)
-
-        property var options: []
-        property int selectedValue: -1
-
-        width: implicitWidth
-        height: implicitHeight
-        spacing: 6
-
-        Repeater {
-            model: group.options
-
-            Rectangle {
-                id: option
-
-                property bool selectedState: group.selectedValue === modelData.value
-
-                width: Math.max(74, optionText.implicitWidth + 24)
-                height: 36
-                radius: 7
-                color: selectedState ? Theme.cardBgColor
-                                     : optionMouse.pressed ? Theme.controlPressedColor
-                                                           : Theme.componentBgColor
-                border.width: 1
-                border.color: Theme.inputBorderColor
-
-                Behavior on color {
-                    ColorAnimation { duration: Theme.animationDuration }
-                }
-
-                Behavior on border.color {
-                    ColorAnimation { duration: Theme.animationDuration }
+                Text {
+                    text: "Interaction"
+                    color: Theme.text
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 22
+                    font.weight: Font.DemiBold
                 }
 
                 Text {
-                    id: optionText
+                    text: "Configure mouse clicks, hover expansion, auto-hide timings, and media triggers."
+                    color: Theme.muted
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 13
+                }
+            }
 
-                    anchors.centerIn: parent
-                    text: modelData.label
-                    color: option.selectedState ? Theme.textColor : Theme.secondaryTextColor
-                    font.family: Theme.textFontFamily
-                    font.pixelSize: 14
-                    font.weight: option.selectedState ? Font.DemiBold : Font.Normal
+            CardGroup {
+                title: "Click Actions"
+                description: "Mouse button assignments to expand or collapse the island."
+
+                SettingRow {
+                    title: "Expand Music Player"
+                    description: "Select which mouse button toggles the expanded media player"
+
+                    SegmentedControl {
+                        options: [
+                            { label: "Left Click", value: 1 },
+                            { label: "Middle Click", value: 2 },
+                            { label: "Right Click", value: 3 }
+                        ]
+                        currentValue: root.buttonForAction(1)
+                        onSelected: function(val) {
+                            root.saveClickButton(val)
+                        }
+                        implicitWidth: 260
+                    }
+                }
+            }
+
+            CardGroup {
+                title: "Hover Behavior"
+                description: "Expand the capsule automatically when hovering over it."
+
+                SettingRow {
+                    title: "Hover Action"
+                    description: "Triggers after hovering on the capsule for 350ms"
+
+                    SegmentedControl {
+                        options: [
+                            { label: "Disabled", value: 0 },
+                            { label: "Music Player", value: 1 }
+                        ]
+                        currentValue: root.normalizedHoverAction(ConfigStore.value("hoverExpandAction", 1))
+                        onSelected: function(val) {
+                            ConfigStore.setValue("hoverExpandAction", val)
+                            ConfigStore.save()
+                            root.revision += 1
+                        }
+                        implicitWidth: 200
+                    }
+                }
+            }
+
+            CardGroup {
+                title: "Auto-Hide"
+                description: "Hide the island when idle and reveal it on edge hover or events."
+
+                TideSwitch {
+                    width: parent.width
+                    text: "Enable Auto-Hide"
+                    description: "Hide the island after an idle delay and reveal it when hovering over the top screen edge"
+                    checked: root.boolValue("islandAutoHideEnabled", true)
+                    onToggled: function(val) {
+                        ConfigStore.setValue("islandAutoHideEnabled", val)
+                        ConfigStore.save()
+                        root.revision += 1
+                    }
                 }
 
-                MouseArea {
-                    id: optionMouse
+                CardDivider {}
 
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
+                SettingRow {
+                    title: "Auto-Hide Delay"
+                    description: "Duration before the capsule retracts into the top edge (seconds)"
 
-                    onClicked: group.selected(modelData.value)
+                    Row {
+                        spacing: 10
+                        anchors.verticalCenter: parent.verticalCenter
+
+                        TideSlider {
+                            id: delaySlider
+                            from: 0.1
+                            to: 6.0
+                            stepSize: 0.1
+                            value: root.normalizedAutoHideDelay(ConfigStore.value("islandAutoHideDelayMs", 1000)) / 1000.0
+                            onMoved: {
+                                const ms = Math.round(value * 1000)
+                                ConfigStore.setValue("islandAutoHideDelayMs", ms)
+                                ConfigStore.save()
+                                root.revision += 1
+                            }
+                            width: 140
+                        }
+
+                        Text {
+                            text: delaySlider.value.toFixed(1) + " s"
+                            color: Theme.muted
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 13
+                            font.weight: Font.Medium
+                            width: 44
+                            horizontalAlignment: Text.AlignRight
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+                }
+
+                CardDivider {}
+
+                TideSwitch {
+                    width: parent.width
+                    text: "Show Workspace on Auto-Hide"
+                    description: "Temporarily reveal the island with the active workspace indicator when switching Hyprland workspaces"
+                    checked: root.boolValue("islandShowWorkspaceOnAutoHide", true)
+                    onToggled: function(val) {
+                        ConfigStore.setValue("islandShowWorkspaceOnAutoHide", val)
+                        ConfigStore.save()
+                        root.revision += 1
+                    }
+                }
+            }
+
+            CardGroup {
+                title: "Media Playback"
+                description: "Media player event reactions and notifications."
+
+                TideSwitch {
+                    width: parent.width
+                    text: "Auto-Expand on Track Change"
+                    description: "Automatically expand the music player capsule for a moment whenever a new song begins playing"
+                    checked: !root.boolValue("disableAutoExpandOnTrackChange", false)
+                    onToggled: function(val) {
+                        ConfigStore.setValue("disableAutoExpandOnTrackChange", !val)
+                        ConfigStore.save()
+                        root.revision += 1
+                    }
                 }
             }
         }
