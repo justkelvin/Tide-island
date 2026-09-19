@@ -64,9 +64,15 @@ ApplicationWindow {
                 color: Theme.divider
             }
 
+            // Top Section (Header & Navigation)
             Column {
-                anchors.fill: parent
-                anchors.margins: 16
+                id: topSection
+                anchors.top: parent.top
+                anchors.topMargin: 16
+                anchors.left: parent.left
+                anchors.leftMargin: 16
+                anchors.right: parent.right
+                anchors.rightMargin: 16
                 spacing: 20
 
                 // Header / Branding
@@ -158,74 +164,78 @@ ApplicationWindow {
                         onClicked: window.selectPage(4)
                     }
                 }
+            }
 
-                Item {
-                    // Spacer
+            // Bottom Section (Dark / Light Mode & Footer Link)
+            Column {
+                id: bottomSection
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 20
+                anchors.left: parent.left
+                anchors.leftMargin: 16
+                anchors.right: parent.right
+                anchors.rightMargin: 16
+                spacing: 12
+
+                // Dark / Light Mode Switcher
+                Rectangle {
                     width: parent.width
-                    height: sidebar.height - y - bottomColumn.height - 32
-                }
+                    height: 36
+                    radius: Theme.radiusControl
+                    color: Theme.card
+                    border.width: 1
+                    border.color: themeToggleMouse.containsMouse ? Theme.accent : Theme.outline
 
-                // Bottom Sidebar Area
-                Column {
-                    id: bottomColumn
-                    width: parent.width
-                    spacing: 12
+                    Behavior on border.color { ColorAnimation { duration: Theme.motion } }
 
-                    // Dark / Light Mode Switcher
-                    Rectangle {
-                        width: parent.width
-                        height: 36
-                        radius: Theme.radiusControl
-                        color: Theme.card
-                        border.width: 1
-                        border.color: themeToggleMouse.containsMouse ? Theme.accent : Theme.outline
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: 8
 
-                        Behavior on border.color { ColorAnimation { duration: Theme.motion } }
-
-                        Row {
-                            anchors.centerIn: parent
-                            spacing: 8
-
-                            SvgIcon {
-                                source: Theme.darkMode ? "qrc:/resources/icons/mode-dark.svg" : "qrc:/resources/icons/mode-light.svg"
-                                iconSize: 16
-                                color: Theme.accent
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-
-                            Text {
-                                text: Theme.darkMode ? "Dark Mode" : "Light Mode"
-                                color: Theme.text
-                                font.family: Theme.fontFamily
-                                font.pixelSize: 12
-                                font.weight: Font.Medium
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
+                        SvgIcon {
+                            source: Theme.darkMode ? "qrc:/resources/icons/mode-dark.svg" : "qrc:/resources/icons/mode-light.svg"
+                            iconSize: 16
+                            color: Theme.accent
+                            anchors.verticalCenter: parent.verticalCenter
                         }
 
-                        MouseArea {
-                            id: themeToggleMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: backend.setColorScheme(Theme.darkMode ? "light" : "dark")
+                        Text {
+                            text: Theme.darkMode ? "Dark Mode" : "Light Mode"
+                            color: Theme.text
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 12
+                            font.weight: Font.Medium
+                            anchors.verticalCenter: parent.verticalCenter
                         }
                     }
 
-                    // Links / Info
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: "Tide Island for Hyprland"
-                        color: Theme.subtle
-                        font.family: Theme.fontFamily
-                        font.pixelSize: 10
+                    MouseArea {
+                        id: themeToggleMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: backend.setColorScheme(Theme.darkMode ? "light" : "dark")
+                    }
+                }
 
-                        MouseArea {
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Qt.openUrlExternally("https://github.com/enhaoswen/Tide-island")
-                        }
+                // Links / Info with comfortable padding and hover styling
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: "Tide Island for Hyprland"
+                    color: linkMouse.containsMouse ? Theme.accent : Theme.subtle
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 11
+                    font.underline: linkMouse.containsMouse
+
+                    Behavior on color { ColorAnimation { duration: Theme.motion } }
+
+                    MouseArea {
+                        id: linkMouse
+                        anchors.fill: parent
+                        anchors.margins: -4
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Qt.openUrlExternally("https://github.com/enhaoswen/Tide-island")
                     }
                 }
             }
