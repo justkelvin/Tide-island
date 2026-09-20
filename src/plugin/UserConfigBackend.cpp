@@ -201,6 +201,11 @@ int UserConfigBackend::islandAutoHideDelayMs() const
     return m_islandAutoHideDelayMs;
 }
 
+bool UserConfigBackend::cleanNotificationUrls() const
+{
+    return m_cleanNotificationUrls;
+}
+
 int UserConfigBackend::islandWidth() const
 {
     return m_islandWidth;
@@ -350,6 +355,7 @@ void UserConfigBackend::loadConfig()
     updateField(this, m_hoverExpandAction, jsonInt(configObject, QLatin1String("hoverExpandAction"), 1), &UserConfigBackend::hoverExpandActionChanged);
     updateField(this, m_islandAutoHideEnabled, jsonBool(configObject, QLatin1String("islandAutoHideEnabled"), true), &UserConfigBackend::islandAutoHideEnabledChanged);
     updateField(this, m_islandAutoHideDelayMs, jsonBoundedInt(configObject, QLatin1String("islandAutoHideDelayMs"), 1000, 100, 10000), &UserConfigBackend::islandAutoHideDelayMsChanged);
+    updateField(this, m_cleanNotificationUrls, jsonBool(configObject, QLatin1String("cleanNotificationUrls"), true), &UserConfigBackend::cleanNotificationUrlsChanged);
     updateField(this, m_islandWidth, jsonInt(configObject, QLatin1String("islandWidth"), 140), &UserConfigBackend::islandWidthChanged);
     updateField(this, m_islandBackgroundOpacity, jsonBoundedInt(configObject, QLatin1String("islandBackgroundOpacity"), 60, 0, 100), &UserConfigBackend::islandBackgroundOpacityChanged);
     updateField(this, m_islandHeight, jsonInt(configObject, QLatin1String("islandHeight"), 38), &UserConfigBackend::islandHeightChanged);

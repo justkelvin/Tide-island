@@ -312,8 +312,22 @@ FocusScope {
         bluetoothExpandedDevice = null;
     }
 
-    function cleanNotificationText(text) {
-        return String(text === undefined || text === null ? "" : text)
+    function cleanNotificationText(text, stripUrls) {
+        if (stripUrls === undefined) stripUrls = false;
+        let s = String(text === undefined || text === null ? "" : text);
+
+        if (stripUrls) {
+            // Remove leading HTML anchor origin attribution (e.g. <a href="...">domain.com</a>)
+            s = s.replace(/^\s*<a\b[^>]*>.*?<\/a>\s*/i, "");
+            // Remove leading domain-like origin header followed by newlines (e.g. domain.com\n\n)
+            s = s.replace(/^\s*([a-zA-Z0-9][-a-zA-Z0-9]*\.)+[a-zA-Z]{2,}(?::\d+)?(?:\/\S*)?\s*\n+/i, "");
+            // Remove standalone http:// or https:// URLs
+            s = s.replace(/https?:\/\/[^\s<>]+/gi, "");
+            // Remove standalone www. links
+            s = s.replace(/\bwww\.[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}[^\s<>]*/gi, "");
+        }
+
+        const cleaned = s
             .replace(/<[^>]*>/g, " ")
             .replace(/&nbsp;/g, " ")
             .replace(/&amp;/g, "&")
@@ -322,6 +336,14 @@ FocusScope {
             .replace(/&gt;/g, ">")
             .replace(/\s+/g, " ")
             .trim();
+
+        // If stripping URLs emptied out the entire string, fallback to standard sanitization
+        // so notifications consisting only of a link are not completely lost
+        if (stripUrls && cleaned === "") {
+            return cleanNotificationText(text, false);
+        }
+
+        return cleaned;
     }
 
     function prepareRestingCapsuleGeometry() {
@@ -499,9 +521,10 @@ FocusScope {
     function showNotificationCapsule(appName, summary, body) {
         if (islandState === "expanded") return;
 
-        const cleanedAppName = cleanNotificationText(appName);
-        const cleanedSummary = cleanNotificationText(summary);
-        const cleanedBody = cleanNotificationText(body);
+        const stripUrls = userConfig.cleanNotificationUrls;
+        const cleanedAppName = cleanNotificationText(appName, false);
+        const cleanedSummary = cleanNotificationText(summary, stripUrls);
+        const cleanedBody = cleanNotificationText(body, stripUrls);
         const resolvedSummary = cleanedSummary !== ""
             ? cleanedSummary
             : (cleanedBody !== "" ? cleanedBody : "New notification");

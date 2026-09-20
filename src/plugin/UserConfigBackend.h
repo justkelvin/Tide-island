@@ -30,6 +30,7 @@ class UserConfigBackend final : public QObject {
     Q_PROPERTY(bool islandAutoHideEnabled READ islandAutoHideEnabled NOTIFY islandAutoHideEnabledChanged FINAL)
     Q_PROPERTY(int islandAutoHideDelayMs READ islandAutoHideDelayMs NOTIFY islandAutoHideDelayMsChanged FINAL)
     Q_PROPERTY(bool islandShowWorkspaceOnAutoHide READ islandShowWorkspaceOnAutoHide NOTIFY islandShowWorkspaceOnAutoHideChanged FINAL)
+    Q_PROPERTY(bool cleanNotificationUrls READ cleanNotificationUrls NOTIFY cleanNotificationUrlsChanged FINAL)
 
     Q_PROPERTY(int islandWidth READ islandWidth NOTIFY islandWidthChanged FINAL)
     Q_PROPERTY(int islandHeight READ islandHeight NOTIFY islandHeightChanged FINAL)
@@ -61,6 +62,7 @@ public:
     bool islandShowWorkspaceOnAutoHide() const;
     bool islandAutoHideEnabled() const;
     int islandAutoHideDelayMs() const;
+    bool cleanNotificationUrls() const;
     int islandWidth() const;
     int islandHeight() const;
     int islandExclusiveZone() const;
@@ -92,6 +94,7 @@ signals:
     void hoverExpandActionChanged();
     void islandAutoHideEnabledChanged();
     void islandAutoHideDelayMsChanged();
+    void cleanNotificationUrlsChanged();
     void islandWidthChanged();
     void islandHeightChanged();
     void islandExclusiveZoneChanged();
@@ -125,6 +128,7 @@ private:
     int m_hoverExpandAction = 1;
     bool m_islandAutoHideEnabled = true;
     int m_islandAutoHideDelayMs = 1000;
+    bool m_cleanNotificationUrls = true;
     int m_islandWidth = 140;
     int m_islandBackgroundOpacity = 60;
     int m_islandHeight = 38;
