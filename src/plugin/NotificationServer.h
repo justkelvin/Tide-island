@@ -57,6 +57,13 @@ struct NotificationItem {
     QString replyPlaceholder;
     qint64 createdMs = 0;
 
+    QString resolvedIcon() const {
+        if (!appIcon.isEmpty()) return appIcon;
+        if (!imagePath.isEmpty()) return imagePath;
+        if (!imageDataUrl.isEmpty()) return imageDataUrl;
+        return QString();
+    }
+
     QVariantMap toMap() const;
 };
 

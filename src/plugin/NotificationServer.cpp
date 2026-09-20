@@ -46,6 +46,7 @@ QVariantMap NotificationItem::toMap() const {
     map.insert(QStringLiteral("desktopEntry"), desktopEntry);
     map.insert(QStringLiteral("imagePath"), imagePath);
     map.insert(QStringLiteral("imageDataUrl"), imageDataUrl);
+    map.insert(QStringLiteral("resolvedIcon"), resolvedIcon());
     map.insert(QStringLiteral("progress"), progress);
     map.insert(QStringLiteral("resident"), resident);
     map.insert(QStringLiteral("transient"), transient);
