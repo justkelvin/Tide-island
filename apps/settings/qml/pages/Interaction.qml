@@ -240,6 +240,57 @@ PagePanel {
                     }
                 }
             }
+
+            CardGroup {
+                title: "Notifications"
+                description: "System and web push notification display behavior."
+
+                TideSwitch {
+                    width: parent.width
+                    text: "Clean Web Notification URLs"
+                    description: "Remove website domain prefixes and web links from browser notifications for a cleaner pill display"
+                    checked: root.boolValue("cleanNotificationUrls", true)
+                    onToggled: function(val) {
+                        ConfigStore.setValue("cleanNotificationUrls", val)
+                        ConfigStore.save()
+                        root.revision += 1
+                    }
+                }
+
+                CardDivider {}
+
+                Rectangle {
+                    width: parent.width
+                    implicitHeight: warningRow.implicitHeight + 16
+                    radius: Theme.radiusSmall
+                    color: Theme.darkMode ? Qt.rgba(0.98, 0.74, 0.02, 0.08) : Qt.rgba(0.85, 0.51, 0.17, 0.08)
+                    border.width: 1
+                    border.color: Theme.darkMode ? Qt.rgba(0.98, 0.74, 0.02, 0.22) : Qt.rgba(0.85, 0.51, 0.17, 0.20)
+
+                    Row {
+                        id: warningRow
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        spacing: 8
+
+                        Text {
+                            text: "⚠️"
+                            font.pixelSize: 13
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Text {
+                            width: parent.width - 26
+                            wrapMode: Text.WordWrap
+                            text: "Security notice: Browsers display website origins to protect against phishing and spoofed messages. Hiding URLs creates a clean capsule display, but you will not see which website sent the alert."
+                            color: Theme.warning
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 11
+                            lineHeight: 1.15
+                        }
+                    }
+                }
+            }
         }
     }
 }
