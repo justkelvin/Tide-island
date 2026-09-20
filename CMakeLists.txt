@@ -45,6 +45,8 @@ qt_add_qml_module(IslandBackend
         src/plugin/SysBackend.cpp
         src/plugin/SystemServices.h
         src/plugin/SystemServices.cpp
+        src/plugin/NotificationServer.h
+        src/plugin/NotificationServer.cpp
         src/plugin/StyleTokensBackend.h
         src/plugin/StyleTokensBackend.cpp
         src/plugin/UserConfigBackend.h

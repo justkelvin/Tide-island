@@ -1,4 +1,5 @@
 #include "SystemServices.h"
+#include "NotificationServer.h"
 #include "UserConfigBackend.h"
 
 #include <QDateTime>
@@ -40,10 +41,6 @@ SystemServices::SystemServices(QObject *parent)
     : QObject(parent) {
     m_cavaLevels = QVariantList{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
-    m_notificationRestartTimer.setSingleShot(true);
-    m_notificationRestartTimer.setInterval(1200);
-    connect(&m_notificationRestartTimer, &QTimer::timeout, this, &SystemServices::startNotificationMonitor);
-
     m_pipeWireRestartTimer.setSingleShot(true);
     m_pipeWireRestartTimer.setInterval(1200);
     connect(&m_pipeWireRestartTimer, &QTimer::timeout, this, &SystemServices::startPipeWireMonitor);
@@ -60,21 +57,37 @@ SystemServices::SystemServices(QObject *parent)
     m_cavaRestartTimer.setInterval(1200);
     connect(&m_cavaRestartTimer, &QTimer::timeout, this, &SystemServices::startCava);
 
-    startNotificationMonitor();
     startPipeWireMonitor();
     startRecordingPortalMonitor();
     requestScreenRecordingSnapshot();
+
+    // Native notification server owns org.freedesktop.Notifications now.
+    // Forward new arrivals to the legacy signal so existing QML (shell.qml ->
+    // StateMachine.showNotificationCapsule) keeps working unchanged.
+    NotificationServer *notifications = NotificationServer::instance();
+    connect(notifications, &NotificationServer::notificationAdded, this,
+            [this](const QVariantMap &item) {
+                emit notificationReceived(item.value(QStringLiteral("appName")).toString(),
+                                          item.value(QStringLiteral("summary")).toString(),
+                                          item.value(QStringLiteral("body")).toString(),
+                                          item.value(QStringLiteral("appIcon")).toString());
+            });
+    connect(notifications, &NotificationServer::notificationUpdated, this,
+            [this](const QVariantMap &item) {
+                emit notificationReceived(item.value(QStringLiteral("appName")).toString(),
+                                          item.value(QStringLiteral("summary")).toString(),
+                                          item.value(QStringLiteral("body")).toString(),
+                                          item.value(QStringLiteral("appIcon")).toString());
+            });
 }
 
 SystemServices::~SystemServices() {
     m_shuttingDown = true;
-    m_notificationRestartTimer.stop();
     m_pipeWireRestartTimer.stop();
     m_recordingPortalRestartTimer.stop();
     m_recordingSnapshotDebounceTimer.stop();
     m_cavaRestartTimer.stop();
 
-    stopProcess(m_notificationMonitor);
     stopProcess(m_pipeWireMonitor);
     stopProcess(m_recordingPortalMonitor);
     stopProcess(m_recordingSnapshot);
@@ -201,34 +214,6 @@ void SystemServices::stopProcess(QProcess *&process) {
     current->deleteLater();
 }
 
-void SystemServices::startNotificationMonitor() {
-    if (m_shuttingDown || m_notificationMonitor) return;
-    const QString executable = findExecutable(QStringLiteral("dbus-monitor"));
-    if (executable.isEmpty()) {
-        qWarning() << "[SystemServices] dbus-monitor is not available; notification mirroring is disabled";
-        return;
-    }
-
-    m_notificationMonitor = new QProcess(this);
-    m_notificationMonitor->setProcessChannelMode(QProcess::MergedChannels);
-    m_notificationMonitor->setProgram(executable);
-    m_notificationMonitor->setArguments({
-        QStringLiteral("--session"),
-        QStringLiteral("type='method_call',interface='org.freedesktop.Notifications',member='Notify'")
-    });
-    connect(m_notificationMonitor, &QProcess::readyReadStandardOutput, this, &SystemServices::handleNotificationOutput);
-    connect(m_notificationMonitor, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this](int, QProcess::ExitStatus) {
-        m_notificationMonitor->deleteLater();
-        m_notificationMonitor = nullptr;
-        m_notificationBuffer.clear();
-        m_notificationCaptureActive = false;
-        if (!m_shuttingDown)
-            m_notificationRestartTimer.start();
-    });
-    m_notificationMonitor->start();
-}
-
 void SystemServices::startPipeWireMonitor() {
     if (m_shuttingDown || m_pipeWireMonitor) return;
     const QString executable = findExecutable(QStringLiteral("pw-mon"));
@@ -300,13 +285,6 @@ void SystemServices::processLines(QByteArray &buffer,
     }
 }
 
-void SystemServices::handleNotificationOutput() {
-    if (!m_notificationMonitor) return;
-    processLines(m_notificationBuffer, m_notificationMonitor->readAllStandardOutput(), [this](const QString &line) {
-        handleNotificationLine(line);
-    });
-}
-
 void SystemServices::handlePipeWireOutput() {
     if (!m_pipeWireMonitor) return;
     processLines(m_pipeWireBuffer, m_pipeWireMonitor->readAllStandardOutput(), [this](const QString &line) {
@@ -319,189 +297,6 @@ void SystemServices::handleRecordingPortalOutput() {
     processLines(m_recordingPortalBuffer, m_recordingPortalMonitor->readAllStandardOutput(), [this](const QString &line) {
         handleRecordingPortalLine(line);
     });
-}
-
-namespace {
-bool endsWithUnescapedQuote(const QString &str) {
-    if (!str.endsWith(QLatin1Char('"'))) return false;
-    int backslashes = 0;
-    for (int i = str.length() - 2; i >= 0 && str.at(i) == QLatin1Char('\\'); --i) {
-        ++backslashes;
-    }
-    return (backslashes % 2) == 0;
-}
-}
-
-QString SystemServices::decodeDbusMonitorString(const QString &line) const {
-    QString unquoted = line.trimmed();
-    if (unquoted.startsWith(QStringLiteral("string \""))) {
-        unquoted = unquoted.mid(8);
-    } else if (unquoted.startsWith(QLatin1Char('"'))) {
-        unquoted = unquoted.mid(1);
-    }
-    if (unquoted.endsWith(QLatin1Char('"'))) {
-        unquoted.chop(1);
-    }
-
-    QString decoded;
-    decoded.reserve(unquoted.size());
-
-    for (int i = 0; i < unquoted.size(); ++i) {
-        const QChar ch = unquoted.at(i);
-        if (ch != QLatin1Char('\\') || i + 1 >= unquoted.size()) {
-            decoded.append(ch);
-            continue;
-        }
-
-        const QChar next = unquoted.at(++i);
-        if (next == QLatin1Char('n')) decoded.append(QLatin1Char('\n'));
-        else if (next == QLatin1Char('r')) decoded.append(QLatin1Char('\r'));
-        else if (next == QLatin1Char('t')) decoded.append(QLatin1Char('\t'));
-        else if (next == QLatin1Char('\\')) decoded.append(QLatin1Char('\\'));
-        else if (next == QLatin1Char('"')) decoded.append(QLatin1Char('"'));
-        else decoded.append(next);
-    }
-
-    return decoded;
-}
-
-void SystemServices::handleNotificationLine(const QString &line) {
-    if (line.isEmpty()) return;
-
-    if (line.contains(QStringLiteral("member=Notify"))) {
-        if (m_notificationCaptureActive && m_notificationCaptureStage == 5) {
-            emit notificationReceived(m_pendingNotificationAppName, m_pendingNotificationSummary, m_pendingNotificationBody, m_pendingNotificationAppIcon);
-        }
-        m_notificationCaptureActive = true;
-        m_notificationCaptureStage = 0;
-        m_notificationInQuotedString = false;
-        m_notificationExpectingImagePath = false;
-        m_pendingQuotedAccumulator.clear();
-        m_pendingNotificationAppName.clear();
-        m_pendingNotificationAppIcon.clear();
-        m_pendingNotificationSummary.clear();
-        m_pendingNotificationBody.clear();
-        return;
-    }
-
-    if (!m_notificationCaptureActive) return;
-
-    if (line.startsWith(QStringLiteral("method call "))) {
-        if (m_notificationCaptureStage == 5) {
-            emit notificationReceived(m_pendingNotificationAppName, m_pendingNotificationSummary, m_pendingNotificationBody, m_pendingNotificationAppIcon);
-            m_notificationCaptureActive = false;
-            m_notificationCaptureStage = -1;
-            m_notificationExpectingImagePath = false;
-        }
-        return;
-    }
-
-    if (m_notificationInQuotedString) {
-        m_pendingQuotedAccumulator.append(QLatin1Char('\n'));
-        m_pendingQuotedAccumulator.append(line);
-        if (endsWithUnescapedQuote(line)) {
-            m_notificationInQuotedString = false;
-            const QString decoded = decodeDbusMonitorString(m_pendingQuotedAccumulator);
-            m_pendingQuotedAccumulator.clear();
-            if (m_notificationCaptureStage == 0) {
-                m_pendingNotificationAppName = decoded;
-                m_notificationCaptureStage = 1;
-            } else if (m_notificationCaptureStage == 2) {
-                m_pendingNotificationAppIcon = decoded;
-                m_notificationCaptureStage = 3;
-            } else if (m_notificationCaptureStage == 3) {
-                m_pendingNotificationSummary = decoded;
-                m_notificationCaptureStage = 4;
-            } else if (m_notificationCaptureStage == 4) {
-                m_pendingNotificationBody = decoded;
-                m_notificationCaptureStage = 5;
-            }
-        }
-        return;
-    }
-
-    switch (m_notificationCaptureStage) {
-    case 0:
-        if (!line.startsWith(QStringLiteral("string \""))) return;
-        if (endsWithUnescapedQuote(line)) {
-            m_pendingNotificationAppName = decodeDbusMonitorString(line);
-            m_notificationCaptureStage = 1;
-        } else {
-            m_notificationInQuotedString = true;
-            m_pendingQuotedAccumulator = line;
-        }
-        return;
-    case 1:
-        if (!line.startsWith(QStringLiteral("uint32 "))) return;
-        m_notificationCaptureStage = 2;
-        return;
-    case 2:
-        if (!line.startsWith(QStringLiteral("string \""))) return;
-        if (endsWithUnescapedQuote(line)) {
-            m_pendingNotificationAppIcon = decodeDbusMonitorString(line);
-            m_notificationCaptureStage = 3;
-        } else {
-            m_notificationInQuotedString = true;
-            m_pendingQuotedAccumulator = line;
-        }
-        return;
-    case 3:
-        if (!line.startsWith(QStringLiteral("string \""))) return;
-        if (endsWithUnescapedQuote(line)) {
-            m_pendingNotificationSummary = decodeDbusMonitorString(line);
-            m_notificationCaptureStage = 4;
-        } else {
-            m_notificationInQuotedString = true;
-            m_pendingQuotedAccumulator = line;
-        }
-        return;
-    case 4:
-        if (!line.startsWith(QStringLiteral("string \""))) return;
-        if (endsWithUnescapedQuote(line)) {
-            m_pendingNotificationBody = decodeDbusMonitorString(line);
-            m_notificationCaptureStage = 5;
-        } else {
-            m_notificationInQuotedString = true;
-            m_pendingQuotedAccumulator = line;
-        }
-        return;
-    case 5:
-        if (line.contains(QStringLiteral("string \"image-path\"")) ||
-            line.contains(QStringLiteral("string \"image_path\"")) ||
-            line.contains(QStringLiteral("string \"image-data\"")) ||
-            line.contains(QStringLiteral("string \"icon_data\""))) {
-            m_notificationExpectingImagePath = true;
-            return;
-        }
-        if (m_notificationExpectingImagePath) {
-            if (line.contains(QStringLiteral("string \""))) {
-                m_notificationExpectingImagePath = false;
-                const int startQuote = line.indexOf(QLatin1Char('"'));
-                const int endQuote = line.lastIndexOf(QLatin1Char('"'));
-                if (startQuote != -1 && endQuote > startQuote) {
-                    const QString hintIcon = line.mid(startQuote + 1, endQuote - startQuote - 1);
-                    if (m_pendingNotificationAppIcon.isEmpty()) {
-                        m_pendingNotificationAppIcon = hintIcon;
-                    }
-                }
-            }
-            return;
-        }
-        if (line.startsWith(QStringLiteral("int32 "))) {
-            emit notificationReceived(m_pendingNotificationAppName, m_pendingNotificationSummary, m_pendingNotificationBody, m_pendingNotificationAppIcon);
-            m_notificationCaptureActive = false;
-            m_notificationCaptureStage = -1;
-            m_notificationExpectingImagePath = false;
-        }
-        return;
-    default:
-        m_notificationCaptureActive = false;
-        m_notificationCaptureStage = -1;
-        m_notificationInQuotedString = false;
-        m_notificationExpectingImagePath = false;
-        m_pendingQuotedAccumulator.clear();
-        return;
-    }
 }
 
 QString SystemServices::extractHeaderPath(const QString &line) const {
