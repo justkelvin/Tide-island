@@ -106,8 +106,9 @@ void SysBackend::setupBattery() {
     }
 
     if (udev_monitor_filter_add_match_subsystem_devtype(m_batteryMonitor, "power_supply", nullptr) < 0 ||
+        udev_monitor_filter_add_match_subsystem_devtype(m_batteryMonitor, "backlight", nullptr) < 0 ||
         udev_monitor_enable_receiving(m_batteryMonitor) < 0) {
-        qWarning() << "[Battery] Failed to enable udev monitor for power_supply monitoring";
+        qWarning() << "[Battery] Failed to enable udev monitor for power_supply and backlight monitoring";
         udev_monitor_unref(m_batteryMonitor);
         m_batteryMonitor = nullptr;
         return;
@@ -304,14 +305,20 @@ void SysBackend::updateBatteryUpower() {
 void SysBackend::handleBatteryMonitorEvent() {
     if (!m_batteryMonitor) return;
 
-    bool shouldRefresh = false;
+    bool refreshBattery = false;
+    bool refreshBrightness = false;
     udev_device *device = nullptr;
     while ((device = udev_monitor_receive_device(m_batteryMonitor)) != nullptr) {
-        shouldRefresh = true;
+        const char *subsystem = udev_device_get_subsystem(device);
+        if (subsystem) {
+            if (strcmp(subsystem, "power_supply") == 0) refreshBattery = true;
+            else if (strcmp(subsystem, "backlight") == 0) refreshBrightness = true;
+        }
         udev_device_unref(device);
     }
 
-    if (shouldRefresh) updateBatterySysfs();
+    if (refreshBattery) updateBatterySysfs();
+    if (refreshBrightness) updateBrightness();
 }
 
 void SysBackend::handleBatteryPropertiesChanged(const QString &interfaceName, const QVariantMap &changedProperties, const QStringList &invalidatedProperties) {

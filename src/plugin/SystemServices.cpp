@@ -369,17 +369,32 @@ void SystemServices::handleNotificationLine(const QString &line) {
     if (line.isEmpty()) return;
 
     if (line.contains(QStringLiteral("member=Notify"))) {
+        if (m_notificationCaptureActive && m_notificationCaptureStage == 5) {
+            emit notificationReceived(m_pendingNotificationAppName, m_pendingNotificationSummary, m_pendingNotificationBody, m_pendingNotificationAppIcon);
+        }
         m_notificationCaptureActive = true;
         m_notificationCaptureStage = 0;
         m_notificationInQuotedString = false;
+        m_notificationExpectingImagePath = false;
         m_pendingQuotedAccumulator.clear();
         m_pendingNotificationAppName.clear();
+        m_pendingNotificationAppIcon.clear();
         m_pendingNotificationSummary.clear();
         m_pendingNotificationBody.clear();
         return;
     }
 
     if (!m_notificationCaptureActive) return;
+
+    if (line.startsWith(QStringLiteral("method call "))) {
+        if (m_notificationCaptureStage == 5) {
+            emit notificationReceived(m_pendingNotificationAppName, m_pendingNotificationSummary, m_pendingNotificationBody, m_pendingNotificationAppIcon);
+            m_notificationCaptureActive = false;
+            m_notificationCaptureStage = -1;
+            m_notificationExpectingImagePath = false;
+        }
+        return;
+    }
 
     if (m_notificationInQuotedString) {
         m_pendingQuotedAccumulator.append(QLatin1Char('\n'));
@@ -392,15 +407,14 @@ void SystemServices::handleNotificationLine(const QString &line) {
                 m_pendingNotificationAppName = decoded;
                 m_notificationCaptureStage = 1;
             } else if (m_notificationCaptureStage == 2) {
+                m_pendingNotificationAppIcon = decoded;
                 m_notificationCaptureStage = 3;
             } else if (m_notificationCaptureStage == 3) {
                 m_pendingNotificationSummary = decoded;
                 m_notificationCaptureStage = 4;
             } else if (m_notificationCaptureStage == 4) {
                 m_pendingNotificationBody = decoded;
-                emit notificationReceived(m_pendingNotificationAppName, m_pendingNotificationSummary, m_pendingNotificationBody);
-                m_notificationCaptureActive = false;
-                m_notificationCaptureStage = -1;
+                m_notificationCaptureStage = 5;
             }
         }
         return;
@@ -424,6 +438,7 @@ void SystemServices::handleNotificationLine(const QString &line) {
     case 2:
         if (!line.startsWith(QStringLiteral("string \""))) return;
         if (endsWithUnescapedQuote(line)) {
+            m_pendingNotificationAppIcon = decodeDbusMonitorString(line);
             m_notificationCaptureStage = 3;
         } else {
             m_notificationInQuotedString = true;
@@ -444,18 +459,46 @@ void SystemServices::handleNotificationLine(const QString &line) {
         if (!line.startsWith(QStringLiteral("string \""))) return;
         if (endsWithUnescapedQuote(line)) {
             m_pendingNotificationBody = decodeDbusMonitorString(line);
-            emit notificationReceived(m_pendingNotificationAppName, m_pendingNotificationSummary, m_pendingNotificationBody);
-            m_notificationCaptureActive = false;
-            m_notificationCaptureStage = -1;
+            m_notificationCaptureStage = 5;
         } else {
             m_notificationInQuotedString = true;
             m_pendingQuotedAccumulator = line;
+        }
+        return;
+    case 5:
+        if (line.contains(QStringLiteral("string \"image-path\"")) ||
+            line.contains(QStringLiteral("string \"image_path\"")) ||
+            line.contains(QStringLiteral("string \"image-data\"")) ||
+            line.contains(QStringLiteral("string \"icon_data\""))) {
+            m_notificationExpectingImagePath = true;
+            return;
+        }
+        if (m_notificationExpectingImagePath) {
+            if (line.contains(QStringLiteral("string \""))) {
+                m_notificationExpectingImagePath = false;
+                const int startQuote = line.indexOf(QLatin1Char('"'));
+                const int endQuote = line.lastIndexOf(QLatin1Char('"'));
+                if (startQuote != -1 && endQuote > startQuote) {
+                    const QString hintIcon = line.mid(startQuote + 1, endQuote - startQuote - 1);
+                    if (m_pendingNotificationAppIcon.isEmpty()) {
+                        m_pendingNotificationAppIcon = hintIcon;
+                    }
+                }
+            }
+            return;
+        }
+        if (line.startsWith(QStringLiteral("int32 "))) {
+            emit notificationReceived(m_pendingNotificationAppName, m_pendingNotificationSummary, m_pendingNotificationBody, m_pendingNotificationAppIcon);
+            m_notificationCaptureActive = false;
+            m_notificationCaptureStage = -1;
+            m_notificationExpectingImagePath = false;
         }
         return;
     default:
         m_notificationCaptureActive = false;
         m_notificationCaptureStage = -1;
         m_notificationInQuotedString = false;
+        m_notificationExpectingImagePath = false;
         m_pendingQuotedAccumulator.clear();
         return;
     }

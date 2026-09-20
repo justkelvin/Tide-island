@@ -119,8 +119,8 @@ PanelWindow {
     function showAutoHiddenIsland(source) { autoHide.show(source); }
     function scheduleAutoHide() { autoHide.scheduleHide(); }
 
-    function showNotification(appName, summary, body) {
-        islandContainer.showNotificationCapsule(appName, summary, body);
+    function showNotification(appName, summary, body, appIcon) {
+        islandContainer.showNotificationCapsule(appName, summary, body, appIcon);
     }
 
     function showClockWindow() {

@@ -22,10 +22,10 @@ Scope {
         }
     }
 
-    function showNotificationAll(appName, summary, body) {
+    function showNotificationAll(appName, summary, body, appIcon) {
         shellRoot.forEachWindow((window) => {
             if (window && window.showNotification)
-                window.showNotification(appName, summary, body);
+                window.showNotification(appName, summary, body, appIcon);
         });
     }
 
@@ -150,8 +150,8 @@ Scope {
     Connections {
         target: SystemServices
 
-        function onNotificationReceived(appName, summary, body) {
-            shellRoot.showNotificationAll(appName, summary, body);
+        function onNotificationReceived(appName, summary, body, appIcon) {
+            shellRoot.showNotificationAll(appName, summary, body, appIcon);
         }
     }
 

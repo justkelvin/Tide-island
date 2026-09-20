@@ -39,7 +39,7 @@ public:
     Q_INVOKABLE void ensureUserConfigAvailable();
 
 signals:
-    void notificationReceived(const QString &appName, const QString &summary, const QString &body);
+    void notificationReceived(const QString &appName, const QString &summary, const QString &body, const QString &appIcon = QString());
     void screenRecordingActiveChanged();
     void hyprlandSnapshotReady(const QString &requestId,
                                const QString &subject,
@@ -131,8 +131,10 @@ private:
     bool m_notificationCaptureActive = false;
     int m_notificationCaptureStage = -1;
     bool m_notificationInQuotedString = false;
+    bool m_notificationExpectingImagePath = false;
     QString m_pendingQuotedAccumulator;
     QString m_pendingNotificationAppName;
+    QString m_pendingNotificationAppIcon;
     QString m_pendingNotificationSummary;
     QString m_pendingNotificationBody;
 
