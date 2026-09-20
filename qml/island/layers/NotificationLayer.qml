@@ -209,7 +209,6 @@ Item {
     }
 
     TapHandler {
-        enabled: root.hasOverflowContent
         acceptedButtons: root.toggleButton
         onTapped: root.expansionToggleRequested()
     }

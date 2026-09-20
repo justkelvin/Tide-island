@@ -661,24 +661,25 @@ FocusScope {
         notificationIconSource = resolveNotificationIcon(appName, summary, body, notificationResolvedIcon || notificationAppIcon);
         notificationExpanded = false;
         islandState = "notification";
-        // Critical alerts persist until explicitly dismissed by the user.
-        if (notificationUrgency === 2)
-            stopAutoHideTimer();
-        else
-            restartAutoHideTimer(notificationAutoHideInterval);
+        // Visual presentation timer: critical alerts get an extended display window,
+        // but never freeze the UI permanently.
+        const presentationInterval = notificationUrgency === 2
+            ? Math.max(notificationAutoHideInterval, 8000)
+            : notificationAutoHideInterval;
+        restartAutoHideTimer(presentationInterval);
     }
 
     function toggleNotificationExpansionIfNeeded() {
-        if (islandState !== "notification" || !mainCapsule.notificationItem || !mainCapsule.notificationItem.hasOverflowContent)
+        if (islandState !== "notification")
             return false;
 
-        if (notificationExpanded) {
-            dismissNotificationCapsule();
+        if (mainCapsule.notificationItem && mainCapsule.notificationItem.hasOverflowContent && !notificationExpanded) {
+            notificationExpanded = true;
+            stopAutoHideTimer();
             return true;
         }
 
-        notificationExpanded = true;
-        stopAutoHideTimer();
+        dismissNotificationCapsule();
         return true;
     }
 
