@@ -6,6 +6,9 @@
 #include <QVariantList>
 #include <QtQml/qqml.h>
 
+class QQmlEngine;
+class QJSEngine;
+
 class UserConfigBackend final : public QObject {
     Q_OBJECT
     QML_NAMED_ELEMENT(UserConfig)
@@ -44,6 +47,12 @@ class UserConfigBackend final : public QObject {
 
 public:
     explicit UserConfigBackend(QObject *parent = nullptr);
+    ~UserConfigBackend() override;
+
+    // Shared instance for C++ consumers (e.g. NotificationServer sanitizer).
+    // QML uses the same object via create(), so the flag stays live.
+    static UserConfigBackend *instance();
+    static UserConfigBackend *create(QQmlEngine *qmlEngine, QJSEngine *jsEngine);
 
     QString userConfigPath() const;
     QString configError() const;
@@ -141,4 +150,6 @@ private:
 
     QFileSystemWatcher m_watcher;
     QTimer m_reloadTimer;
+
+    static UserConfigBackend *s_instance;
 };

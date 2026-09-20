@@ -11,6 +11,8 @@
 #include <QVariant>
 #include <Qt>
 
+#include <QtQml/qqmlengine.h>
+
 #include <algorithm>
 #include <cmath>
 
@@ -101,6 +103,8 @@ void updateField(Owner *owner, T &field, T nextValue, Signal signal)
 }
 }
 
+UserConfigBackend *UserConfigBackend::s_instance = nullptr;
+
 UserConfigBackend::UserConfigBackend(QObject *parent)
     : QObject(parent)
     , m_userConfigPath(configHome() + QStringLiteral("/tide-island/userconfig.json"))
@@ -114,6 +118,28 @@ UserConfigBackend::UserConfigBackend(QObject *parent)
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, &UserConfigBackend::scheduleReload);
 
     loadConfig();
+}
+
+UserConfigBackend::~UserConfigBackend()
+{
+    if (s_instance == this)
+        s_instance = nullptr;
+}
+
+UserConfigBackend *UserConfigBackend::instance()
+{
+    if (!s_instance) {
+        s_instance = new UserConfigBackend(nullptr);
+        QQmlEngine::setObjectOwnership(s_instance, QQmlEngine::CppOwnership);
+    }
+    return s_instance;
+}
+
+UserConfigBackend *UserConfigBackend::create(QQmlEngine *qmlEngine, QJSEngine *jsEngine)
+{
+    Q_UNUSED(qmlEngine);
+    Q_UNUSED(jsEngine);
+    return instance();
 }
 
 QString UserConfigBackend::userConfigPath() const

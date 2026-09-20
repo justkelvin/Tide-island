@@ -122,6 +122,11 @@ public:
     bool contains(uint id) const;
     void setAutoRegister(bool enabled);
 
+    // C++ port of the former StateMachine.cleanNotificationText: strips HTML
+    // tags, unescapes entities, and (when stripUrls) removes standalone URLs.
+    // Public and static so unit tests can exercise it without a config.
+    static QString sanitizeNotificationText(const QString &text, bool stripUrls);
+
 public slots:
     // --- FreeDesktop D-Bus methods (exported via the adaptor) ---
     uint Notify(const QString &appName, uint replacesId, const QString &appIcon,

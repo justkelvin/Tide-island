@@ -1,4 +1,5 @@
 #include "NotificationServer.h"
+#include "UserConfigBackend.h"
 
 #include <QBuffer>
 #include <QDateTime>
@@ -6,6 +7,7 @@
 #include <QDBusConnectionInterface>
 #include <QDBusMetaType>
 #include <QDebug>
+#include <QRegularExpression>
 #include <QVariant>
 
 #include <QtQml/qqmlengine.h>
@@ -31,6 +33,50 @@ const QDBusArgument &operator>>(const QDBusArgument &argument, FdoImageData &ima
         >> image.bitsPerSample >> image.channels >> image.data;
     argument.endStructure();
     return argument;
+}
+
+QString NotificationServer::sanitizeNotificationText(const QString &text, bool stripUrls) {
+    QString s = text;
+    if (s.isNull())
+        s.clear();
+
+    if (stripUrls) {
+        // Mirror the former QML cleanNotificationText order: URL/origin
+        // stripping runs on the raw HTML before tags are removed.
+        static const QRegularExpression anchorRe(
+            QStringLiteral("^\\s*<a\\b[^>]*>.*?</a>\\s*"),
+            QRegularExpression::CaseInsensitiveOption);
+        static const QRegularExpression domainHeaderRe(
+            QStringLiteral("^\\s*([a-zA-Z0-9][-a-zA-Z0-9]*\\.)+[a-zA-Z]{2,}(?::\\d+)?(?:/\\S*)?\\s*\\n+"),
+            QRegularExpression::CaseInsensitiveOption);
+        static const QRegularExpression urlRe(
+            QStringLiteral("https?://[^\\s<>]+"),
+            QRegularExpression::CaseInsensitiveOption);
+        static const QRegularExpression wwwRe(
+            QStringLiteral("\\bwww\\.[a-zA-Z0-9][-a-zA-Z0-9]*\\.[a-zA-Z]{2,}[^\\s<>]*"),
+            QRegularExpression::CaseInsensitiveOption);
+        s.remove(anchorRe);
+        s.remove(domainHeaderRe);
+        s.remove(urlRe);
+        s.remove(wwwRe);
+    }
+
+    static const QRegularExpression tagRe(QStringLiteral("<[^>]*>"));
+    static const QRegularExpression whitespaceRe(QStringLiteral("\\s+"));
+    s.replace(tagRe, QStringLiteral(" "));
+    s.replace(QStringLiteral("&nbsp;"), QStringLiteral(" "));
+    s.replace(QStringLiteral("&amp;"), QStringLiteral("&"));
+    s.replace(QStringLiteral("&quot;"), QStringLiteral("\""));
+    s.replace(QStringLiteral("&lt;"), QStringLiteral("<"));
+    s.replace(QStringLiteral("&gt;"), QStringLiteral(">"));
+    s.replace(whitespaceRe, QStringLiteral(" "));
+    s = s.trimmed();
+
+    // If stripping URLs emptied the string, fall back to plain sanitization
+    // so link-only notifications are not lost.
+    if (stripUrls && s.isEmpty() && !text.trimmed().isEmpty())
+        return sanitizeNotificationText(text, false);
+    return s;
 }
 
 QVariantMap NotificationItem::toMap() const {
@@ -225,10 +271,11 @@ uint NotificationServer::Notify(const QString &appName, uint replacesId,
                                 const QString &body, const QStringList &actions,
                                 const QVariantMap &hints, int expireTimeout) {
     NotificationItem item;
-    item.appName = appName;
+    const bool stripUrls = UserConfigBackend::instance()->cleanNotificationUrls();
+    item.appName = sanitizeNotificationText(appName, false);
     item.appIcon = appIcon;
-    item.summary = summary;
-    item.body = body;
+    item.summary = sanitizeNotificationText(summary, stripUrls);
+    item.body = sanitizeNotificationText(body, stripUrls);
     item.actions = actions;
     item.hints = hints;
     item.expireTimeout = expireTimeout;

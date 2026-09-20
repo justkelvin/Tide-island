@@ -5,9 +5,13 @@
 #include <QDBusConnectionInterface>
 #include <QDBusInterface>
 #include <QDBusMetaType>
+#include <QDir>
+#include <QFile>
 #include <QSignalSpy>
+#include <QTemporaryDir>
 
 #include "NotificationServer.h"
+#include "UserConfigBackend.h"
 
 namespace {
 
@@ -50,6 +54,10 @@ class NotificationServerTests : public QObject {
 private slots:
     void initTestCase() {
         qDBusRegisterMetaType<FdoImageData>();
+        // Isolate UserConfigBackend from the real ~/.config so the URL-flag
+        // tests are deterministic (absent file -> cleanNotificationUrls=true).
+        QVERIFY(m_configDir.isValid());
+        qputenv("XDG_CONFIG_HOME", m_configDir.path().toUtf8());
     }
 
     void serverInformationIsConformant() {
@@ -71,6 +79,76 @@ private slots:
                                         QStringLiteral("persistence"), QStringLiteral("inline-reply")}) {
             QVERIFY2(caps.contains(expected), qPrintable(QStringLiteral("missing: ") + expected));
         }
+    }
+
+    void sanitizerStripsHtmlAndEntities() {
+        QCOMPARE(NotificationServer::sanitizeNotificationText(
+                     QStringLiteral("<b>Hello</b> <i>world</i>"), false),
+                 QStringLiteral("Hello world"));
+        QCOMPARE(NotificationServer::sanitizeNotificationText(
+                     QStringLiteral("&quot;Hi&quot; &amp; &lt;tag&gt;&nbsp;end"), false),
+                 QStringLiteral("\"Hi\" & <tag> end"));
+        QCOMPARE(NotificationServer::sanitizeNotificationText(
+                     QStringLiteral("  lots   \n  space\t\tgap "), false),
+                 QStringLiteral("lots space gap"));
+        QCOMPARE(NotificationServer::sanitizeNotificationText(QString(), false), QString());
+        QCOMPARE(NotificationServer::sanitizeNotificationText(QStringLiteral("plain"), false),
+                 QStringLiteral("plain"));
+    }
+
+    void sanitizerStripsUrlsWhenEnabled() {
+        QCOMPARE(NotificationServer::sanitizeNotificationText(
+                     QStringLiteral("visit https://example.com/x now"), true),
+                 QStringLiteral("visit now"));
+        QCOMPARE(NotificationServer::sanitizeNotificationText(
+                     QStringLiteral("see www.example.com/x here"), true),
+                 QStringLiteral("see here"));
+        QCOMPARE(NotificationServer::sanitizeNotificationText(
+                     QStringLiteral("<a href=\"https://x\">example.com</a> real text"), true),
+                 QStringLiteral("real text"));
+        QCOMPARE(NotificationServer::sanitizeNotificationText(
+                     QStringLiteral("visit https://example.com/x now"), false),
+                 QStringLiteral("visit https://example.com/x now"));
+    }
+
+    void sanitizerFallsBackForLinkOnlyText() {
+        QCOMPARE(NotificationServer::sanitizeNotificationText(
+                     QStringLiteral("https://example.com"), true),
+                 QStringLiteral("https://example.com"));
+    }
+
+    void notifyCleansAllTextFields() {
+        NotificationServer server(nullptr, false);
+        const uint id = server.Notify(QStringLiteral("<b> noisy app </b>"), 0, QString(),
+                                      QStringLiteral("<b>Title</b> https://example.com/x"),
+                                      QStringLiteral("<i>Body</i> &amp; more"), {}, {}, 60000);
+        const QVariantMap item = server.getNotification(id);
+        QCOMPARE(item.value(QStringLiteral("appName")).toString(), QStringLiteral("noisy app"));
+        QCOMPARE(item.value(QStringLiteral("summary")).toString(), QStringLiteral("Title"));
+        QCOMPARE(item.value(QStringLiteral("body")).toString(), QStringLiteral("Body & more"));
+    }
+
+    void notifyHonorsDisabledUrlCleaning() {
+        const QString tideDir = m_configDir.path() + QStringLiteral("/tide-island");
+        QVERIFY(QDir().mkpath(tideDir));
+        QFile configFile(tideDir + QStringLiteral("/userconfig.json"));
+        QVERIFY(configFile.open(QIODevice::WriteOnly | QIODevice::Text));
+        configFile.write("{\"cleanNotificationUrls\": false}");
+        configFile.close();
+
+        UserConfigBackend::instance()->reload();
+        QCOMPARE(UserConfigBackend::instance()->cleanNotificationUrls(), false);
+
+        NotificationServer server(nullptr, false);
+        const uint id = server.Notify(QStringLiteral("A"), 0, QString(),
+                                      QStringLiteral("see https://example.com/x"),
+                                      QStringLiteral("b"), {}, {}, 60000);
+        QCOMPARE(server.getNotification(id).value(QStringLiteral("summary")).toString(),
+                 QStringLiteral("see https://example.com/x"));
+
+        QFile::remove(tideDir + QStringLiteral("/userconfig.json"));
+        UserConfigBackend::instance()->reload();
+        QCOMPARE(UserConfigBackend::instance()->cleanNotificationUrls(), true);
     }
 
     void idsAreMonotonicAndNonZero() {
@@ -328,6 +406,17 @@ private slots:
         QVERIFY(server.roleNames().value(NotificationServer::SummaryRole) == "summary");
     }
 
+    void dbusSanitizedTextRoundTrip() {
+        // End-to-end over the wire is covered by dbusRoundTripOnIsolatedBus;
+        // here assert the direct-call path cleans markup (default flag on).
+        NotificationServer server(nullptr, false);
+        const uint id = server.Notify(QStringLiteral("A"), 0, QString(),
+                                      QStringLiteral("<b>Wired</b>"), QStringLiteral("x"),
+                                      {}, {}, 60000);
+        QCOMPARE(server.getNotification(id).value(QStringLiteral("summary")).toString(),
+                 QStringLiteral("Wired"));
+    }
+
     void dbusRoundTripOnIsolatedBus() {
         if (!isolatedBusAvailable())
             QSKIP("Set TIDE_ISLAND_NOTIFICATIONS_TEST_BUS=1 under dbus-run-session to run the live bus test");
@@ -368,6 +457,9 @@ private slots:
         QCOMPARE(closed.size(), 1);
         QCOMPARE(closed.at(0).at(1).toUInt(), 3u);
     }
+
+private:
+    QTemporaryDir m_configDir;
 };
 
 QTEST_MAIN(NotificationServerTests)

@@ -121,6 +121,8 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/notification_server_tests.cpp")
         unit/notification_server_tests.cpp
         ${CMAKE_SOURCE_DIR}/src/plugin/NotificationServer.h
         ${CMAKE_SOURCE_DIR}/src/plugin/NotificationServer.cpp
+        ${CMAKE_SOURCE_DIR}/src/plugin/UserConfigBackend.h
+        ${CMAKE_SOURCE_DIR}/src/plugin/UserConfigBackend.cpp
     )
 
     target_include_directories(notification_server_tests PRIVATE
@@ -152,6 +154,8 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/helpers/notification_server_harness.cpp")
         helpers/notification_server_harness.cpp
         ${CMAKE_SOURCE_DIR}/src/plugin/NotificationServer.h
         ${CMAKE_SOURCE_DIR}/src/plugin/NotificationServer.cpp
+        ${CMAKE_SOURCE_DIR}/src/plugin/UserConfigBackend.h
+        ${CMAKE_SOURCE_DIR}/src/plugin/UserConfigBackend.cpp
     )
 
     target_include_directories(notification_server_harness PRIVATE
