@@ -32,6 +32,8 @@ FocusScope {
     property string notificationAppName: ""
     property string notificationSummary: ""
     property string notificationBody: ""
+    property string notificationAppIcon: ""
+    property string notificationIconSource: Qt.resolvedUrl("../resources/icons/notification.svg")
     property bool notificationExpanded: false
     property var bluetoothExpandedDevice: null
     readonly property var cavaLevels: systemState.cavaLevels
@@ -308,6 +310,8 @@ FocusScope {
         notificationAppName = "";
         notificationSummary = "";
         notificationBody = "";
+        notificationAppIcon = "";
+        notificationIconSource = Qt.resolvedUrl("../resources/icons/notification.svg");
         notificationExpanded = false;
         bluetoothExpandedDevice = null;
     }
@@ -518,7 +522,141 @@ FocusScope {
         restartAutoHideTimer();
     }
 
-    function showNotificationCapsule(appName, summary, body) {
+    function resolveNotificationIcon(appName, summary, body, appIcon) {
+        const app = String(appName || "").toLowerCase();
+        const sum = String(summary || "").toLowerCase();
+        const bdy = String(body || "").toLowerCase();
+        const ico = String(appIcon || "").toLowerCase();
+        const combined = (app + " " + sum + " " + bdy + " " + ico).trim();
+
+        // 1. Microphone
+        const isMic = ico.indexOf("microphone") !== -1 || ico.indexOf("audio-input-microphone") !== -1
+            || ico.indexOf("mic") !== -1 || app.indexOf("microphone") !== -1 || app.indexOf("mic") !== -1
+            || combined.indexOf("microphone") !== -1 || /\bmic\b/.test(combined);
+        if (isMic) {
+            const isExplicitlyUnmuted = ico.indexOf("unmuted") !== -1 || combined.indexOf("unmuted") !== -1 || combined.indexOf("unmute") !== -1;
+            const isMuted = !isExplicitlyUnmuted && (ico.indexOf("muted") !== -1 || ico.indexOf("slash") !== -1 || ico.indexOf("disabled") !== -1 || ico.indexOf("off") !== -1
+                || combined.indexOf("muted") !== -1 || /\bmute\b/.test(combined) || combined.indexOf("disabled") !== -1 || /\boff\b/.test(combined));
+            return isMuted ? Qt.resolvedUrl("../resources/icons/microphone-slash.svg")
+                           : Qt.resolvedUrl("../resources/icons/microphone.svg");
+        }
+
+        // 2. Wi-Fi / Wireless Network
+        const isWifi = ico.indexOf("wireless") !== -1 || ico.indexOf("wifi") !== -1 || ico.indexOf("network-wireless") !== -1
+            || app.indexOf("networkmanager") !== -1 || app.indexOf("nm-applet") !== -1 || app.indexOf("iwd") !== -1
+            || combined.indexOf("wi-fi") !== -1 || combined.indexOf("wifi") !== -1 || combined.indexOf("wireless") !== -1;
+        if (isWifi) {
+            const isOff = ico.indexOf("disconnected") !== -1 || ico.indexOf("offline") !== -1 || ico.indexOf("disabled") !== -1 || ico.indexOf("none") !== -1 || ico.indexOf("no-route") !== -1
+                || combined.indexOf("disconnected") !== -1 || combined.indexOf("disabled") !== -1 || combined.indexOf("offline") !== -1 || combined.indexOf("turned off") !== -1 || combined.indexOf("lost") !== -1;
+            return isOff ? Qt.resolvedUrl("../resources/icons/wifi-slash.svg")
+                         : Qt.resolvedUrl("../resources/icons/wifi.svg");
+        }
+
+        // 3. Bluetooth
+        const isBt = ico.indexOf("bluetooth") !== -1 || app.indexOf("bluetooth") !== -1 || app.indexOf("blueman") !== -1 || combined.indexOf("bluetooth") !== -1;
+        if (isBt) {
+            const isOff = ico.indexOf("disabled") !== -1 || ico.indexOf("off") !== -1 || ico.indexOf("disconnected") !== -1
+                || combined.indexOf("disconnected") !== -1 || combined.indexOf("disabled") !== -1 || combined.indexOf("turned off") !== -1 || combined.indexOf("off") !== -1;
+            return isOff ? Qt.resolvedUrl("../resources/icons/bluetooth-off.svg")
+                         : Qt.resolvedUrl("../resources/icons/bluetooth-connected.svg");
+        }
+
+        // 4. Battery / Power
+        const isBat = ico.indexOf("battery") !== -1 || app.indexOf("power") !== -1 || app.indexOf("upower") !== -1 || app.indexOf("battery") !== -1 || combined.indexOf("battery") !== -1;
+        if (isBat) {
+            const isDischarging = ico.indexOf("discharging") !== -1 || combined.indexOf("discharging") !== -1 || combined.indexOf("unplugged") !== -1 || combined.indexOf("on battery") !== -1;
+            const isCharging = !isDischarging && (ico.indexOf("charging") !== -1 || ico.indexOf("ac-adapter") !== -1 || ico.indexOf("bolt") !== -1
+                || combined.indexOf("charging") !== -1 || combined.indexOf("plugged in") !== -1 || combined.indexOf("connected to power") !== -1);
+            if (isCharging) return Qt.resolvedUrl("../resources/icons/battery-bolt.svg");
+            if (isDischarging) return Qt.resolvedUrl("../resources/icons/battery-discharging.svg");
+
+            const isFull = ico.indexOf("full") !== -1 || ico.indexOf("charged") !== -1
+                || combined.indexOf("battery full") !== -1 || combined.indexOf("fully charged") !== -1 || combined.indexOf("charged") !== -1;
+            if (isFull) return Qt.resolvedUrl("../resources/icons/battery-full.svg");
+
+            return Qt.resolvedUrl("../resources/icons/battery-discharging.svg");
+        }
+
+        // 5. Brightness
+        const isBrightness = ico.indexOf("brightness") !== -1 || ico.indexOf("backlight") !== -1
+            || app.indexOf("brightness") !== -1 || combined.indexOf("brightness") !== -1 || combined.indexOf("backlight") !== -1
+            || /_bl\b|_bl\d+/.test(combined)
+            || (ico.indexOf("knob") !== -1 && !/audio|stereo|sink|speaker|sound|headphone/i.test(combined));
+        if (isBrightness) {
+            const match = combined.match(/(\d+)/);
+            const percent = match ? parseInt(match[1], 10) : -1;
+            const isLow = (percent >= 0 && percent <= 35) || combined.indexOf("low") !== -1;
+            return isLow ? Qt.resolvedUrl("../resources/icons/brightness-low.svg")
+                         : Qt.resolvedUrl("../resources/icons/brightness.svg");
+        }
+
+        // 6. Workspace
+        const isWs = ico.indexOf("workspace") !== -1 || app.indexOf("workspace") !== -1 || combined.indexOf("workspace") !== -1;
+        if (isWs) {
+            return Qt.resolvedUrl("../resources/icons/workspace-change.svg");
+        }
+
+        // 7. Volume / Audio Output
+        const isVol = ico.indexOf("volume") !== -1 || ico.indexOf("audio-volume") !== -1
+            || app.indexOf("volume") !== -1 || app.indexOf("wireplumber") !== -1 || app.indexOf("pipewire") !== -1
+            || combined.indexOf("volume") !== -1 || combined.indexOf("sound") !== -1 || combined.indexOf("audio") !== -1;
+        if (isVol) {
+            const isExplicitlyUnmuted = ico.indexOf("unmuted") !== -1 || combined.indexOf("unmuted") !== -1 || combined.indexOf("unmute") !== -1;
+            const isMuted = !isExplicitlyUnmuted && (ico.indexOf("muted") !== -1 || /\bmute\b/.test(combined) || combined.indexOf("silent") !== -1);
+            if (isMuted) return Qt.resolvedUrl("../resources/icons/volume-mute.svg");
+
+            const match = combined.match(/(\d+)/);
+            const percent = match ? parseInt(match[1], 10) : -1;
+            const isLow = (percent >= 0 && percent <= 40) || combined.indexOf("low") !== -1 || ico.indexOf("low") !== -1;
+            return isLow ? Qt.resolvedUrl("../resources/icons/volume-down.svg")
+                         : Qt.resolvedUrl("../resources/icons/volume-up.svg");
+        }
+
+        // 8. Do Not Disturb / Notification Silenced
+        const isDnd = ico.indexOf("bell-slash") !== -1 || ico.indexOf("dnd") !== -1
+            || combined.indexOf("do not disturb") !== -1 || combined.indexOf("dnd") !== -1 || combined.indexOf("notifications paused") !== -1;
+        if (isDnd) {
+            return Qt.resolvedUrl("../resources/icons/bell-slash.svg");
+        }
+
+        // 9. Airplane Mode / Flight Mode
+        const isAirplane = ico.indexOf("airplane") !== -1 || ico.indexOf("flight") !== -1
+            || combined.indexOf("airplane") !== -1 || combined.indexOf("flight mode") !== -1;
+        if (isAirplane) {
+            return Qt.resolvedUrl("../resources/icons/plane-alt.svg");
+        }
+
+        // 10. Caps Lock / Keyboard
+        const isCaps = ico.indexOf("caps-lock") !== -1 || ico.indexOf("letter-case") !== -1
+            || combined.indexOf("caps lock") !== -1 || combined.indexOf("capslock") !== -1;
+        if (isCaps) {
+            return Qt.resolvedUrl("../resources/icons/letter-case.svg");
+        }
+
+        // 11. Music / Media Player
+        const isMusic = ico.indexOf("music") !== -1 || ico.indexOf("spotify") !== -1
+            || app.indexOf("spotify") !== -1 || app.indexOf("music") !== -1 || app.indexOf("rhythmbox") !== -1
+            || combined.indexOf("now playing") !== -1;
+        if (isMusic) {
+            return Qt.resolvedUrl("../resources/icons/music-alt.svg");
+        }
+
+        // 12. CPU / RAM / Storage Stats
+        if (ico.indexOf("cpu") !== -1 || combined.indexOf("cpu ") !== -1) {
+            return Qt.resolvedUrl("../resources/icons/cpu.svg");
+        }
+        if (ico.indexOf("memory") !== -1 || ico.indexOf("ram") !== -1 || combined.indexOf("memory") !== -1 || combined.indexOf("ram") !== -1) {
+            return Qt.resolvedUrl("../resources/icons/memory.svg");
+        }
+        if (ico.indexOf("disk") !== -1 || ico.indexOf("storage") !== -1 || ico.indexOf("drive") !== -1 || combined.indexOf("disk") !== -1 || combined.indexOf("storage") !== -1) {
+            return Qt.resolvedUrl("../resources/icons/hard-drive.svg");
+        }
+
+        // 13. Generic notification icon
+        return Qt.resolvedUrl("../resources/icons/notification.svg");
+    }
+
+    function showNotificationCapsule(appName, summary, body, appIcon) {
         if (islandState === "expanded") return;
 
         const stripUrls = userConfig.cleanNotificationUrls;
@@ -534,6 +672,8 @@ FocusScope {
         notificationAppName = cleanedAppName !== "" ? cleanedAppName : "Notification";
         notificationSummary = resolvedSummary;
         notificationBody = cleanedSummary !== "" ? cleanedBody : "";
+        notificationAppIcon = appIcon || "";
+        notificationIconSource = resolveNotificationIcon(cleanedAppName, cleanedSummary, cleanedBody, notificationAppIcon);
         notificationExpanded = false;
         islandState = "notification";
         restartAutoHideTimer(notificationAutoHideInterval);

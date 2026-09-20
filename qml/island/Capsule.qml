@@ -323,6 +323,7 @@ Rectangle {
                 body: islandController.notificationBody
                 expanded: islandController.notificationExpanded
                 toggleButton: userConfig.mouseButton(userConfig.dynamicIslandPrimaryButton)
+                iconSource: islandController.notificationIconSource
                 iconText: windowRoot.notificationStatusIcon
                 iconFontFamily: windowRoot.iconFontFamily
                 textFontFamily: windowRoot.textFontFamily

@@ -1,5 +1,6 @@
 import QtQuick
 import IslandBackend
+import "../../components"
 
 Item {
     id: root
@@ -10,6 +11,7 @@ Item {
     property string appName: ""
     property string summary: ""
     property string body: ""
+    property string iconSource: Qt.resolvedUrl("../../resources/icons/notification.svg")
     property string iconText: ""
     property bool expanded: false
     property int toggleButton: Qt.LeftButton
@@ -31,7 +33,7 @@ Item {
     readonly property real compactMaximumWidth: 400
     readonly property real expandedMaximumWidth: 520
     readonly property real maximumWidth: expanded && hasOverflowContent ? expandedMaximumWidth : compactMaximumWidth
-    readonly property real iconSlotWidth: 18
+    readonly property real iconSlotWidth: 20
     readonly property real contentSpacing: 13
     readonly property real horizontalPadding: 16
     readonly property real compactVerticalPadding: 7
@@ -119,7 +121,19 @@ Item {
         spacing: contentSpacing
         anchors.verticalCenter: parent.verticalCenter
 
+        SvgIcon {
+            id: notificationSvgIcon
+            visible: root.iconSource !== ""
+            width: iconSlotWidth
+            height: iconSlotWidth
+            iconSize: iconSlotWidth
+            source: root.iconSource
+            color: "#f4f5f7"
+            anchors.verticalCenter: parent.verticalCenter
+        }
+
         Text {
+            visible: !notificationSvgIcon.visible
             width: iconSlotWidth
             anchors.verticalCenter: parent.verticalCenter
             text: iconText

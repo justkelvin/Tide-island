@@ -25,17 +25,20 @@ Item {
     readonly property bool usesCavaModule: configuredLeftSwipeIds.indexOf("cava") !== -1
     readonly property bool hasCustomLeftItems: customLeftItems.length > 0
     readonly property string systemServicesClientId: "island-system-state-" + Math.random().toString(36).slice(2)
-    readonly property string defaultStatusIcon: "\ud83c\udfa7"
-    readonly property string volumeStatusIcon: "\u{F057E}"
-    readonly property string muteStatusIcon: "\u{F075F}"
-    readonly property string brightnessLowStatusIcon: "\u{F00DE}"
-    readonly property string brightnessMediumStatusIcon: "\u{F00DF}"
-    readonly property string brightnessHighStatusIcon: "\u{F00E0}"
-    readonly property string chargingStatusIcon: "\uf0e7"
-    readonly property string dischargingStatusIcon: "\uf244"
-    readonly property string cpuStatusIcon: "\u{F035B}"
-    readonly property string ramStatusIcon: "\u{F061A}"
-    readonly property string bluetoothStatusIcon: "\u{F02CB}"
+    readonly property string defaultStatusIcon: Qt.resolvedUrl("../resources/icons/notification.svg")
+    readonly property string volumeDownStatusIcon: Qt.resolvedUrl("../resources/icons/volume-down.svg")
+    readonly property string volumeUpStatusIcon: Qt.resolvedUrl("../resources/icons/volume-up.svg")
+    readonly property string volumeStatusIcon: Qt.resolvedUrl("../resources/icons/volume-up.svg")
+    readonly property string muteStatusIcon: Qt.resolvedUrl("../resources/icons/volume-mute.svg")
+    readonly property string brightnessLowStatusIcon: Qt.resolvedUrl("../resources/icons/brightness-low.svg")
+    readonly property string brightnessMediumStatusIcon: Qt.resolvedUrl("../resources/icons/brightness.svg")
+    readonly property string brightnessHighStatusIcon: Qt.resolvedUrl("../resources/icons/brightness.svg")
+    readonly property string chargingStatusIcon: Qt.resolvedUrl("../resources/icons/battery-bolt.svg")
+    readonly property string dischargingStatusIcon: Qt.resolvedUrl("../resources/icons/battery-discharging.svg")
+    readonly property string cpuStatusIcon: Qt.resolvedUrl("../resources/icons/cpu.svg")
+    readonly property string ramStatusIcon: Qt.resolvedUrl("../resources/icons/memory.svg")
+    readonly property string bluetoothStatusIcon: Qt.resolvedUrl("../resources/icons/bluetooth-off.svg")
+    readonly property string storageStatusIcon: Qt.resolvedUrl("../resources/icons/hard-drive.svg")
 
     property int batteryCapacity: SysBackend.batteryCapacity
     property bool isCharging: SysBackend.batteryStatus === "Charging" || SysBackend.batteryStatus === "Full"
@@ -46,7 +49,6 @@ Item {
     property real currentRamUsage: -1
     property var cavaLevels: [0, 0, 0, 0, 0, 0, 0, 0]
     property real currentStorageUsage: -1
-    readonly property string storageStatusIcon: "\u{F1C0}"
     property var customLeftItems: []
 
     property string _lastChargeStatus: SysBackend.batteryStatus
@@ -94,7 +96,11 @@ Item {
         case "default":
             return defaultStatusIcon;
         case "volume":
-            return volumeStatusIcon;
+            return currentVolume <= 0.4 ? volumeDownStatusIcon : volumeUpStatusIcon;
+        case "volumeDown":
+            return volumeDownStatusIcon;
+        case "volumeUp":
+            return volumeUpStatusIcon;
         case "mute":
             return muteStatusIcon;
         case "brightnessLow":
@@ -113,6 +119,8 @@ Item {
             return ramStatusIcon;
         case "bluetooth":
             return bluetoothStatusIcon;
+        case "storage":
+            return storageStatusIcon;
         default:
             return "";
         }
@@ -214,7 +222,7 @@ Item {
                 text: formatPercentText(currentBrightness)
             };
         case "workspace":
-            return { id: itemId, icon: "", text: "Workspace " + currentWorkspace };
+            return { id: itemId, icon: Qt.resolvedUrl("../resources/icons/workspace-change.svg"), text: "Workspace " + currentWorkspace };
         case "cpu":
             return {
                 id: itemId,
@@ -303,7 +311,7 @@ Item {
                 root._lastVolType = root._pendingVolType;
                 root._lastVolVal = root._pendingVolVal;
                 root.transientRequested(
-                    root._pendingVolType === "MUTE" ? root.statusIcon("mute") : root.statusIcon("volume"),
+                    root._pendingVolType === "MUTE" ? root.statusIcon("mute") : (root._pendingVolVal <= 0.4 ? root.statusIcon("volumeDown") : root.statusIcon("volumeUp")),
                     root._pendingVolVal,
                     ""
                 );
@@ -391,11 +399,13 @@ Item {
 
         function onBatteryChanged(capacity, statusString) {
             root.batteryCapacity = capacity;
-            root.isCharging = (statusString === "Charging" || statusString === "Full");
-            if (root._lastChargeStatus !== "" && root._lastChargeStatus !== statusString) {
-                if (statusString === "Charging")
+            const nowCharging = (statusString === "Charging" || statusString === "Full");
+            const wasCharging = (root._lastChargeStatus === "Charging" || root._lastChargeStatus === "Full");
+            root.isCharging = nowCharging;
+            if (root._lastChargeStatus !== "" && wasCharging !== nowCharging) {
+                if (nowCharging)
                     root.transientRequested(root.statusIcon("charging"), -1.0, "");
-                else if (statusString === "Discharging")
+                else
                     root.transientRequested(root.statusIcon("discharging"), -1.0, "");
             }
             root._lastChargeStatus = statusString;
