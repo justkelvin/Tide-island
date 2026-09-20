@@ -1,6 +1,7 @@
 import QtQuick
 import IslandBackend
 import Quickshell.Services.Mpris
+import "../../components"
 
 Item {
     id: root
@@ -112,7 +113,16 @@ Item {
                                 color: "#2c2c2e"
                                 clip: true
 
+                                SvgIcon {
+                                    anchors.centerIn: parent
+                                    source: Qt.resolvedUrl("../../resources/icons/music-alt.svg")
+                                    iconSize: 28
+                                    color: "#5f6368"
+                                    visible: !albumArt.visible
+                                }
+
                                 Image {
+                                    id: albumArt
                                     anchors.fill: parent
                                     source: currentArtUrl
                                     fillMode: Image.PreserveAspectCrop
@@ -256,31 +266,11 @@ Item {
                                     NumberAnimation { duration: 100 }
                                 }
 
-                                Canvas {
-                                    anchors.fill: parent
-                                    property color fillColor: prevArea.pressed ? "#888" : "white"
-
-                                    onFillColorChanged: requestPaint()
-                                    onPaint: {
-                                        var ctx = getContext("2d");
-                                        ctx.clearRect(0, 0, width, height);
-                                        ctx.fillStyle = fillColor;
-                                        ctx.strokeStyle = fillColor;
-                                        ctx.lineJoin = "round";
-                                        ctx.lineWidth = 2;
-                                        ctx.beginPath();
-                                        ctx.rect(3, 5, 3, 18);
-                                        ctx.moveTo(14, 5);
-                                        ctx.lineTo(6, 14);
-                                        ctx.lineTo(14, 23);
-                                        ctx.closePath();
-                                        ctx.moveTo(23, 5);
-                                        ctx.lineTo(15, 14);
-                                        ctx.lineTo(23, 23);
-                                        ctx.closePath();
-                                        ctx.fill();
-                                        ctx.stroke();
-                                    }
+                                SvgIcon {
+                                    anchors.centerIn: parent
+                                    iconSize: 22
+                                    source: Qt.resolvedUrl("../../resources/icons/step-backward.svg")
+                                    color: prevArea.pressed ? "#888888" : "white"
                                 }
 
                                 MouseArea {
@@ -305,36 +295,13 @@ Item {
                                     NumberAnimation { duration: 100 }
                                 }
 
-                                Row {
+                                SvgIcon {
                                     anchors.centerIn: parent
-                                    spacing: 6
-                                    visible: activePlayer && activePlayer.playbackState === MprisPlaybackState.Playing
-
-                                    Rectangle { width: 6; height: 20; radius: 2; color: playArea.pressed ? "#888" : "white" }
-                                    Rectangle { width: 6; height: 20; radius: 2; color: playArea.pressed ? "#888" : "white" }
-                                }
-
-                                Canvas {
-                                    anchors.fill: parent
-                                    visible: !activePlayer || activePlayer.playbackState !== MprisPlaybackState.Playing
-                                    property color fillColor: playArea.pressed ? "#888" : "white"
-
-                                    onFillColorChanged: requestPaint()
-                                    onPaint: {
-                                        var ctx = getContext("2d");
-                                        ctx.clearRect(0, 0, width, height);
-                                        ctx.fillStyle = fillColor;
-                                        ctx.strokeStyle = fillColor;
-                                        ctx.lineJoin = "round";
-                                        ctx.lineWidth = 2;
-                                        ctx.beginPath();
-                                        ctx.moveTo(8, 4);
-                                        ctx.lineTo(24, 14);
-                                        ctx.lineTo(8, 24);
-                                        ctx.closePath();
-                                        ctx.fill();
-                                        ctx.stroke();
-                                    }
+                                    iconSize: 22
+                                    source: isPlaying
+                                        ? Qt.resolvedUrl("../../resources/icons/pause.svg")
+                                        : Qt.resolvedUrl("../../resources/icons/play.svg")
+                                    color: playArea.pressed ? "#888888" : "white"
                                 }
 
                                 MouseArea {
@@ -359,31 +326,11 @@ Item {
                                     NumberAnimation { duration: 100 }
                                 }
 
-                                Canvas {
-                                    anchors.fill: parent
-                                    property color fillColor: nextArea.pressed ? "#888" : "white"
-
-                                    onFillColorChanged: requestPaint()
-                                    onPaint: {
-                                        var ctx = getContext("2d");
-                                        ctx.clearRect(0, 0, width, height);
-                                        ctx.fillStyle = fillColor;
-                                        ctx.strokeStyle = fillColor;
-                                        ctx.lineJoin = "round";
-                                        ctx.lineWidth = 2;
-                                        ctx.beginPath();
-                                        ctx.moveTo(5, 5);
-                                        ctx.lineTo(13, 14);
-                                        ctx.lineTo(5, 23);
-                                        ctx.closePath();
-                                        ctx.moveTo(14, 5);
-                                        ctx.lineTo(22, 14);
-                                        ctx.lineTo(14, 23);
-                                        ctx.closePath();
-                                        ctx.rect(22, 5, 3, 18);
-                                        ctx.fill();
-                                        ctx.stroke();
-                                    }
+                                SvgIcon {
+                                    anchors.centerIn: parent
+                                    iconSize: 22
+                                    source: Qt.resolvedUrl("../../resources/icons/step-forward.svg")
+                                    color: nextArea.pressed ? "#888888" : "white"
                                 }
 
                                 MouseArea {

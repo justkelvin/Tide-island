@@ -124,10 +124,18 @@ Item {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
 
+                    SvgIcon {
+                        anchors.centerIn: parent
+                        visible: parent.parent.hasIcon && !parent.parent.isBattery && String(modelData.icon || "").indexOf(".svg") !== -1
+                        source: visible ? modelData.icon : ""
+                        iconSize: root.iconPixelSize
+                        color: "white"
+                    }
+
                     Text {
                         anchors.centerIn: parent
                         anchors.verticalCenterOffset: root.iconVerticalOffset
-                        visible: parent.parent.hasIcon && !parent.parent.isBattery
+                        visible: parent.parent.hasIcon && !parent.parent.isBattery && String(modelData.icon || "").indexOf(".svg") === -1
                         text: modelData.icon || ""
                         color: "white"
                         font.pixelSize: root.iconPixelSize

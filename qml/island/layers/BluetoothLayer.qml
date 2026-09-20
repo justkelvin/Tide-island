@@ -1,5 +1,6 @@
 import QtQuick
 import IslandBackend
+import "../../components"
 
 Item {
     id: root
@@ -67,12 +68,11 @@ Item {
                 width: 44
                 height: 58
 
-                Text {
+                SvgIcon {
                     anchors.centerIn: parent
-                    text: root.iconText
+                    source: Qt.resolvedUrl("../../resources/icons/bluetooth-connected.svg")
+                    iconSize: userConfig.iconFontSize + 16
                     color: "#0a84ff"
-                    font.pixelSize: userConfig.iconFontSize + 16
-                    font.family: root.iconFontFamily
                 }
             }
 

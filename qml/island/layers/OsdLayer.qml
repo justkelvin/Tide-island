@@ -1,5 +1,6 @@
 import QtQuick
 import IslandBackend
+import "../../components"
 
 Item {
     id: root
@@ -7,6 +8,7 @@ Item {
     readonly property var userConfig: UserConfig
 
     property string iconText: ""
+    readonly property bool hasSvgIcon: iconText.indexOf(".svg") !== -1
     property real progress: -1
     property string customText: ""
     property var configSource: null
@@ -58,7 +60,16 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 12
 
+            SvgIcon {
+                visible: root.hasSvgIcon
+                source: root.hasSvgIcon ? iconText : ""
+                iconSize: userConfig.iconFontSize
+                color: "white"
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
             Text {
+                visible: !root.hasSvgIcon
                 text: iconText
                 color: "white"
                 font.pixelSize: userConfig.iconFontSize
@@ -140,7 +151,16 @@ Item {
             anchors.centerIn: parent
             spacing: 14
 
+            SvgIcon {
+                visible: root.hasSvgIcon
+                source: root.hasSvgIcon ? iconText : ""
+                iconSize: userConfig.iconFontSize
+                color: "white"
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
             Text {
+                visible: !root.hasSvgIcon
                 text: iconText
                 color: "white"
                 font.pixelSize: userConfig.iconFontSize
