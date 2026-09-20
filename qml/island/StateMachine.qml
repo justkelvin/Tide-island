@@ -35,6 +35,12 @@ FocusScope {
     property string notificationAppIcon: ""
     property string notificationIconSource: Qt.resolvedUrl("../resources/icons/notification.svg")
     property bool notificationExpanded: false
+    property int notificationId: 0
+    property var notificationActions: []
+    property int notificationUrgency: 1
+    property int notificationProgress: -1
+    property string notificationImageDataUrl: ""
+    property string notificationResolvedIcon: ""
     property var bluetoothExpandedDevice: null
     readonly property var cavaLevels: systemState.cavaLevels
     property real swipeTransitionProgress: 0
@@ -313,41 +319,13 @@ FocusScope {
         notificationAppIcon = "";
         notificationIconSource = Qt.resolvedUrl("../resources/icons/notification.svg");
         notificationExpanded = false;
+        notificationId = 0;
+        notificationActions = [];
+        notificationUrgency = 1;
+        notificationProgress = -1;
+        notificationImageDataUrl = "";
+        notificationResolvedIcon = "";
         bluetoothExpandedDevice = null;
-    }
-
-    function cleanNotificationText(text, stripUrls) {
-        if (stripUrls === undefined) stripUrls = false;
-        let s = String(text === undefined || text === null ? "" : text);
-
-        if (stripUrls) {
-            // Remove leading HTML anchor origin attribution (e.g. <a href="...">domain.com</a>)
-            s = s.replace(/^\s*<a\b[^>]*>.*?<\/a>\s*/i, "");
-            // Remove leading domain-like origin header followed by newlines (e.g. domain.com\n\n)
-            s = s.replace(/^\s*([a-zA-Z0-9][-a-zA-Z0-9]*\.)+[a-zA-Z]{2,}(?::\d+)?(?:\/\S*)?\s*\n+/i, "");
-            // Remove standalone http:// or https:// URLs
-            s = s.replace(/https?:\/\/[^\s<>]+/gi, "");
-            // Remove standalone www. links
-            s = s.replace(/\bwww\.[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}[^\s<>]*/gi, "");
-        }
-
-        const cleaned = s
-            .replace(/<[^>]*>/g, " ")
-            .replace(/&nbsp;/g, " ")
-            .replace(/&amp;/g, "&")
-            .replace(/&quot;/g, "\"")
-            .replace(/&lt;/g, "<")
-            .replace(/&gt;/g, ">")
-            .replace(/\s+/g, " ")
-            .trim();
-
-        // If stripping URLs emptied out the entire string, fallback to standard sanitization
-        // so notifications consisting only of a link are not completely lost
-        if (stripUrls && cleaned === "") {
-            return cleanNotificationText(text, false);
-        }
-
-        return cleaned;
     }
 
     function prepareRestingCapsuleGeometry() {
@@ -656,27 +634,38 @@ FocusScope {
         return Qt.resolvedUrl("../resources/icons/notification.svg");
     }
 
-    function showNotificationCapsule(appName, summary, body, appIcon) {
+    function showNotificationCapsule(item) {
         if (islandState === "expanded") return;
+        if (!item) return;
 
-        const stripUrls = userConfig.cleanNotificationUrls;
-        const cleanedAppName = cleanNotificationText(appName, false);
-        const cleanedSummary = cleanNotificationText(summary, stripUrls);
-        const cleanedBody = cleanNotificationText(body, stripUrls);
-        const resolvedSummary = cleanedSummary !== ""
-            ? cleanedSummary
-            : (cleanedBody !== "" ? cleanedBody : "New notification");
+        // Text arrives pre-sanitized from NotificationServer (C++).
+        const appName = String(item.appName || "");
+        const summary = String(item.summary || "");
+        const body = String(item.body || "");
+        const resolvedSummary = summary !== ""
+            ? summary
+            : (body !== "" ? body : "New notification");
 
         abortSideTransientMode();
         clearTransientCapsule();
-        notificationAppName = cleanedAppName !== "" ? cleanedAppName : "Notification";
+        notificationId = Number(item.id) || 0;
+        notificationActions = item.actions || [];
+        notificationUrgency = item.urgency === undefined ? 1 : Number(item.urgency);
+        notificationProgress = item.progress === undefined ? -1 : Number(item.progress);
+        notificationImageDataUrl = String(item.imageDataUrl || "");
+        notificationAppName = appName !== "" ? appName : "Notification";
         notificationSummary = resolvedSummary;
-        notificationBody = cleanedSummary !== "" ? cleanedBody : "";
-        notificationAppIcon = appIcon || "";
-        notificationIconSource = resolveNotificationIcon(cleanedAppName, cleanedSummary, cleanedBody, notificationAppIcon);
+        notificationBody = summary !== "" ? body : "";
+        notificationAppIcon = String(item.appIcon || "");
+        notificationResolvedIcon = String(item.resolvedIcon || item.imagePath || item.imageDataUrl || item.appIcon || "");
+        notificationIconSource = resolveNotificationIcon(appName, summary, body, notificationResolvedIcon || notificationAppIcon);
         notificationExpanded = false;
         islandState = "notification";
-        restartAutoHideTimer(notificationAutoHideInterval);
+        // Critical alerts persist until explicitly dismissed by the user.
+        if (notificationUrgency === 2)
+            stopAutoHideTimer();
+        else
+            restartAutoHideTimer(notificationAutoHideInterval);
     }
 
     function toggleNotificationExpansionIfNeeded() {
@@ -684,12 +673,22 @@ FocusScope {
             return false;
 
         if (notificationExpanded) {
-            smartRestoreState();
+            dismissNotificationCapsule();
             return true;
         }
 
         notificationExpanded = true;
         stopAutoHideTimer();
+        return true;
+    }
+
+    function dismissNotificationCapsule() {
+        if (islandState !== "notification")
+            return false;
+        const dismissedId = notificationId;
+        smartRestoreState();
+        if (dismissedId > 0)
+            NotificationServer.dismissNotification(dismissedId);
         return true;
     }
 
@@ -901,6 +900,15 @@ FocusScope {
         const view = mainCapsule.lyricsSwipeItem;
         if (!view) return;
         lyricsCapsuleWidth = Math.max(220, Math.min(windowRoot.width - 48, view.preferredWidth));
+    }
+
+    Connections {
+        target: NotificationServer
+
+        function onNotificationRemoved(id) {
+            if (id === root.notificationId && root.islandState === "notification")
+                root.smartRestoreState();
+        }
     }
 
     onCurrentTrackChanged: {

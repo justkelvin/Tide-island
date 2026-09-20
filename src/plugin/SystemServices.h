@@ -39,7 +39,6 @@ public:
     Q_INVOKABLE void ensureUserConfigAvailable();
 
 signals:
-    void notificationReceived(const QString &appName, const QString &summary, const QString &body, const QString &appIcon = QString());
     void screenRecordingActiveChanged();
     void hyprlandSnapshotReady(const QString &requestId,
                                const QString &subject,

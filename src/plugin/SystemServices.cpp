@@ -1,5 +1,4 @@
 #include "SystemServices.h"
-#include "NotificationServer.h"
 #include "UserConfigBackend.h"
 
 #include <QDateTime>
@@ -60,26 +59,6 @@ SystemServices::SystemServices(QObject *parent)
     startPipeWireMonitor();
     startRecordingPortalMonitor();
     requestScreenRecordingSnapshot();
-
-    // Native notification server owns org.freedesktop.Notifications now.
-    // Forward new arrivals to the legacy signal so existing QML (shell.qml ->
-    // StateMachine.showNotificationCapsule) keeps working unchanged.
-    NotificationServer *notifications = NotificationServer::instance();
-    auto forwardNotification = [this](const QVariantMap &item) {
-        QString icon = item.value(QStringLiteral("resolvedIcon")).toString();
-        if (icon.isEmpty())
-            icon = item.value(QStringLiteral("appIcon")).toString();
-        if (icon.isEmpty())
-            icon = item.value(QStringLiteral("imagePath")).toString();
-        if (icon.isEmpty())
-            icon = item.value(QStringLiteral("imageDataUrl")).toString();
-        emit notificationReceived(item.value(QStringLiteral("appName")).toString(),
-                                  item.value(QStringLiteral("summary")).toString(),
-                                  item.value(QStringLiteral("body")).toString(),
-                                  icon);
-    };
-    connect(notifications, &NotificationServer::notificationAdded, this, forwardNotification);
-    connect(notifications, &NotificationServer::notificationUpdated, this, forwardNotification);
 }
 
 SystemServices::~SystemServices() {

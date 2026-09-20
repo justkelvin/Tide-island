@@ -68,8 +68,7 @@ struct NotificationItem {
 };
 
 // Native FreeDesktop Notifications server (org.freedesktop.Notifications v1.2).
-// Standalone QML singleton; SystemServices forwards notificationAdded to its
-// legacy notificationReceived signal so existing QML keeps working.
+// Standalone QML singleton consumed directly by shell.qml / StateMachine.
 class NotificationServer final : public QAbstractListModel {
     Q_OBJECT
     QML_ELEMENT

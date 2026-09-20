@@ -14,6 +14,12 @@ Item {
     property string iconSource: Qt.resolvedUrl("../../resources/icons/notification.svg")
     property string iconText: ""
     property bool expanded: false
+    // Rich server-side fields (ready for action buttons / live activities).
+    property int notificationId: 0
+    property var actions: []
+    property int urgency: 1
+    property int progress: -1
+    property string imageDataUrl: ""
     property int toggleButton: Qt.LeftButton
     property var configSource: null
     readonly property var activeConfig: configSource || userConfig
@@ -123,7 +129,7 @@ Item {
 
         SvgIcon {
             id: notificationSvgIcon
-            visible: root.iconSource !== ""
+            visible: root.iconSource !== "" && !avatarImage.visible
             width: iconSlotWidth
             height: iconSlotWidth
             iconSize: iconSlotWidth
@@ -132,8 +138,19 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
         }
 
+        Image {
+            id: avatarImage
+            visible: root.imageDataUrl !== ""
+            width: iconSlotWidth
+            height: iconSlotWidth
+            source: root.imageDataUrl
+            fillMode: Image.PreserveAspectCrop
+            smooth: true
+            anchors.verticalCenter: parent.verticalCenter
+        }
+
         Text {
-            visible: !notificationSvgIcon.visible
+            visible: !notificationSvgIcon.visible && !avatarImage.visible
             width: iconSlotWidth
             anchors.verticalCenter: parent.verticalCenter
             text: iconText
