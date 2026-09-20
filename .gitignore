@@ -51,7 +51,6 @@ __pycache__/
 
 # Arch Linux packaging
 pkg/
-src/
 Tide-island/
 *.pkg.tar*
 *.src.tar*
