@@ -107,6 +107,7 @@ PanelWindow {
 
     readonly property alias autoHideTargetVisible: autoHide.targetVisible
     readonly property alias autoHideProgress: autoHide.progress
+    readonly property alias autoHideEnabled: autoHide.enabled
     readonly property alias autoHideSuppressesTransientReveal: autoHide.suppressesTransientReveal
     readonly property alias topGestureInputX: autoHide.topGestureInputX
     readonly property alias topGestureInputWidth: autoHide.topGestureInputWidth
