@@ -89,7 +89,8 @@ Item {
     }
 
     function isInlineReplyAction(actionKey) {
-        return String(actionKey || "").toLowerCase() === "inline-reply";
+        const key = String(actionKey || "").toLowerCase();
+        return key === "inline-reply" || key === "reply";
     }
 
     function beginInlineReply() {

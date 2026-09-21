@@ -573,7 +573,9 @@ void NotificationServer::parseHints(NotificationItem &item) const {
     if (item.imagePath.isEmpty())
         item.imagePath = hints.value(QStringLiteral("image_path")).toString();
 
-    item.replyPlaceholder = hints.value(QStringLiteral("x-kde-reply-placeholder")).toString();
+    item.replyPlaceholder = hints.value(QStringLiteral("x-kde-reply-placeholder-text")).toString();
+    if (item.replyPlaceholder.isEmpty())
+        item.replyPlaceholder = hints.value(QStringLiteral("x-kde-reply-placeholder")).toString();
 
     item.progress = -1;
     auto valueIt = hints.find(QStringLiteral("value"));

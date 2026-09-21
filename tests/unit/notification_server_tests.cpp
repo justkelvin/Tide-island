@@ -288,6 +288,14 @@ private slots:
         QCOMPARE(item.value(QStringLiteral("desktopEntry")).toString(), QStringLiteral("discord"));
         QCOMPARE(item.value(QStringLiteral("category")).toString(), QStringLiteral("im.received"));
         QCOMPARE(item.value(QStringLiteral("replyPlaceholder")).toString(), QStringLiteral("Reply..."));
+
+        QVariantMap standardKdeHints;
+        standardKdeHints.insert(QStringLiteral("transient"), true);
+        standardKdeHints.insert(QStringLiteral("x-kde-reply-placeholder-text"), QStringLiteral("Type something..."));
+        const uint standardId = server.Notify(QStringLiteral("KDE"), 0, QString(), QStringLiteral("t"),
+                                              QStringLiteral("b"), {}, standardKdeHints, 60000);
+        QCOMPARE(server.getNotification(standardId).value(QStringLiteral("replyPlaceholder")).toString(),
+                 QStringLiteral("Type something..."));
         // Transient notifications bypass history.
         QCOMPARE(server.history().size(), historyBefore);
     }
