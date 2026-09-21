@@ -298,12 +298,21 @@ Rectangle {
 
         sourceComponent: Component {
             SecondaryPanelLayer {
-                titleText: "Title"
+                history: NotificationServer.history
                 textFontFamily: windowRoot.textFontFamily
                 showCondition: islandController.secondaryPanelVisible
                 onControlPressed: islandController.suppressCapsuleClick()
                 onBackgroundClicked: islandController.smartRestoreState()
                 onCloseRequested: islandController.smartRestoreState()
+                onClearAllRequested: {
+                    islandController.suppressCapsuleClick();
+                    NotificationServer.clearHistory();
+                    NotificationServer.clearAllNotifications();
+                }
+                onRemoveHistoryItemRequested: (notificationId) => {
+                    islandController.suppressCapsuleClick();
+                    NotificationServer.removeHistoryItem(notificationId);
+                }
             }
         }
     }

@@ -1,4 +1,6 @@
 import QtQuick
+import Qt5Compat.GraphicalEffects
+import Quickshell.Widgets
 import IslandBackend
 
 Item {
@@ -7,12 +9,123 @@ Item {
     signal controlPressed()
     signal backgroundClicked()
     signal closeRequested()
+    signal clearAllRequested()
+    signal removeHistoryItemRequested(var notificationId)
 
     readonly property var userConfig: UserConfig
 
     property bool showCondition: false
-    property string titleText: "Title"
+    property var history: []
     property string textFontFamily: userConfig.textFontFamily
+
+    readonly property int historyCount: history ? history.length : 0
+    readonly property string headerText: historyCount > 0 ? "Notifications (" + historyCount + ")" : "Notifications"
+
+    function timeAgo(createdMs) {
+        const now = Date.now();
+        const created = Number(createdMs) || 0;
+        let delta = Math.max(0, now - created);
+        if (created <= 0)
+            return "";
+        const seconds = Math.floor(delta / 1000);
+        if (seconds < 10)
+            return "Just now";
+        if (seconds < 60)
+            return seconds + "s ago";
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60)
+            return minutes + "m ago";
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24)
+            return hours + "h ago";
+        const days = Math.floor(hours / 24);
+        return days + "d ago";
+    }
+
+    // Local mirror of NotificationServer.history as a real ListModel.
+    // QVariantList reassigns wholesale on every change (instant rebuild = blip),
+    // while ListModel emits per-row signals so ListView can play remove/add/
+    // displaced transitions for an Apple-style dismiss animation.
+    ListModel {
+        id: historyModel
+    }
+
+    function toElement(item) {
+        const summary = item && item.summary ? String(item.summary) : "";
+        const app = item && item.appName ? String(item.appName) : "";
+        const rawBody = item && item.body ? String(item.body) : "";
+        const title = summary !== "" ? summary : (app !== "" ? app : "Notification");
+        const body = (rawBody !== "" && rawBody !== title) ? rawBody : "";
+        const imageDataUrl = item && item.imageDataUrl ? String(item.imageDataUrl) : "";
+        const imagePath = item && item.imagePath ? String(item.imagePath) : "";
+        const appIcon = item && item.appIcon ? String(item.appIcon) : "";
+        const resolved = item && item.resolvedIcon ? String(item.resolvedIcon) : "";
+        let iconImage = imageDataUrl;
+        if (iconImage === "" && imagePath !== "") {
+            if (imagePath.indexOf("://") >= 0 || imagePath.indexOf("data:") === 0)
+                iconImage = imagePath;
+            else if (imagePath.charAt(0) === "/")
+                iconImage = "file://" + imagePath;
+            else
+                iconImage = imagePath;
+        }
+        // Freedesktop theme icon name (telegram, discord, ...) for IconImage.
+        // Paths and data URLs are rendered with Image instead.
+        let iconName = "";
+        const candidate = resolved !== "" ? resolved : appIcon;
+        if (iconImage === "" && candidate !== ""
+                && candidate.indexOf("/") < 0
+                && candidate.indexOf("://") < 0
+                && candidate.indexOf("data:") !== 0)
+            iconName = candidate;
+        return {
+            nid: (item && item.id !== undefined) ? Number(item.id) : 0,
+            title: title,
+            body: body,
+            createdMs: (item && item.createdMs !== undefined) ? Number(item.createdMs) : 0,
+            iconName: iconName,
+            iconImage: iconImage
+        };
+    }
+
+    function syncHistory() {
+        const source = root.history || [];
+        let i = historyModel.count - 1;
+        while (i >= 0) {
+            const id = historyModel.get(i).nid;
+            let found = false;
+            for (let j = 0; j < source.length; ++j) {
+                if (Number(source[j].id) === id) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+                historyModel.remove(i);
+            i -= 1;
+        }
+        for (let j = 0; j < source.length; ++j) {
+            const hid = Number(source[j].id);
+            if (j < historyModel.count && historyModel.get(j).nid === hid)
+                continue;
+            let at = -1;
+            for (let k = j + 1; k < historyModel.count; ++k) {
+                if (historyModel.get(k).nid === hid) {
+                    at = k;
+                    break;
+                }
+            }
+            if (at >= 0)
+                historyModel.move(at, j, 1);
+            else
+                historyModel.insert(j, toElement(source[j]));
+        }
+        while (historyModel.count > source.length)
+            historyModel.remove(historyModel.count - 1);
+    }
+
+    onHistoryChanged: syncHistory()
+    Component.onCompleted: syncHistory()
 
     anchors.fill: parent
     opacity: showCondition ? 1 : 0
@@ -22,6 +135,13 @@ Item {
             duration: showCondition ? 300 : 100
             easing.type: Easing.InOutQuad
         }
+    }
+
+    Timer {
+        interval: 30000
+        repeat: true
+        running: root.showCondition && root.historyCount > 0
+        onTriggered: historyList.refreshTimestamps()
     }
 
     Item {
@@ -39,7 +159,9 @@ Item {
         Column {
             anchors.fill: parent
             anchors.margins: 20
-            spacing: 14
+            anchors.topMargin: 16
+            anchors.bottomMargin: 16
+            spacing: 10
 
             Item {
                 width: parent.width
@@ -48,7 +170,7 @@ Item {
                 Text {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.titleText
+                    text: root.headerText
                     color: "white"
                     font.pixelSize: userConfig.bodyFontSize
                     font.family: root.textFontFamily
@@ -62,13 +184,23 @@ Item {
                     id: pillButton
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 56
+                    width: 92
                     height: 26
                     radius: 13
                     color: pillArea.pressed ? "#555558" : "#3a3a3c"
+                    opacity: root.historyCount > 0 ? 1 : 0.4
 
                     Behavior on color {
                         ColorAnimation { duration: 140; easing.type: Easing.InOutQuad }
+                    }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Clear All"
+                        color: "#f4f5f7"
+                        font.pixelSize: userConfig.bodyFontSize - 4
+                        font.family: root.textFontFamily
+                        font.weight: Font.Medium
                     }
 
                     MouseArea {
@@ -76,11 +208,223 @@ Item {
                         anchors.fill: parent
                         anchors.margins: -8
                         preventStealing: true
+                        enabled: root.historyCount > 0
                         onPressed: (mouse) => {
                             root.controlPressed();
                             mouse.accepted = true;
                         }
-                        onClicked: root.closeRequested()
+                        onClicked: root.clearAllRequested()
+                    }
+                }
+            }
+
+            Item {
+                width: parent.width
+                height: parent.height - 38
+
+                Text {
+                    anchors.centerIn: parent
+                    visible: historyModel.count === 0
+                    text: "No Recent Notifications"
+                    color: "#8e8e93"
+                    font.pixelSize: userConfig.bodyFontSize - 2
+                    font.family: root.textFontFamily
+                    font.weight: Font.Medium
+                }
+
+                ListView {
+                    id: historyList
+                    anchors.fill: parent
+                    visible: historyModel.count > 0
+                    clip: true
+                    spacing: 6
+                    boundsBehavior: Flickable.StopAtBounds
+                    model: historyModel
+
+                    // Apple-style dismiss: exiting card slides right + fades
+                    // while siblings glide up to fill the gap.
+                    remove: Transition {
+                        ParallelAnimation {
+                            NumberAnimation { property: "x"; to: historyList.width; duration: 300; easing.type: Easing.InCubic }
+                            NumberAnimation { property: "opacity"; to: 0; duration: 300; easing.type: Easing.InQuad }
+                        }
+                    }
+                    displaced: Transition {
+                        NumberAnimation { properties: "x,y"; duration: 340; easing.type: Easing.OutQuint }
+                    }
+                    add: Transition {
+                        ParallelAnimation {
+                            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 220; easing.type: Easing.InOutQuad }
+                            NumberAnimation { property: "y"; from: -16; duration: 260; easing.type: Easing.OutCubic }
+                        }
+                    }
+                    move: Transition {
+                        NumberAnimation { properties: "x,y"; duration: 340; easing.type: Easing.OutQuint }
+                    }
+
+                    property int timestampRevision: 0
+                    function refreshTimestamps() {
+                        timestampRevision += 1;
+                    }
+
+                    delegate: Item {
+                        width: historyList.width
+                        height: model.body !== "" ? 60 : 56
+
+                        readonly property int entryId: model.nid
+                        readonly property string agoText: {
+                            historyList.timestampRevision;
+                            return root.timeAgo(model.createdMs);
+                        }
+
+                        Rectangle {
+                            id: card
+                            x: 8
+                            y: 8
+                            width: parent.width - 8
+                            height: parent.height - 8
+                            radius: 12
+                            color: Qt.rgba(255, 255, 255, 0.06)
+                            border.width: 1
+                            border.color: Qt.rgba(255, 255, 255, 0.08)
+
+                            Row {
+                                anchors.fill: parent
+                                anchors.margins: 8
+                                anchors.leftMargin: 14
+                                anchors.rightMargin: 10
+                                spacing: 10
+
+                                // Leading app-icon tile, vertically centered.
+                                // Theme names via IconImage, files/data URLs via Image.
+                                Item {
+                                    id: iconSlot
+                                    width: hasIcon ? 32 : 0
+                                    height: 32
+                                    visible: hasIcon
+                                    anchors.verticalCenter: parent.verticalCenter
+
+                                    readonly property bool isImage: model.iconImage !== ""
+                                    readonly property bool hasIcon: isImage || model.iconName !== ""
+
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        radius: 8
+                                        color: Qt.rgba(255, 255, 255, 0.08)
+                                    }
+
+                                    // Mask the content itself so image/icon pixels
+                                    // follow the rounded tile instead of sitting
+                                    // sharp-cornered on top of it.
+                                    Item {
+                                        id: iconContent
+                                        anchors.fill: parent
+                                        anchors.margins: 2
+                                        layer.enabled: true
+                                        layer.effect: OpacityMask {
+                                            maskSource: Rectangle {
+                                                width: iconContent.width
+                                                height: iconContent.height
+                                                radius: 6
+                                            }
+                                        }
+
+                                        Image {
+                                            anchors.fill: parent
+                                            visible: iconSlot.isImage
+                                            source: model.iconImage
+                                            fillMode: Image.PreserveAspectCrop
+                                            smooth: true
+                                        }
+
+                                        IconImage {
+                                            anchors.fill: parent
+                                            visible: !iconSlot.isImage && model.iconName !== ""
+                                            source: model.iconName
+                                        }
+                                    }
+                                }
+
+                                Column {
+                                    width: parent.width - (iconSlot.visible ? iconSlot.width + parent.spacing : 0)
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 2
+
+                                    Row {
+                                        width: parent.width
+                                        spacing: 8
+
+                                        Text {
+                                            text: model.title
+                                            color: "white"
+                                            font.pixelSize: userConfig.bodyFontSize - 2
+                                            font.family: root.textFontFamily
+                                            font.weight: Font.DemiBold
+                                            font.letterSpacing: -0.15
+                                            elide: Text.ElideRight
+                                            width: Math.max(0, parent.width - (agoLabel.visible ? agoLabel.contentWidth + parent.spacing : 0))
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+
+                                        Text {
+                                            id: agoLabel
+                                            text: agoText
+                                            visible: agoText !== ""
+                                            color: "#8e8e93"
+                                            font.pixelSize: userConfig.bodyFontSize - 5
+                                            font.family: root.textFontFamily
+                                            font.weight: Font.Medium
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                    }
+
+                                    Text {
+                                        visible: model.body !== ""
+                                        text: model.body
+                                        color: "#c7c7cc"
+                                        font.pixelSize: userConfig.bodyFontSize - 3
+                                        font.family: root.textFontFamily
+                                        font.weight: Font.Normal
+                                        elide: Text.ElideRight
+                                        maximumLineCount: 1
+                                        width: parent.width
+                                    }
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            id: closeBadge
+                            x: 0
+                            y: 0
+                            width: 18
+                            height: 18
+                            radius: 9
+                            color: closeArea.pressed ? "#555558" : "#3a3a3c"
+                            border.width: 1
+                            border.color: Qt.rgba(255, 255, 255, 0.10)
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "✕"
+                                color: closeArea.pressed ? "white" : "#c7c7cc"
+                                font.pixelSize: 9
+                                font.family: root.textFontFamily
+                                font.weight: Font.Medium
+                            }
+
+                            MouseArea {
+                                id: closeArea
+                                anchors.fill: parent
+                                anchors.margins: -6
+                                preventStealing: true
+                                onPressed: (mouse) => {
+                                    root.controlPressed();
+                                    mouse.accepted = true;
+                                }
+                                onClicked: root.removeHistoryItemRequested(entryId)
+                            }
+                        }
                     }
                 }
             }
