@@ -424,6 +424,36 @@ private slots:
         server.clearAllNotifications();
     }
 
+    void themeIconPathSearchesDataDirs() {
+        QTemporaryDir tempDir;
+        QVERIFY(tempDir.isValid());
+        const QByteArray previousDataHome = qgetenv("XDG_DATA_HOME");
+        qputenv("XDG_DATA_HOME", tempDir.path().toUtf8());
+
+        const QString iconDir = tempDir.path() + QStringLiteral("/icons/hicolor/48x48/apps");
+        QVERIFY(QDir().mkpath(iconDir));
+        QFile probe(iconDir + QStringLiteral("/tide-test-app.png"));
+        QVERIFY(probe.open(QIODevice::WriteOnly));
+        probe.write("PNG");
+        probe.close();
+
+        NotificationServer server(nullptr, false);
+        const QString resolved = server.themeIconPath(QStringLiteral("tide-test-app"));
+        QVERIFY2(resolved.startsWith(QStringLiteral("file://")), qPrintable(resolved));
+        QVERIFY2(resolved.endsWith(QStringLiteral("tide-test-app.png")), qPrintable(resolved));
+        // Cached second call agrees.
+        QCOMPARE(server.themeIconPath(QStringLiteral("tide-test-app")), resolved);
+        // Misses, empties, and path-like input resolve to empty.
+        QCOMPARE(server.themeIconPath(QStringLiteral("tide-test-app-nope")), QString());
+        QCOMPARE(server.themeIconPath(QString()), QString());
+        QCOMPARE(server.themeIconPath(QStringLiteral("with/slash")), QString());
+
+        if (previousDataHome.isEmpty())
+            qunsetenv("XDG_DATA_HOME");
+        else
+            qputenv("XDG_DATA_HOME", previousDataHome);
+    }
+
     void modelRolesExposeNotificationFields() {
         NotificationServer server(nullptr, false);
         const uint id = server.Notify(QStringLiteral("Discord"), 0, QStringLiteral("discord"),

@@ -121,6 +121,12 @@ public:
     bool contains(uint id) const;
     void setAutoRegister(bool enabled);
 
+    // Resolve a freedesktop theme icon name (telegram, discord, ...) to a
+    // file:// URL by searching the installed icon themes. Returns empty when
+    // unresolvable. Results are cached; pass-through for values that already
+    // look like paths/URLs is left to QML callers.
+    Q_INVOKABLE QString themeIconPath(const QString &name) const;
+
     // C++ port of the former StateMachine.cleanNotificationText: strips HTML
     // tags, unescapes entities, and (when stripUrls) removes standalone URLs.
     // Public and static so unit tests can exercise it without a config.
@@ -183,6 +189,7 @@ private:
     QList<NotificationItem> m_items;
     QHash<uint, QTimer *> m_timers;
     QVariantList m_history;
+    mutable QHash<QString, QString> m_themeIconCache;
     uint m_nextId = 1;
     bool m_registered = false;
     bool m_autoRegister = true;

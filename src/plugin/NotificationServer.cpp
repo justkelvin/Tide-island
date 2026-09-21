@@ -7,7 +7,12 @@
 #include <QDBusConnectionInterface>
 #include <QDBusMetaType>
 #include <QDebug>
+#include <QDir>
+#include <QFileInfo>
+#include <QIcon>
 #include <QRegularExpression>
+#include <QStandardPaths>
+#include <QStringList>
 #include <QVariant>
 
 #include <QtQml/qqmlengine.h>
@@ -16,6 +21,87 @@ namespace {
 
 constexpr QLatin1String kServiceName("org.freedesktop.Notifications");
 constexpr QLatin1String kObjectPath("/org/freedesktop/Notifications");
+
+// Preferred theme/size/context search order for themeIconPath().
+QStringList themeSearchOrder()
+{
+    QStringList themes;
+    const QString systemTheme = QIcon::themeName();
+    if (!systemTheme.isEmpty())
+        themes.append(systemTheme);
+    for (const QString &fallback : {QStringLiteral("breeze-dark"), QStringLiteral("breeze"),
+                                    QStringLiteral("Adwaita"), QStringLiteral("hicolor")}) {
+        if (!themes.contains(fallback))
+            themes.append(fallback);
+    }
+    return themes;
+}
+
+QStringList iconBaseDirs()
+{
+    QStringList dirs;
+    for (const QString &dataDir : QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation))
+        dirs.append(dataDir + QStringLiteral("/icons"));
+    dirs.append(QStringLiteral("/usr/share/pixmaps"));
+    return dirs;
+}
+
+// First existing regular file wins; empty when nothing matches.
+QString firstExisting(const QStringList &candidates)
+{
+    for (const QString &path : candidates) {
+        if (QFileInfo(path).isFile())
+            return path;
+    }
+    return QString();
+}
+
+QString findThemeIconFile(const QString &name)
+{
+    if (name.isEmpty() || name.contains(QLatin1Char('/')))
+        return QString();
+
+    static const QStringList kExtensions = {QStringLiteral("svg"), QStringLiteral("svgz"),
+                                            QStringLiteral("png"), QStringLiteral("xpm")};
+    static const QStringList kSizes = {QStringLiteral("48x48"), QStringLiteral("32x32"),
+                                       QStringLiteral("64x64"), QStringLiteral("scalable"),
+                                       QStringLiteral("32x32@2x"), QStringLiteral("24x24"),
+                                       QStringLiteral("22x22"), QStringLiteral("16x16"),
+                                       QStringLiteral("96x96"), QStringLiteral("128x128")};
+    static const QStringList kContexts = {QStringLiteral("apps"), QStringLiteral("actions"),
+                                          QStringLiteral("status"), QStringLiteral("devices"),
+                                          QStringLiteral("mimetypes"), QStringLiteral("categories"),
+                                          QStringLiteral("emblems")};
+
+    const QStringList baseDirs = iconBaseDirs();
+    // Exact filenames first (pixmaps and theme roots for names with extensions).
+    QStringList direct;
+    for (const QString &base : baseDirs)
+        direct.append(base + QLatin1Char('/') + name);
+    const QString exact = firstExisting(direct);
+    if (!exact.isEmpty())
+        return exact;
+
+    for (const QString &base : baseDirs) {
+        for (const QString &theme : themeSearchOrder()) {
+            const QString themeDir = base + QLatin1Char('/') + theme;
+            if (!QFileInfo(themeDir).isDir())
+                continue;
+            for (const QString &size : kSizes) {
+                for (const QString &context : kContexts) {
+                    QStringList sized;
+                    for (const QString &ext : kExtensions)
+                        sized.append(themeDir + QLatin1Char('/') + size + QLatin1Char('/') + context
+                                     + QLatin1Char('/') + name + QLatin1Char('.') + ext);
+                    const QString hit = firstExisting(sized);
+                    if (!hit.isEmpty())
+                        return hit;
+                }
+            }
+        }
+    }
+    return QString();
+}
 
 } // namespace
 
@@ -378,6 +464,20 @@ void NotificationServer::clearHistory() {
         return;
     m_history.clear();
     emit historyChanged();
+}
+
+QString NotificationServer::themeIconPath(const QString &name) const
+{
+    const QString key = name.trimmed();
+    if (key.isEmpty())
+        return QString();
+    auto it = m_themeIconCache.constFind(key);
+    if (it != m_themeIconCache.constEnd())
+        return it.value();
+    const QString found = findThemeIconFile(key);
+    const QString result = found.isEmpty() ? QString() : QStringLiteral("file://") + found;
+    m_themeIconCache.insert(key, result);
+    return result;
 }
 
 bool NotificationServer::tryRegister() {
