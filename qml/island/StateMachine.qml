@@ -43,6 +43,7 @@ FocusScope {
     property int notificationProgress: -1
     property string notificationImageDataUrl: ""
     property string notificationResolvedIcon: ""
+    property double notificationCreatedMs: 0
     readonly property var cavaLevels: systemState.cavaLevels
     property real swipeTransitionProgress: 0
     property string workspaceOriginSide: "none"
@@ -310,6 +311,7 @@ FocusScope {
     }
 
     function clearTransientCapsule() {
+        notificationExpandedSafetyTimer.stop();
         setOsdProgress(-1.0, false);
         osdCustomText = "";
         notificationAppName = "";
@@ -325,6 +327,7 @@ FocusScope {
         notificationProgress = -1;
         notificationImageDataUrl = "";
         notificationResolvedIcon = "";
+        notificationCreatedMs = 0;
     }
 
     function prepareRestingCapsuleGeometry() {
@@ -652,6 +655,7 @@ FocusScope {
         notificationUrgency = item.urgency === undefined ? 1 : Number(item.urgency);
         notificationProgress = item.progress === undefined ? -1 : Number(item.progress);
         notificationImageDataUrl = String(item.imageDataUrl || "");
+        notificationCreatedMs = item.createdMs === undefined ? 0 : Number(item.createdMs);
         notificationAppName = appName !== "" ? appName : "Notification";
         notificationSummary = resolvedSummary;
         notificationBody = summary !== "" ? body : "";
@@ -707,13 +711,38 @@ FocusScope {
         if (islandState !== "notification")
             return false;
 
-        if (mainCapsule.notificationItem && mainCapsule.notificationItem.hasOverflowContent && !notificationExpanded) {
+        if (!notificationExpanded) {
             notificationExpanded = true;
             stopAutoHideTimer();
+            notificationExpandedSafetyTimer.restart();
             return true;
         }
 
-        dismissNotificationCapsule();
+        activateNotificationBackground();
+        return true;
+    }
+
+    function noteNotificationActivity() {
+        if (islandState === "notification" && notificationExpanded)
+            notificationExpandedSafetyTimer.restart();
+    }
+
+    function invokeNotificationAction(actionKey) {
+        if (islandState !== "notification" || notificationId <= 0)
+            return false;
+        const invokedId = notificationId;
+        smartRestoreState();
+        NotificationServer.invokeAction(invokedId, String(actionKey));
+        return true;
+    }
+
+    function activateNotificationBackground() {
+        if (islandState !== "notification")
+            return false;
+        const item = mainCapsule.notificationItem;
+        if (item && item.hasDefaultAction)
+            return invokeNotificationAction("default");
+        smartRestoreState();
         return true;
     }
 
@@ -873,6 +902,15 @@ FocusScope {
     }
 
     Timer { id: autoHideTimer; interval: root.defaultAutoHideInterval; onTriggered: root.smartRestoreState() }
+    Timer {
+        id: notificationExpandedSafetyTimer
+        interval: 30000
+        repeat: false
+        onTriggered: {
+            if (root.islandState === "notification" && root.notificationExpanded)
+                root.smartRestoreState();
+        }
+    }
     Timer {
         id: osdProgressAnimationReset
         interval: 0

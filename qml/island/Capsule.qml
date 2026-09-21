@@ -360,10 +360,27 @@ Rectangle {
                 urgency: islandController.notificationUrgency
                 progress: islandController.notificationProgress
                 imageDataUrl: islandController.notificationImageDataUrl
+                createdMs: islandController.notificationCreatedMs
                 iconFontFamily: windowRoot.iconFontFamily
                 textFontFamily: windowRoot.textFontFamily
                 heroFontFamily: windowRoot.heroFontFamily
                 showCondition: true
+                onControlPressed: {
+                    islandController.suppressCapsuleClick(true);
+                    islandController.noteNotificationActivity();
+                }
+                onBackgroundClicked: {
+                    islandController.suppressCapsuleClick(true);
+                    islandController.activateNotificationBackground();
+                }
+                onCloseRequested: {
+                    islandController.suppressCapsuleClick(true);
+                    islandController.dismissNotificationCapsule();
+                }
+                onActionClicked: (actionKey) => {
+                    islandController.suppressCapsuleClick(true);
+                    islandController.invokeNotificationAction(actionKey);
+                }
                 onExpansionToggleRequested: {
                     islandController.suppressCapsuleClick(true);
                     islandController.toggleNotificationExpansionIfNeeded();
