@@ -130,7 +130,7 @@ private:
     int m_dynamicIslandPrimaryButton = 1;
     QString m_dynamicIslandPrimaryAction = QStringLiteral("toggleExpandedPlayer");
     int m_dynamicIslandSecondaryButton = 3;
-    QString m_dynamicIslandSecondaryAction = QString();
+    QString m_dynamicIslandSecondaryAction = QStringLiteral("toggleSecondaryPanel");
     QVariantList m_dynamicIslandLeftSwipeItems;
     bool m_islandShowWorkspaceOnAutoHide = true;
     bool m_disableAutoExpandOnTrackChange = false;

@@ -194,7 +194,18 @@ Item {
             }
 
             if (mouse.button === UserConfig.mouseButton(UserConfig.dynamicIslandSecondaryButton)) {
-                islandController.handleConfiguredClickAction(UserConfig.dynamicIslandSecondaryAction);
+                const secondaryAction = UserConfig.dynamicIslandSecondaryAction;
+                if (secondaryAction === "" || secondaryAction === "none") {
+                    if (mouse.button === Qt.RightButton)
+                        islandController.toggleSecondaryPanel();
+                    return;
+                }
+                islandController.handleConfiguredClickAction(secondaryAction);
+                return;
+            }
+
+            if (mouse.button === Qt.RightButton) {
+                islandController.toggleSecondaryPanel();
             }
         }
     }

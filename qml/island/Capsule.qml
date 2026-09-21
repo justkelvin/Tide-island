@@ -264,7 +264,7 @@ Rectangle {
     Loader {
         id: expandedPlayerLoader
         anchors.fill: parent
-        active: islandController.expandedLayerVisible
+        active: islandController.expandedLayerVisible && islandController.expandedContent === "player"
         asynchronous: false
         visible: active
 
@@ -279,12 +279,31 @@ Rectangle {
                 activePlayer: islandController.activePlayer
                 iconFontFamily: windowRoot.iconFontFamily
                 textFontFamily: windowRoot.textFontFamily
-                showCondition: islandController.expandedLayerVisible
+                showCondition: islandController.playerLayerVisible
                 onControlPressed: islandController.suppressCapsuleClick()
                 onBackgroundClicked: islandController.smartRestoreState()
                 onKeyboardFocusRequested: islandController.requestExpandedPlayerKeyboardFocus()
                 onKeyboardFocusReleased: islandController.releaseExpandedPlayerKeyboardFocus()
                 onPreviousRequested: islandController.mediaController.previous()
+            }
+        }
+    }
+
+    Loader {
+        id: secondaryPanelLoader
+        anchors.fill: parent
+        active: islandController.secondaryPanelVisible
+        asynchronous: false
+        visible: active
+
+        sourceComponent: Component {
+            SecondaryPanelLayer {
+                titleText: "Title"
+                textFontFamily: windowRoot.textFontFamily
+                showCondition: islandController.secondaryPanelVisible
+                onControlPressed: islandController.suppressCapsuleClick()
+                onBackgroundClicked: islandController.smartRestoreState()
+                onCloseRequested: islandController.smartRestoreState()
             }
         }
     }

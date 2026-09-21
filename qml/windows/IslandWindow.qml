@@ -153,6 +153,10 @@ PanelWindow {
         islandContainer.togglePlayerWindow();
     }
 
+    function toggleSecondaryPanelWindow() {
+        islandContainer.toggleSecondaryPanelWindow();
+    }
+
     StateMachine {
         id: islandContainer
         windowRoot: root

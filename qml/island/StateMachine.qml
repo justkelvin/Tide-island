@@ -17,6 +17,7 @@ FocusScope {
     readonly property bool sideTransientRestoreTimerRunning: sideTransientRestoreTimer.running
 
     property string islandState: "normal"
+    property string expandedContent: "player"
     property string splitIcon: windowRoot.defaultSplitIcon
     property real osdProgress: -1.0
     property bool osdProgressAnimationEnabled: true
@@ -93,6 +94,8 @@ FocusScope {
         )
     )
     readonly property bool expandedLayerVisible: islandState === "expanded"
+    readonly property bool playerLayerVisible: islandState === "expanded" && expandedContent === "player"
+    readonly property bool secondaryPanelVisible: islandState === "expanded" && expandedContent === "secondary"
     readonly property bool notificationLayerVisible: islandState === "notification"
     readonly property var activePlayer: mediaController.activePlayer
     readonly property string lyricsDisplayText: mediaController.displayText
@@ -191,18 +194,28 @@ FocusScope {
         case "none":
             return;
         case "toggleExpandedPlayer":
-            if (islandState === "expanded") {
+            if (islandState === "expanded" && expandedContent === "player") {
                 autoHideTimer.stop();
                 smartRestoreState();
             } else {
-                showExpandedPlayer(false);
+                showExpandedPlayer(false, "player");
             }
             return;
         case "openExpandedPlayer":
-            showExpandedPlayer(false);
+            showExpandedPlayer(false, "player");
             return;
         case "closeExpandedPlayer":
             if (islandState === "expanded")
+                smartRestoreState();
+            return;
+        case "toggleSecondaryPanel":
+            toggleSecondaryPanel();
+            return;
+        case "openSecondaryPanel":
+            showSecondaryPanel(false);
+            return;
+        case "closeSecondaryPanel":
+            if (islandState === "expanded" && expandedContent === "secondary")
                 smartRestoreState();
             return;
         case "toggleLyrics":
@@ -701,6 +714,7 @@ FocusScope {
         abortSideTransientMode();
         prepareRestingCapsuleGeometry();
         islandState = normalizedRestingState;
+        expandedContent = "player";
         clearTransientCapsule();
         applyRestingVisuals();
         expandedByPlayerAutoOpen = false;
@@ -721,15 +735,31 @@ FocusScope {
         stopAutoHideTimer();
     }
 
-    function showExpandedPlayer(autoOpened) {
+    function showExpandedPlayer(autoOpened, content) {
+        if (content !== "secondary")
+            content = "player";
         cancelSideSwipeSettle();
         abortSideTransientMode();
         clearTransientCapsule();
+        expandedContent = content;
         islandState = "expanded";
         mainCapsule.displayedWidth = mainCapsule.baseTargetWidth;
         expandedByPlayerAutoOpen = autoOpened;
         if (autoOpened) restartAutoHideTimer();
         else stopAutoHideTimer();
+    }
+
+    function showSecondaryPanel(autoOpened) {
+        showExpandedPlayer(autoOpened === true, "secondary");
+    }
+
+    function toggleSecondaryPanel() {
+        if (islandState === "expanded" && expandedContent === "secondary") {
+            autoHideTimer.stop();
+            smartRestoreState();
+        } else {
+            showSecondaryPanel(false);
+        }
     }
 
     function showCustomCapsule() {
@@ -795,10 +825,14 @@ FocusScope {
     }
 
     function togglePlayerWindow() {
-        if (islandState === "expanded")
+        if (islandState === "expanded" && expandedContent === "player")
             smartRestoreState();
         else
-            showExpandedPlayer(false);
+            showExpandedPlayer(false, "player");
+    }
+
+    function toggleSecondaryPanelWindow() {
+        toggleSecondaryPanel();
     }
 
     Timer { id: autoHideTimer; interval: root.defaultAutoHideInterval; onTriggered: root.smartRestoreState() }
@@ -815,6 +849,7 @@ FocusScope {
             root.splitOriginSide = "none";
             root.prepareRestingCapsuleGeometry();
             root.islandState = root.normalizeRestingState(root.restingState);
+            root.expandedContent = "player";
             root.clearTransientCapsule();
             root.applyRestingVisuals();
             root.expandedByPlayerAutoOpen = false;
@@ -840,7 +875,7 @@ FocusScope {
                 return;
 
             root.hoverExpandedActive = true;
-            root.showExpandedPlayer(false);
+            root.showExpandedPlayer(false, "player");
         }
     }
     Timer {
@@ -888,7 +923,7 @@ FocusScope {
                 && islandState !== "notification") {
             if (windowRoot.autoHideSuppressesTransientReveal) return;
             if (islandState === "expanded" && !expandedByPlayerAutoOpen) return;
-            showExpandedPlayer(true);
+            showExpandedPlayer(true, "player");
         }
     }
 

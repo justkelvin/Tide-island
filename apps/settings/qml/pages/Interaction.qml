@@ -38,7 +38,7 @@ PagePanel {
     function saveClickButton(button) {
         ConfigStore.setValue("dynamicIslandPrimaryAction", root.playerAction)
         ConfigStore.setValue("dynamicIslandPrimaryButton", button)
-        ConfigStore.setValue("dynamicIslandSecondaryAction", "")
+        ConfigStore.setValue("dynamicIslandSecondaryAction", "toggleSecondaryPanel")
         ConfigStore.save()
         revision += 1
     }
