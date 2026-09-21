@@ -224,6 +224,7 @@ public slots:
 
 signals:
     void ActionInvoked(uint id, const QString &actionKey);
+    void NotificationReplied(uint id, const QString &text);
     void NotificationClosed(uint id, uint reason);
 
 private:
@@ -244,6 +245,8 @@ NotificationServer::NotificationServer(QObject *parent, bool autoRegister)
     m_adaptor = adaptor;
     connect(this, &NotificationServer::ActionInvoked,
             adaptor, &NotificationServerAdaptor::ActionInvoked);
+    connect(this, &NotificationServer::NotificationReplied,
+            adaptor, &NotificationServerAdaptor::NotificationReplied);
     connect(this, &NotificationServer::NotificationClosed,
             adaptor, &NotificationServerAdaptor::NotificationClosed);
 
@@ -429,6 +432,37 @@ void NotificationServer::invokeAction(uint id, const QString &actionKey) {
     emit ActionInvoked(id, actionKey);
     if (!resident)
         removeNotification(id, 2);
+}
+
+void NotificationServer::reply(uint id, const QString &text) {
+    const int row = indexOf(id);
+    if (row < 0 || text.trimmed().isEmpty())
+        return;
+    const bool resident = m_items.at(row).resident;
+    emit NotificationReplied(id, text);
+    if (!resident)
+        removeNotification(id, 2);
+}
+
+void NotificationServer::setExpirationPaused(uint id, bool paused) {
+    const int row = indexOf(id);
+    if (row < 0)
+        return;
+    if (paused) {
+        m_expirationPauseCounts[id] = m_expirationPauseCounts.value(id) + 1;
+        stopExpireTimer(id);
+        return;
+    }
+
+    const int pauseCount = m_expirationPauseCounts.value(id);
+    if (pauseCount > 1) {
+        m_expirationPauseCounts[id] = pauseCount - 1;
+        return;
+    }
+    if (pauseCount == 1) {
+        m_expirationPauseCounts.remove(id);
+        startExpireTimer(m_items.at(row));
+    }
 }
 
 void NotificationServer::dismissNotification(uint id) {
@@ -659,6 +693,8 @@ int NotificationServer::indexOf(uint id) const {
 
 void NotificationServer::startExpireTimer(const NotificationItem &item) {
     stopExpireTimer(item.id);
+    if (m_expirationPauseCounts.value(item.id) > 0)
+        return;
     if (item.expireTimeout == 0)
         return; // persistent
     if (item.urgency == 2)
@@ -688,6 +724,7 @@ void NotificationServer::removeNotification(uint id, uint reason) {
     if (row < 0)
         return;
     stopExpireTimer(id);
+    m_expirationPauseCounts.remove(id);
     beginRemoveRows(QModelIndex(), row, row);
     m_items.removeAt(row);
     endRemoveRows();

@@ -361,6 +361,7 @@ Rectangle {
                 progress: islandController.notificationProgress
                 imageDataUrl: islandController.notificationImageDataUrl
                 createdMs: islandController.notificationCreatedMs
+                replyPlaceholder: islandController.notificationReplyPlaceholder
                 iconFontFamily: windowRoot.iconFontFamily
                 textFontFamily: windowRoot.textFontFamily
                 heroFontFamily: windowRoot.heroFontFamily
@@ -381,6 +382,14 @@ Rectangle {
                     islandController.suppressCapsuleClick(true);
                     islandController.invokeNotificationAction(actionKey);
                 }
+                onReplySubmitted: (text) => {
+                    islandController.suppressCapsuleClick(true);
+                    islandController.submitNotificationReply(text);
+                }
+                onReplyCancelled: islandController.cancelNotificationReply()
+                onKeyboardFocusRequested: islandController.requestNotificationReplyKeyboardFocus()
+                onKeyboardFocusReleased: islandController.releaseNotificationReplyKeyboardFocus()
+                onUserActivity: islandController.noteNotificationActivity()
                 onExpansionToggleRequested: {
                     islandController.suppressCapsuleClick(true);
                     islandController.toggleNotificationExpansionIfNeeded();

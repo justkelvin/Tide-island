@@ -118,7 +118,7 @@ public:
 
     // Test/helpers.
     QVariantMap getNotification(uint id) const;
-    bool contains(uint id) const;
+    Q_INVOKABLE bool contains(uint id) const;
     void setAutoRegister(bool enabled);
 
     // Resolve a freedesktop theme icon name (telegram, discord, ...) to a
@@ -147,6 +147,8 @@ public slots:
 
     // --- QML-facing actions ---
     Q_INVOKABLE void invokeAction(uint id, const QString &actionKey);
+    Q_INVOKABLE void reply(uint id, const QString &text);
+    Q_INVOKABLE void setExpirationPaused(uint id, bool paused);
     Q_INVOKABLE void dismissNotification(uint id);
     Q_INVOKABLE void clearAllNotifications();
     Q_INVOKABLE void removeHistoryItem(uint id);
@@ -158,6 +160,7 @@ public slots:
 signals:
     // FreeDesktop D-Bus signals (relayed through the adaptor).
     void ActionInvoked(uint id, const QString &actionKey);
+    void NotificationReplied(uint id, const QString &text);
     void NotificationClosed(uint id, uint reason);
 
     // QML bridge.
@@ -188,6 +191,7 @@ private:
 
     QList<NotificationItem> m_items;
     QHash<uint, QTimer *> m_timers;
+    QHash<uint, int> m_expirationPauseCounts;
     QVariantList m_history;
     mutable QHash<QString, QString> m_themeIconCache;
     uint m_nextId = 1;

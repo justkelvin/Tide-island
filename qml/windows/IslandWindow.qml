@@ -72,7 +72,8 @@ PanelWindow {
     WlrLayershell.namespace: "tide-island"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: {
-        if (islandContainer.expandedPlayerKeyboardFocusRequested)
+        if (islandContainer.expandedPlayerKeyboardFocusRequested
+                || islandContainer.notificationReplyKeyboardFocusRequested)
             return WlrKeyboardFocus.OnDemand;
         return WlrKeyboardFocus.None;
     }

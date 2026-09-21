@@ -7,7 +7,7 @@ import "../hyprland"
 FocusScope {
     id: root
     anchors.fill: parent
-    focus: expandedPlayerKeyboardFocusRequested
+    focus: expandedPlayerKeyboardFocusRequested || notificationReplyKeyboardFocusRequested
 
     required property var windowRoot
 
@@ -44,6 +44,7 @@ FocusScope {
     property string notificationImageDataUrl: ""
     property string notificationResolvedIcon: ""
     property double notificationCreatedMs: 0
+    property string notificationReplyPlaceholder: ""
     readonly property var cavaLevels: systemState.cavaLevels
     property real swipeTransitionProgress: 0
     property string workspaceOriginSide: "none"
@@ -55,6 +56,8 @@ FocusScope {
     property bool sideSwipeSettling: false
     property bool hoverExpandedActive: false
     property bool expandedPlayerKeyboardFocusRequested: false
+    property bool notificationReplyKeyboardFocusRequested: false
+    property var pendingReplyNotifications: []
     readonly property int defaultAutoHideInterval: 1250
     readonly property int notificationAutoHideInterval: 4200
     readonly property int swipeAnimationDuration: 220
@@ -312,6 +315,10 @@ FocusScope {
 
     function clearTransientCapsule() {
         notificationExpandedSafetyTimer.stop();
+        notificationReplyFocusTimer.stop();
+        if (notificationReplyKeyboardFocusRequested && notificationId > 0)
+            NotificationServer.setExpirationPaused(notificationId, false);
+        notificationReplyKeyboardFocusRequested = false;
         setOsdProgress(-1.0, false);
         osdCustomText = "";
         notificationAppName = "";
@@ -328,6 +335,7 @@ FocusScope {
         notificationImageDataUrl = "";
         notificationResolvedIcon = "";
         notificationCreatedMs = 0;
+        notificationReplyPlaceholder = "";
     }
 
     function prepareRestingCapsuleGeometry() {
@@ -479,6 +487,79 @@ FocusScope {
 
     function releaseExpandedPlayerKeyboardFocus() {
         expandedPlayerKeyboardFocusRequested = false;
+    }
+
+    function requestNotificationReplyKeyboardFocus() {
+        const shouldGrabFocus = !notificationReplyKeyboardFocusRequested;
+        notificationReplyKeyboardFocusRequested = true;
+        notificationExpandedSafetyTimer.stop();
+        if (shouldGrabFocus) {
+            if (notificationId > 0)
+                NotificationServer.setExpirationPaused(notificationId, true);
+            notificationReplyFocusTimer.restart();
+        }
+    }
+
+    function releaseNotificationReplyKeyboardFocus() {
+        const releasedId = notificationId;
+        notificationReplyKeyboardFocusRequested = false;
+        if (releasedId > 0)
+            NotificationServer.setExpirationPaused(releasedId, false);
+        if (islandState === "notification" && notificationExpanded)
+            notificationExpandedSafetyTimer.restart();
+    }
+
+    function queueNotificationDuringReply(item) {
+        const queuedId = Number(item.id) || 0;
+        const next = [];
+        let alreadyQueued = false;
+        for (let index = 0; index < pendingReplyNotifications.length; ++index) {
+            const queued = pendingReplyNotifications[index];
+            if ((Number(queued.id) || 0) !== queuedId) {
+                next.push(queued);
+            } else {
+                alreadyQueued = true;
+            }
+        }
+        next.push(item);
+        pendingReplyNotifications = next;
+        if (!alreadyQueued && queuedId > 0)
+            NotificationServer.setExpirationPaused(queuedId, true);
+    }
+
+    function removePendingReplyNotification(id) {
+        const removedId = Number(id) || 0;
+        const next = [];
+        for (let index = 0; index < pendingReplyNotifications.length; ++index) {
+            const queued = pendingReplyNotifications[index];
+            if ((Number(queued.id) || 0) !== removedId)
+                next.push(queued);
+        }
+        pendingReplyNotifications = next;
+    }
+
+    function showNextPendingReplyNotification() {
+        const next = pendingReplyNotifications.slice();
+        while (next.length > 0) {
+            // Match the island's existing last-arrival-wins presentation.
+            const item = next.pop();
+            const queuedId = Number(item.id) || 0;
+            if (queuedId > 0 && NotificationServer.contains(queuedId)) {
+                pendingReplyNotifications = next;
+                NotificationServer.setExpirationPaused(queuedId, false);
+                showNotificationCapsule(item);
+                return true;
+            }
+        }
+        pendingReplyNotifications = [];
+        return false;
+    }
+
+    function cancelNotificationReply() {
+        if (pendingReplyNotifications.length === 0)
+            return;
+        smartRestoreState();
+        showNextPendingReplyNotification();
     }
 
     function showTransientCapsule(icon, progress, customText) {
@@ -640,6 +721,13 @@ FocusScope {
         if (islandState === "expanded") return;
         if (!item) return;
 
+        // Keep the current notification and draft pinned while replying.
+        // Updates replace their existing queued entry instead of duplicating it.
+        if (notificationReplyKeyboardFocusRequested) {
+            queueNotificationDuringReply(item);
+            return;
+        }
+
         // Text arrives pre-sanitized from NotificationServer (C++).
         const appName = String(item.appName || "");
         const summary = String(item.summary || "");
@@ -656,6 +744,7 @@ FocusScope {
         notificationProgress = item.progress === undefined ? -1 : Number(item.progress);
         notificationImageDataUrl = String(item.imageDataUrl || "");
         notificationCreatedMs = item.createdMs === undefined ? 0 : Number(item.createdMs);
+        notificationReplyPlaceholder = String(item.replyPlaceholder || "");
         notificationAppName = appName !== "" ? appName : "Notification";
         notificationSummary = resolvedSummary;
         notificationBody = summary !== "" ? body : "";
@@ -733,6 +822,18 @@ FocusScope {
         const invokedId = notificationId;
         smartRestoreState();
         NotificationServer.invokeAction(invokedId, String(actionKey));
+        showNextPendingReplyNotification();
+        return true;
+    }
+
+    function submitNotificationReply(text) {
+        const replyText = String(text || "").trim();
+        if (islandState !== "notification" || notificationId <= 0 || replyText === "")
+            return false;
+        const repliedId = notificationId;
+        smartRestoreState();
+        NotificationServer.reply(repliedId, replyText);
+        showNextPendingReplyNotification();
         return true;
     }
 
@@ -743,6 +844,7 @@ FocusScope {
         if (item && item.hasDefaultAction)
             return invokeNotificationAction("default");
         smartRestoreState();
+        showNextPendingReplyNotification();
         return true;
     }
 
@@ -753,6 +855,7 @@ FocusScope {
         smartRestoreState();
         if (dismissedId > 0)
             NotificationServer.dismissNotification(dismissedId);
+        showNextPendingReplyNotification();
         return true;
     }
 
@@ -901,14 +1004,25 @@ FocusScope {
         toggleSecondaryPanel();
     }
 
-    Timer { id: autoHideTimer; interval: root.defaultAutoHideInterval; onTriggered: root.smartRestoreState() }
+    Timer {
+        id: autoHideTimer
+        interval: root.defaultAutoHideInterval
+        onTriggered: {
+            const wasNotification = root.islandState === "notification";
+            root.smartRestoreState();
+            if (wasNotification)
+                root.showNextPendingReplyNotification();
+        }
+    }
     Timer {
         id: notificationExpandedSafetyTimer
         interval: 30000
         repeat: false
         onTriggered: {
-            if (root.islandState === "notification" && root.notificationExpanded)
+            if (root.islandState === "notification" && root.notificationExpanded) {
                 root.smartRestoreState();
+                root.showNextPendingReplyNotification();
+            }
         }
     }
     Timer {
@@ -970,6 +1084,12 @@ FocusScope {
         repeat: false
         onTriggered: root.forceActiveFocus()
     }
+    Timer {
+        id: notificationReplyFocusTimer
+        interval: 0
+        repeat: false
+        onTriggered: root.forceActiveFocus()
+    }
 
     function syncCustomCapsuleWidth() {
         const view = mainCapsule.customSwipeItem;
@@ -987,8 +1107,11 @@ FocusScope {
         target: NotificationServer
 
         function onNotificationRemoved(id) {
-            if (id === root.notificationId && root.islandState === "notification")
+            root.removePendingReplyNotification(id);
+            if (id === root.notificationId && root.islandState === "notification") {
                 root.smartRestoreState();
+                root.showNextPendingReplyNotification();
+            }
         }
     }
 

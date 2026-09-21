@@ -48,6 +48,22 @@ FdoImageData makeTestImage() {
 
 } // namespace
 
+class ReplySignalReceiver final : public QObject {
+    Q_OBJECT
+
+public:
+    uint notificationId = 0;
+    QString text;
+    int count = 0;
+
+public slots:
+    void capture(uint id, const QString &replyText) {
+        notificationId = id;
+        text = replyText;
+        ++count;
+    }
+};
+
 class NotificationServerTests : public QObject {
     Q_OBJECT
 
@@ -311,6 +327,40 @@ private slots:
         server.dismissNotification(id);
     }
 
+    void expirationCanBePausedWhileReplying() {
+        NotificationServer server(nullptr, false);
+        QSignalSpy closed(&server, &NotificationServer::NotificationClosed);
+        const uint id = server.Notify(
+            QStringLiteral("Telegram"), 0, QString(), QStringLiteral("Kelvin"),
+            QStringLiteral("Still there?"),
+            {QStringLiteral("inline-reply"), QStringLiteral("Reply")}, {}, 80);
+
+        server.setExpirationPaused(id, true);
+        QTest::qWait(180);
+        QVERIFY2(server.contains(id), "reply composition must pause backend expiration");
+        QCOMPARE(closed.size(), 0);
+
+        server.setExpirationPaused(id, false);
+        QTRY_VERIFY_WITH_TIMEOUT(!server.contains(id), 500);
+        QCOMPARE(closed.size(), 1);
+        QCOMPARE(closed.at(0).at(1).toUInt(), 1u);
+    }
+
+    void expirationPauseIsReferenceCounted() {
+        NotificationServer server(nullptr, false);
+        const uint id = server.Notify(QStringLiteral("A"), 0, QString(), QStringLiteral("t"),
+                                      QStringLiteral("b"), {}, {}, 80);
+
+        server.setExpirationPaused(id, true);
+        server.setExpirationPaused(id, true);
+        server.setExpirationPaused(id, false);
+        QTest::qWait(180);
+        QVERIFY2(server.contains(id), "one owner must not release another owner's pause");
+
+        server.setExpirationPaused(id, false);
+        QTRY_VERIFY_WITH_TIMEOUT(!server.contains(id), 500);
+    }
+
     void criticalUrgencyPersists() {
         NotificationServer server(nullptr, false);
         QSignalSpy closed(&server, &NotificationServer::NotificationClosed);
@@ -377,6 +427,40 @@ private slots:
         server.invokeAction(residentId, QStringLiteral("default"));
         QCOMPARE(invoked.size(), 2);
         QVERIFY(server.contains(residentId)); // resident stays
+        server.dismissNotification(residentId);
+    }
+
+    void inlineReplyEmitsTextAndDismissesUnlessResident() {
+        NotificationServer server(nullptr, false);
+        QSignalSpy replied(&server, &NotificationServer::NotificationReplied);
+        QSignalSpy closed(&server, &NotificationServer::NotificationClosed);
+
+        const uint id = server.Notify(
+            QStringLiteral("Telegram"), 0, QString(), QStringLiteral("Kelvin"),
+            QStringLiteral("Lunch at one?"),
+            {QStringLiteral("inline-reply"), QStringLiteral("Reply")}, {}, 60000);
+        server.reply(id, QStringLiteral("Yes, see you at 1!"));
+        QCOMPARE(replied.size(), 1);
+        QCOMPARE(replied.at(0).at(0).toUInt(), id);
+        QCOMPARE(replied.at(0).at(1).toString(), QStringLiteral("Yes, see you at 1!"));
+        QCOMPARE(closed.size(), 1);
+        QCOMPARE(closed.at(0).at(1).toUInt(), 2u);
+        QVERIFY(!server.contains(id));
+
+        QVariantMap residentHints;
+        residentHints.insert(QStringLiteral("resident"), true);
+        const uint residentId = server.Notify(
+            QStringLiteral("Telegram"), 0, QString(), QStringLiteral("Kelvin"),
+            QStringLiteral("Still there?"),
+            {QStringLiteral("inline-reply"), QStringLiteral("Reply")},
+            residentHints, 60000);
+        server.reply(residentId, QStringLiteral("Yep"));
+        QCOMPARE(replied.size(), 2);
+        QVERIFY(server.contains(residentId));
+
+        server.reply(residentId, QStringLiteral("   "));
+        QCOMPARE(replied.size(), 2);
+        QVERIFY(server.contains(residentId));
         server.dismissNotification(residentId);
     }
 
@@ -519,6 +603,24 @@ private slots:
         QVERIFY(closeReply.type() == QDBusMessage::ReplyMessage);
         QCOMPARE(closed.size(), 1);
         QCOMPARE(closed.at(0).at(1).toUInt(), 3u);
+
+        ReplySignalReceiver replyReceiver;
+        QVERIFY(QDBusConnection::sessionBus().connect(
+            QString::fromLatin1(kService), QString::fromLatin1(kPath),
+            QString::fromLatin1(kInterface), QStringLiteral("NotificationReplied"),
+            &replyReceiver, SLOT(capture(uint,QString))));
+        QDBusMessage replyNotify = iface.call(
+            QStringLiteral("Notify"), QStringLiteral("Telegram"), uint(0), QString(),
+            QStringLiteral("Reply test"), QStringLiteral("Message"),
+            QStringList{QStringLiteral("inline-reply"), QStringLiteral("Reply")},
+            QVariantMap(), int(60000));
+        QVERIFY2(replyNotify.type() == QDBusMessage::ReplyMessage,
+                 qPrintable(replyNotify.errorMessage()));
+        const uint replyId = replyNotify.arguments().at(0).toUInt();
+        server.reply(replyId, QStringLiteral("DBus reply text"));
+        QTRY_COMPARE(replyReceiver.count, 1);
+        QCOMPARE(replyReceiver.notificationId, replyId);
+        QCOMPARE(replyReceiver.text, QStringLiteral("DBus reply text"));
     }
 
 private:

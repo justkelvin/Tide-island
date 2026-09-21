@@ -25,6 +25,8 @@ Item {
     property int progress: -1
     property string imageDataUrl: ""
     property double createdMs: 0
+    property string replyPlaceholder: ""
+    property bool inlineReplying: false
     property int toggleButton: Qt.LeftButton
     property var configSource: null
     readonly property var activeConfig: configSource || userConfig
@@ -37,6 +39,11 @@ Item {
     signal closeRequested()
     signal controlPressed()
     signal actionClicked(string actionKey)
+    signal replySubmitted(string text)
+    signal replyCancelled()
+    signal keyboardFocusRequested()
+    signal keyboardFocusReleased()
+    signal userActivity()
 
     // Flat D-Bus pairs [key, label, ...] minus the "default" action, which
     // belongs to the card background instead of a pill.
@@ -81,6 +88,41 @@ Item {
         return "";
     }
 
+    function isInlineReplyAction(actionKey) {
+        return String(actionKey || "").toLowerCase() === "inline-reply";
+    }
+
+    function beginInlineReply() {
+        if (inlineReplying)
+            return;
+        inlineReplying = true;
+        keyboardFocusRequested();
+        replyFocusTimer.restart();
+    }
+
+    function cancelInlineReply() {
+        if (!inlineReplying)
+            return;
+        inlineReplying = false;
+        replyInput.text = "";
+        keyboardFocusReleased();
+        replyCancelled();
+    }
+
+    function submitInlineReply() {
+        const text = replyInput.text.trim();
+        if (text === "")
+            return;
+        replySubmitted(text);
+    }
+
+    onExpandedChanged: {
+        if (!expanded && inlineReplying) {
+            inlineReplying = false;
+            replyInput.text = "";
+        }
+    }
+
     readonly property string contentText: {
         if (summary !== "" && body !== "" && body !== summary) return summary + "  " + body;
         if (summary !== "") return summary;
@@ -118,7 +160,7 @@ Item {
         - actionIconSize - contentSpacing
     readonly property real actionMaxBodyHeight: actionPairs.length > 0 ? 44 : 86
     readonly property real actionTextHeight: 20 + (body !== "" ? 4 + Math.min(actionBodyProbe.implicitHeight, actionMaxBodyHeight) : 0)
-    readonly property real actionCardHeight: Math.max(96, Math.min(170,
+    readonly property real actionCardHeight: inlineReplying ? 96 : Math.max(96, Math.min(170,
         13 + actionHeaderHeight + 10 + actionTextHeight + (actionPairs.length > 0 ? 12 + actionPillHeight : 0) + 13))
 
     readonly property real preferredWidth: expanded ? actionCardWidth : compactPreferredWidth
@@ -132,6 +174,16 @@ Item {
         NumberAnimation {
             duration: showCondition ? 280 : 140
             easing.type: Easing.InOutQuad
+        }
+    }
+
+    Timer {
+        id: replyFocusTimer
+        interval: 0
+        repeat: false
+        onTriggered: {
+            if (root.inlineReplying)
+                replyInput.forceActiveFocus(Qt.OtherFocusReason);
         }
     }
 
@@ -305,7 +357,9 @@ Item {
             }
 
             Text {
-                text: root.appName !== "" ? root.appName : "Notification"
+                text: root.inlineReplying
+                    ? "Replying to " + (root.summary !== "" ? root.summary : root.appName) + "..."
+                    : (root.appName !== "" ? root.appName : "Notification")
                 color: "white"
                 font.pixelSize: userConfig.bodyFontSize - 2
                 font.family: textFontFamily
@@ -321,7 +375,7 @@ Item {
             Text {
                 id: agoLabel
                 text: TimeAgo.timeAgo(root.createdMs)
-                visible: text !== ""
+                visible: !root.inlineReplying && text !== ""
                 color: "#8e8e93"
                 font.pixelSize: userConfig.bodyFontSize - 5
                 font.family: textFontFamily
@@ -357,13 +411,19 @@ Item {
                         root.controlPressed();
                         mouse.accepted = true;
                     }
-                    onClicked: root.closeRequested()
+                    onClicked: {
+                        if (root.inlineReplying)
+                            root.cancelInlineReply();
+                        else
+                            root.closeRequested();
+                    }
                 }
             }
         }
 
         Flickable {
             id: expandedTextFlick
+            visible: !root.inlineReplying
             anchors.top: expandedHeader.bottom
             anchors.topMargin: 10
             anchors.left: parent.left
@@ -413,7 +473,7 @@ Item {
             readonly property real equalPillWidth: visibleActionSlots > 0
                 ? (width - actionRow.spacing * (visibleActionSlots - 1)) / visibleActionSlots
                 : 0
-            visible: root.actionPairs.length > 0
+            visible: !root.inlineReplying && root.actionPairs.length > 0
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
@@ -493,15 +553,122 @@ Item {
                                 root.controlPressed();
                                 mouse.accepted = true;
                             }
-                            onClicked: root.actionClicked(modelData.key)
+                            onClicked: {
+                                if (root.isInlineReplyAction(modelData.key))
+                                    root.beginInlineReply();
+                                else
+                                    root.actionClicked(modelData.key);
+                            }
                         }
                     }
+                }
+            }
+        }
+
+        Item {
+            id: inlineReplyRow
+            visible: root.inlineReplying
+            anchors.top: expandedHeader.bottom
+            anchors.topMargin: 12
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: horizontalPadding
+            anchors.rightMargin: horizontalPadding
+            height: 34
+
+            Rectangle {
+                id: replyField
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: parent.width - sendButton.width - 10
+                radius: height / 2
+                color: Qt.rgba(255, 255, 255, 0.09)
+                border.width: replyInput.activeFocus ? 1 : 0
+                border.color: Qt.rgba(255, 255, 255, 0.28)
+
+                Text {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.leftMargin: 13
+                    anchors.rightMargin: 13
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: replyInput.text === ""
+                    text: root.replyPlaceholder !== ""
+                        ? root.replyPlaceholder
+                        : "Type a reply..."
+                    color: "#8e8e93"
+                    font.pixelSize: userConfig.bodyFontSize - 3
+                    font.family: textFontFamily
+                    elide: Text.ElideRight
+                }
+
+                TextInput {
+                    id: replyInput
+                    anchors.fill: parent
+                    anchors.leftMargin: 13
+                    anchors.rightMargin: 13
+                    clip: true
+                    color: "#f4f5f7"
+                    selectionColor: Qt.rgba(255, 255, 255, 0.24)
+                    selectedTextColor: "white"
+                    font.pixelSize: userConfig.bodyFontSize - 3
+                    font.family: textFontFamily
+                    verticalAlignment: TextInput.AlignVCenter
+                    selectByMouse: true
+                    maximumLength: 4096
+
+                    onTextEdited: root.userActivity()
+                    Keys.onReturnPressed: (event) => {
+                        root.submitInlineReply();
+                        event.accepted = true;
+                    }
+                    Keys.onEscapePressed: (event) => {
+                        root.cancelInlineReply();
+                        event.accepted = true;
+                    }
+                }
+            }
+
+            Rectangle {
+                id: sendButton
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: height
+                radius: height / 2
+                readonly property bool canSend: replyInput.text.trim() !== ""
+                color: sendArea.pressed && canSend
+                    ? Qt.rgba(1, 1, 1, 0.30)
+                    : Qt.rgba(1, 1, 1, canSend ? 0.20 : 0.08)
+                opacity: canSend ? 1 : 0.45
+
+                SvgIcon {
+                    anchors.centerIn: parent
+                    source: Qt.resolvedUrl("../../resources/icons/up-open.svg")
+                    iconSize: 14
+                    color: "#f4f5f7"
+                }
+
+                MouseArea {
+                    id: sendArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: sendButton.canSend ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    enabled: sendButton.canSend
+                    preventStealing: true
+                    onPressed: (mouse) => {
+                        root.controlPressed();
+                        mouse.accepted = true;
+                    }
+                    onClicked: root.submitInlineReply()
                 }
             }
         }
     }
 
     TapHandler {
+        enabled: !root.inlineReplying
         acceptedButtons: root.toggleButton
         onTapped: {
             if (root.expanded)
