@@ -26,8 +26,23 @@ Rectangle {
     readonly property alias lyricsSwipeItem: lyricsSwipeLoader.item
     readonly property alias notificationItem: notificationLoader.item
     readonly property alias customSwipeActive: customSwipeLoader.active
+    readonly property int secondaryHistoryCount: NotificationServer.history.length
 
-    function capsuleTargetGeometry(state) {
+    function secondaryPanelGeometry() {
+        const count = secondaryHistoryCount;
+        let panelHeight = 360;
+        if (count <= 0)
+            panelHeight = 130;
+        else if (count === 1)
+            panelHeight = 155;
+        else if (count === 2)
+            panelHeight = 220;
+        else if (count === 3)
+            panelHeight = 285;
+        return { width: 430, height: panelHeight, radius: 40 };
+    }
+
+    function capsuleTargetGeometry(state, expandedContent, historyCount) {
         if (islandController.sideTransientRestoreTimerRunning) {
             if (islandController.restingState === "lyrics"
                     && ((state === "split" && islandController.splitOriginSide === "right")
@@ -44,6 +59,8 @@ Rectangle {
 
         switch (state) {
         case "expanded":
+            if (expandedContent === "secondary")
+                return secondaryPanelGeometry();
             return { width: 410, height: 165, radius: 40 };
         case "notification":
             const notifWidth = notificationLoader.item
@@ -68,7 +85,11 @@ Rectangle {
         }
     }
 
-    readonly property var targetGeometry: capsuleTargetGeometry(islandController.islandState)
+    readonly property var targetGeometry: capsuleTargetGeometry(
+        islandController.islandState,
+        islandController.expandedContent,
+        secondaryHistoryCount
+    )
     readonly property real baseTargetWidth: targetGeometry.width
     readonly property real targetHeight: targetGeometry.height
     readonly property real targetRadius: targetGeometry.radius

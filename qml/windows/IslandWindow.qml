@@ -66,7 +66,7 @@ PanelWindow {
         }
     }
 
-    implicitHeight: Math.max(280, Math.ceil(userConfig.islandTopMargin + 260))
+    implicitHeight: Math.max(480, Math.ceil(userConfig.islandTopMargin + 440))
     exclusionMode: ExclusionMode.Ignore
 
     WlrLayershell.namespace: "tide-island"
