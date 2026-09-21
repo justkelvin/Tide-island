@@ -158,8 +158,11 @@ FocusScope {
         dateText: timeObj.currentDateLabel
         currentWorkspace: root.currentWs
         customSwipeActive: mainCapsule.customSwipeActive
-        lyricsCavaActive: root.lyricsSwipeVisible
-            && root.rightSwipeProgress > 0.001
+        lyricsCavaActive: (root.lyricsSwipeVisible && root.rightSwipeProgress > 0.001)
+            || (root.hasMediaPlaying
+                && root.islandState !== "expanded"
+                && root.islandState !== "notification"
+                && (!windowRoot || windowRoot.autoHideProgress === undefined || windowRoot.autoHideProgress > 0.001))
 
         onTransientRequested: function(icon, progress, text) {
             root.showTransientCapsule(icon, progress, text);

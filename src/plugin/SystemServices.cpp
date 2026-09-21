@@ -715,6 +715,11 @@ void SystemServices::startCava() {
 void SystemServices::stopCava() {
     stopProcess(m_cavaProcess);
     m_cavaBuffer.clear();
+    const QVariantList zeroLevels = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    if (m_cavaLevels != zeroLevels) {
+        m_cavaLevels = zeroLevels;
+        emit cavaLevelsChanged();
+    }
 }
 
 void SystemServices::handleCavaOutput() {
