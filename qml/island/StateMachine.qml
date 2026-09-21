@@ -35,6 +35,7 @@ FocusScope {
     property string notificationBody: ""
     property string notificationAppIcon: ""
     property string notificationIconSource: Qt.resolvedUrl("../resources/icons/notification.svg")
+    property string notificationIconImage: ""
     property bool notificationExpanded: false
     property int notificationId: 0
     property var notificationActions: []
@@ -316,6 +317,7 @@ FocusScope {
         notificationBody = "";
         notificationAppIcon = "";
         notificationIconSource = Qt.resolvedUrl("../resources/icons/notification.svg");
+        notificationIconImage = "";
         notificationExpanded = false;
         notificationId = 0;
         notificationActions = [];
@@ -655,7 +657,42 @@ FocusScope {
         notificationBody = summary !== "" ? body : "";
         notificationAppIcon = String(item.appIcon || "");
         notificationResolvedIcon = String(item.resolvedIcon || item.imagePath || item.imageDataUrl || item.appIcon || "");
-        notificationIconSource = resolveNotificationIcon(appName, summary, body, notificationResolvedIcon || notificationAppIcon);
+        // Full-color app icon pipeline (tiers 1-2, same as history drawer):
+        // data URLs / file paths render as Image, bare theme names as IconImage.
+        // Note: senders (e.g. notify-send -i) may put a bare theme name in the
+        // image-path hint, so only path-like values become image refs.
+        // The keyword heuristic below only runs as a fallback (tier 3-4).
+        function asImageRef(value) {
+            const s = String(value || "");
+            if (s === "") return "";
+            if (s.indexOf("data:") === 0 || s.indexOf("://") >= 0) return s;
+            if (s.indexOf("/") < 0) return "";
+            return s.charAt(0) === "/" ? "file://" + s : s;
+        }
+        function asThemeName(value) {
+            const s = String(value || "");
+            if (s === "") return "";
+            if (s.indexOf("/") >= 0 || s.indexOf("://") >= 0 || s.indexOf("data:") === 0) return "";
+            return s;
+        }
+        const rawImagePath = String(item.imagePath || "");
+        let fullImage = asImageRef(notificationImageDataUrl);
+        if (fullImage === "") fullImage = asImageRef(rawImagePath);
+        if (fullImage === "") fullImage = asImageRef(notificationAppIcon);
+        notificationIconImage = fullImage;
+        let themeName = asThemeName(notificationResolvedIcon);
+        if (themeName === "") themeName = asThemeName(notificationAppIcon);
+        if (themeName === "") themeName = asThemeName(rawImagePath);
+        // Resolve theme names to real files (IconImage does no theme lookup
+        // in this Quickshell version); bare names that resolve to nothing
+        // fall through to the heuristic below.
+        if (fullImage === "" && themeName !== "")
+            fullImage = NotificationServer.themeIconPath(themeName);
+        notificationIconImage = fullImage;
+        if (fullImage === "")
+            notificationIconSource = resolveNotificationIcon(appName, summary, body, notificationResolvedIcon || notificationAppIcon);
+        else
+            notificationIconSource = "";
         notificationExpanded = false;
         islandState = "notification";
         // Visual presentation timer: critical alerts get an extended display window,

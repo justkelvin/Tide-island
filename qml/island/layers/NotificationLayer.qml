@@ -1,4 +1,5 @@
 import QtQuick
+import Qt5Compat.GraphicalEffects
 import IslandBackend
 import "../../components"
 
@@ -12,6 +13,9 @@ Item {
     property string summary: ""
     property string body: ""
     property string iconSource: Qt.resolvedUrl("../../resources/icons/notification.svg")
+    property string iconImage: ""
+    readonly property string effectiveIconImage: root.iconImage !== "" ? root.iconImage : root.imageDataUrl
+    readonly property bool hasFullColorIcon: root.effectiveIconImage !== ""
     property string iconText: ""
     property bool expanded: false
     // Rich server-side fields (ready for action buttons / live activities).
@@ -39,7 +43,7 @@ Item {
     readonly property real compactMaximumWidth: 400
     readonly property real expandedMaximumWidth: 520
     readonly property real maximumWidth: expanded && hasOverflowContent ? expandedMaximumWidth : compactMaximumWidth
-    readonly property real iconSlotWidth: 20
+    readonly property real iconSlotWidth: 32
     readonly property real contentSpacing: 13
     readonly property real horizontalPadding: 16
     readonly property real compactVerticalPadding: 7
@@ -127,9 +131,34 @@ Item {
         spacing: contentSpacing
         anchors.verticalCenter: parent.verticalCenter
 
+        // Tier 1-2: full-color app icon (file/data image or theme name),
+        // masked to a rounded squircle so photo corners never poke out.
+        Item {
+            id: fullColorIconSlot
+            visible: root.hasFullColorIcon
+            width: iconSlotWidth
+            height: iconSlotWidth
+            anchors.verticalCenter: parent.verticalCenter
+            layer.enabled: true
+            layer.effect: OpacityMask {
+                maskSource: Rectangle {
+                    width: fullColorIconSlot.width
+                    height: fullColorIconSlot.height
+                    radius: 8
+                }
+            }
+
+            Image {
+                anchors.fill: parent
+                source: root.effectiveIconImage
+                fillMode: Image.PreserveAspectCrop
+                smooth: true
+            }
+        }
+
         SvgIcon {
             id: notificationSvgIcon
-            visible: root.iconSource !== "" && !avatarImage.visible
+            visible: root.iconSource !== "" && !fullColorIconSlot.visible
             width: iconSlotWidth
             height: iconSlotWidth
             iconSize: iconSlotWidth
@@ -138,19 +167,8 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
         }
 
-        Image {
-            id: avatarImage
-            visible: root.imageDataUrl !== ""
-            width: iconSlotWidth
-            height: iconSlotWidth
-            source: root.imageDataUrl
-            fillMode: Image.PreserveAspectCrop
-            smooth: true
-            anchors.verticalCenter: parent.verticalCenter
-        }
-
         Text {
-            visible: !notificationSvgIcon.visible && !avatarImage.visible
+            visible: !notificationSvgIcon.visible && !fullColorIconSlot.visible
             width: iconSlotWidth
             anchors.verticalCenter: parent.verticalCenter
             text: iconText

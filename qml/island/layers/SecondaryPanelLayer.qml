@@ -1,6 +1,5 @@
 import QtQuick
 import Qt5Compat.GraphicalEffects
-import Quickshell.Widgets
 import IslandBackend
 
 Item {
@@ -60,30 +59,34 @@ Item {
         const imagePath = item && item.imagePath ? String(item.imagePath) : "";
         const appIcon = item && item.appIcon ? String(item.appIcon) : "";
         const resolved = item && item.resolvedIcon ? String(item.resolvedIcon) : "";
-        let iconImage = imageDataUrl;
-        if (iconImage === "" && imagePath !== "") {
-            if (imagePath.indexOf("://") >= 0 || imagePath.indexOf("data:") === 0)
-                iconImage = imagePath;
-            else if (imagePath.charAt(0) === "/")
-                iconImage = "file://" + imagePath;
-            else
-                iconImage = imagePath;
+        // Bare names (e.g. notify-send puts the theme name in image-path)
+        // are theme icons, not files — only path-like values become images.
+        function asImageRef(value) {
+            if (value === "") return "";
+            if (value.indexOf("data:") === 0 || value.indexOf("://") >= 0) return value;
+            if (value.indexOf("/") < 0) return "";
+            return value.charAt(0) === "/" ? "file://" + value : value;
         }
-        // Freedesktop theme icon name (telegram, discord, ...) for IconImage.
-        // Paths and data URLs are rendered with Image instead.
-        let iconName = "";
-        const candidate = resolved !== "" ? resolved : appIcon;
-        if (iconImage === "" && candidate !== ""
-                && candidate.indexOf("/") < 0
-                && candidate.indexOf("://") < 0
-                && candidate.indexOf("data:") !== 0)
-            iconName = candidate;
+        function asThemeName(value) {
+            if (value === "") return "";
+            if (value.indexOf("/") >= 0 || value.indexOf("://") >= 0 || value.indexOf("data:") === 0) return "";
+            return value;
+        }
+        let iconImage = asImageRef(imageDataUrl);
+        if (iconImage === "") iconImage = asImageRef(imagePath);
+        if (iconImage === "") iconImage = asImageRef(appIcon);
+        let iconName = asThemeName(resolved);
+        if (iconName === "") iconName = asThemeName(appIcon);
+        if (iconName === "") iconName = asThemeName(imagePath);
+        // Resolve theme names to real files (IconImage does no theme lookup
+        // in this Quickshell version); unresolvable names collapse the slot.
+        if (iconImage === "" && iconName !== "")
+            iconImage = NotificationServer.themeIconPath(iconName);
         return {
             nid: (item && item.id !== undefined) ? Number(item.id) : 0,
             title: title,
             body: body,
             createdMs: (item && item.createdMs !== undefined) ? Number(item.createdMs) : 0,
-            iconName: iconName,
             iconImage: iconImage
         };
     }
@@ -296,7 +299,6 @@ Item {
                                 spacing: 10
 
                                 // Leading app-icon tile, vertically centered.
-                                // Theme names via IconImage, files/data URLs via Image.
                                 Item {
                                     id: iconSlot
                                     width: hasIcon ? 32 : 0
@@ -304,8 +306,7 @@ Item {
                                     visible: hasIcon
                                     anchors.verticalCenter: parent.verticalCenter
 
-                                    readonly property bool isImage: model.iconImage !== ""
-                                    readonly property bool hasIcon: isImage || model.iconName !== ""
+                                    readonly property bool hasIcon: model.iconImage !== ""
 
                                     Rectangle {
                                         anchors.fill: parent
@@ -313,7 +314,7 @@ Item {
                                         color: Qt.rgba(255, 255, 255, 0.08)
                                     }
 
-                                    // Mask the content itself so image/icon pixels
+                                    // Mask the content itself so image pixels
                                     // follow the rounded tile instead of sitting
                                     // sharp-cornered on top of it.
                                     Item {
@@ -331,16 +332,9 @@ Item {
 
                                         Image {
                                             anchors.fill: parent
-                                            visible: iconSlot.isImage
                                             source: model.iconImage
                                             fillMode: Image.PreserveAspectCrop
                                             smooth: true
-                                        }
-
-                                        IconImage {
-                                            anchors.fill: parent
-                                            visible: !iconSlot.isImage && model.iconName !== ""
-                                            source: model.iconName
                                         }
                                     }
                                 }
