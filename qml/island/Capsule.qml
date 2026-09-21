@@ -81,7 +81,7 @@ Rectangle {
         case "lyrics":
             return { width: islandController.lyricsCapsuleWidth, height: userConfig.islandHeight, radius: userConfig.islandHeight / 2 };
         default:
-            return { width: userConfig.islandWidth, height: userConfig.islandHeight, radius: userConfig.islandHeight / 2 };
+            return { width: islandController.normalRestingWidth, height: userConfig.islandHeight, radius: userConfig.islandHeight / 2 };
         }
     }
 
@@ -95,13 +95,14 @@ Rectangle {
     readonly property real targetRadius: targetGeometry.radius
 
     function sideSwipeWidthForProgress(progressValue) {
+        const baseWidth = islandController.normalRestingWidth;
         if (progressValue < 0)
-            return userConfig.islandWidth + (islandController.customCapsuleWidth - userConfig.islandWidth)
+            return baseWidth + (islandController.customCapsuleWidth - baseWidth)
                 * islandController.clamp01(-progressValue);
         if (progressValue > 0)
-            return userConfig.islandWidth + (islandController.lyricsCapsuleWidth - userConfig.islandWidth)
+            return baseWidth + (islandController.lyricsCapsuleWidth - baseWidth)
                 * islandController.clamp01(progressValue);
-        return userConfig.islandWidth;
+        return baseWidth;
     }
 
     readonly property real sideSwipePreviewWidth: root.sideSwipeWidthForProgress(
@@ -171,6 +172,8 @@ Rectangle {
             CustomInfoLayer {
                 items: islandController.customLeftItems
                 cavaLevels: islandController.cavaLevels
+                currentArtUrl: islandController.currentArtUrl
+                hasMediaPlaying: islandController.hasMediaPlaying
                 timeText: timeObj.currentTime
                 iconFontFamily: windowRoot.iconFontFamily
                 textFontFamily: windowRoot.heroFontFamily
@@ -203,6 +206,7 @@ Rectangle {
                 lyricText: islandController.lyricsDisplayText
                 currentArtUrl: islandController.currentArtUrl
                 cavaLevels: islandController.cavaLevels
+                hasMediaPlaying: islandController.hasMediaPlaying
                 timeText: timeObj.currentTime
                 textFontFamily: windowRoot.textFontFamily
                 timeFontFamily: windowRoot.timeFontFamily

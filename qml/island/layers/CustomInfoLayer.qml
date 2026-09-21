@@ -9,6 +9,8 @@ Item {
 
     property var items: []
     property var cavaLevels: []
+    property string currentArtUrl: ""
+    property bool hasMediaPlaying: false
     property string timeText: ""
     property var configSource: null
     readonly property var activeConfig: configSource || userConfig
@@ -272,31 +274,76 @@ Item {
         }
     }
 
-    RecordingIndicator {
-        id: timeRecordingIndicator
-        active: root.recordingActive
-            && root.showSecondaryText
-            && root.timeText !== ""
-            && root.clampedProgress < 0.001
-        contentOpacity: 1 - root.clampedProgress
-        x: root.timeRecordingDotX
-        anchors.verticalCenter: parent.verticalCenter
-    }
+    Item {
+        id: restingTimeContainer
+        x: root.timeX
+        width: root.textWidth
+        height: parent.height
+        opacity: 1 - root.clampedProgress
+        visible: opacity > 0.001 && root.showSecondaryText && root.timeText !== ""
 
-    Text {
-        visible: timeText !== "" && showSecondaryText
-        x: timeX
-        width: textWidth
-        anchors.verticalCenter: parent.verticalCenter
-        text: timeText
-        color: "white"
-        opacity: 1 - clampedProgress
-        font.pixelSize: root.textPixelSize + 1
-        font.family: timeFontFamily
-        font.weight: Font.Bold
-        font.letterSpacing: -0.25
-        horizontalAlignment: Text.AlignHCenter
-        elide: Text.ElideRight
-        wrapMode: Text.NoWrap
+        Rectangle {
+            id: customCoverFrame
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            width: 20
+            height: 20
+            radius: 6
+            color: "#2c2c2e"
+            clip: true
+            visible: root.hasMediaPlaying
+
+            SvgIcon {
+                anchors.centerIn: parent
+                source: Qt.resolvedUrl("../../resources/icons/music-alt.svg")
+                iconSize: 11
+                color: "#9e9ea0"
+                visible: !customCoverArt.visible
+            }
+
+            Image {
+                id: customCoverArt
+                anchors.fill: parent
+                source: root.currentArtUrl
+                fillMode: Image.PreserveAspectCrop
+                visible: source.toString() !== ""
+                sourceSize: Qt.size(40, 40)
+            }
+        }
+
+        Row {
+            anchors.centerIn: parent
+            spacing: root.recordingDotSpacing
+
+            RecordingIndicator {
+                id: timeRecordingIndicator
+                active: root.recordingActive && root.clampedProgress < 0.001
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Text {
+                text: root.timeText
+                color: "white"
+                font.pixelSize: root.textPixelSize + 1
+                font.family: root.timeFontFamily
+                font.weight: Font.Bold
+                font.letterSpacing: -0.25
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.NoWrap
+                anchors.verticalCenter: parent.verticalCenter
+            }
+        }
+
+        CavaBars {
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            levels: root.cavaLevels
+            barCount: 4
+            barWidth: 3
+            barSpacing: 2
+            minimumBarHeight: 3
+            barColor: "white"
+            visible: root.hasMediaPlaying
+        }
     }
 }

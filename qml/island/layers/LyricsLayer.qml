@@ -11,6 +11,7 @@ Item {
     property string lyricText: ""
     property string currentArtUrl: ""
     property var cavaLevels: []
+    property bool hasMediaPlaying: false
     property string timeText: ""
     property var configSource: null
     readonly property var activeConfig: configSource || userConfig
@@ -23,10 +24,10 @@ Item {
     property int textPixelSize: userConfig.bodyFontSize
     property real minimumWidth: 220
     property real maximumWidth: minimumWidth
-    property real horizontalPadding: 14
-    property real coverSize: 24
-    property real coverRadius: 7
-    property real visualSpacing: 35
+    property real horizontalPadding: 12
+    property real coverSize: 20
+    property real coverRadius: 6
+    property real visualSpacing: 10
     property real hiddenLeftPadding: 18
     property real hiddenRightPadding: 16
     property string activeLyricText: lyricText
@@ -170,131 +171,158 @@ Item {
         }
     }
 
-    Item {
-        id: lyricContent
+    // Left: Album Art / Cover Image Squircle (visible when media is playing or lyrics swiped)
+    Rectangle {
+        id: coverFrame
+        anchors.left: parent.left
+        anchors.leftMargin: root.horizontalPadding
+        anchors.verticalCenter: parent.verticalCenter
+        width: root.coverSize
+        height: root.coverSize
+        radius: root.coverRadius
+        color: "#2c2c2e"
+        antialiasing: true
+        clip: true
 
-        x: root.lyricX
-        width: root.textWidth
-        height: parent.height
-        opacity: root.clampedProgress
+        visible: opacity > 0.001
+        opacity: (root.hasMediaPlaying || root.clampedProgress > 0.001) ? 1.0 : 0.0
+        scale: (root.hasMediaPlaying || root.clampedProgress > 0.001) ? 1.0 : 0.6
+
+        Behavior on opacity {
+            NumberAnimation { duration: 220; easing.type: Easing.InOutQuad }
+        }
+        Behavior on scale {
+            NumberAnimation { duration: 220; easing.type: Easing.OutBack }
+        }
+
+        SvgIcon {
+            anchors.centerIn: parent
+            source: Qt.resolvedUrl("../../resources/icons/music-alt.svg")
+            iconSize: 11
+            color: "#9e9ea0"
+            visible: !coverArtImage.visible
+        }
 
         Rectangle {
-            id: coverFrame
-
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            width: root.coverSize
-            height: root.coverSize
+            id: coverMask
+            anchors.fill: parent
             radius: root.coverRadius
-            color: "#2c2c2e"
             antialiasing: true
-
-            Rectangle {
-                id: coverMask
-
-                anchors.fill: parent
-                radius: root.coverRadius
-                antialiasing: true
-                visible: false
-                layer.enabled: true
-            }
-
-            Image {
-                anchors.fill: parent
-                source: root.currentArtUrl
-                fillMode: Image.PreserveAspectCrop
-                visible: source.toString() !== ""
-                sourceSize: Qt.size(root.coverSize * 2, root.coverSize * 2)
-                layer.enabled: true
-                layer.effect: OpacityMask {
-                    maskSource: coverMask
-                }
-            }
+            visible: false
+            layer.enabled: true
         }
 
-        Item {
-            id: lyricViewport
-
-            anchors.left: coverFrame.right
-            anchors.leftMargin: root.visualSpacing
-            anchors.right: cavaBars.left
-            anchors.rightMargin: root.visualSpacing
-            height: parent.height
-            clip: true
-
-            Text {
-                visible: root.previousLyricText !== ""
-                y: root.lyricBaselineY - baselineOffset - 14 * root.lyricChangeProgress
-                width: parent.width
-                text: root.previousLyricText
-                color: "white"
-                opacity: 1 - root.lyricChangeProgress
-                font.pixelSize: root.textPixelSize
-                font.family: root.textFontFamily
-                font.weight: Font.DemiBold
-                font.letterSpacing: -0.15
-                horizontalAlignment: Text.AlignHCenter
-                elide: Text.ElideRight
-                wrapMode: Text.NoWrap
+        Image {
+            id: coverArtImage
+            anchors.fill: parent
+            source: root.currentArtUrl
+            fillMode: Image.PreserveAspectCrop
+            visible: source.toString() !== ""
+            sourceSize: Qt.size(root.coverSize * 2, root.coverSize * 2)
+            layer.enabled: true
+            layer.effect: OpacityMask {
+                maskSource: coverMask
             }
-
-            Text {
-                visible: root.activeLyricText !== ""
-                y: root.lyricBaselineY - baselineOffset
-                    + (root.previousLyricText !== "" ? 12 * (1 - root.lyricChangeProgress) : 0)
-                width: parent.width
-                text: root.activeLyricText
-                color: "white"
-                opacity: root.previousLyricText !== "" ? root.lyricChangeProgress : 1
-                font.pixelSize: root.textPixelSize
-                font.family: root.textFontFamily
-                font.weight: Font.DemiBold
-                font.letterSpacing: -0.15
-                horizontalAlignment: Text.AlignHCenter
-                elide: Text.ElideRight
-                wrapMode: Text.NoWrap
-            }
-        }
-
-        CavaBars {
-            id: cavaBars
-
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            levels: root.cavaLevels
-            barCount: 5
-            barWidth: 3
-            barSpacing: 3
-            minimumBarHeight: 4
-            barColor: "white"
         }
     }
 
-    Text {
-        visible: timeText !== "" && showSecondaryText
-        x: timeX
-        y: timeBaselineY - baselineOffset
-        width: textWidth
-        text: timeText
-        color: "white"
-        opacity: 1 - clampedProgress
-        font.pixelSize: textPixelSize + 1
-        font.family: timeFontFamily
-        font.weight: Font.Bold
-        font.letterSpacing: -0.25
-        horizontalAlignment: Text.AlignHCenter
-        elide: Text.ElideRight
-        wrapMode: Text.NoWrap
-    }
-
-    RecordingIndicator {
-        id: timeRecordingIndicator
-        active: root.recordingActive
-            && root.showSecondaryText
-            && root.timeText !== ""
-            && root.clampedProgress < 0.001
-        contentOpacity: 1 - root.clampedProgress
-        x: root.timeRecordingDotX
+    // Right: Cava Audio Visualizer (visible when media is playing or lyrics swiped)
+    CavaBars {
+        id: cavaBars
+        anchors.right: parent.right
+        anchors.rightMargin: root.horizontalPadding
         anchors.verticalCenter: parent.verticalCenter
+        levels: root.cavaLevels
+        barCount: 4
+        barWidth: 3
+        barSpacing: 2
+        minimumBarHeight: 3
+        barColor: "white"
+
+        visible: opacity > 0.001
+        opacity: (root.hasMediaPlaying || root.clampedProgress > 0.001) ? 1.0 : 0.0
+        scale: (root.hasMediaPlaying || root.clampedProgress > 0.001) ? 1.0 : 0.6
+
+        Behavior on opacity {
+            NumberAnimation { duration: 220; easing.type: Easing.InOutQuad }
+        }
+        Behavior on scale {
+            NumberAnimation { duration: 220; easing.type: Easing.OutBack }
+        }
+    }
+
+    // Center: Clock in Idle / Resting state (fades out as lyrics swipe in)
+    Row {
+        id: timeCenterContainer
+        anchors.centerIn: parent
+        spacing: root.recordingDotSpacing
+        opacity: 1 - root.clampedProgress
+        visible: opacity > 0.001 && root.showSecondaryText && root.timeText !== ""
+
+        RecordingIndicator {
+            id: timeRecordingIndicator
+            active: root.recordingActive && root.clampedProgress < 0.001
+            contentOpacity: 1 - root.clampedProgress
+            anchors.verticalCenter: parent.verticalCenter
+        }
+
+        Text {
+            id: timeDisplay
+            anchors.verticalCenter: parent.verticalCenter
+            text: root.timeText
+            color: "white"
+            font.pixelSize: root.textPixelSize + 1
+            font.family: root.timeFontFamily
+            font.weight: Font.Bold
+            font.letterSpacing: -0.25
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.NoWrap
+        }
+    }
+
+    // Center: Lyric Viewport (fades in as lyrics swipe in, anchored between art and visualizer)
+    Item {
+        id: lyricViewport
+        anchors.left: coverFrame.right
+        anchors.leftMargin: root.visualSpacing
+        anchors.right: cavaBars.left
+        anchors.rightMargin: root.visualSpacing
+        height: parent.height
+        clip: true
+        opacity: root.clampedProgress
+        visible: opacity > 0.001
+
+        Text {
+            visible: root.previousLyricText !== ""
+            y: root.lyricBaselineY - baselineOffset - 14 * root.lyricChangeProgress
+            width: parent.width
+            text: root.previousLyricText
+            color: "white"
+            opacity: 1 - root.lyricChangeProgress
+            font.pixelSize: root.textPixelSize
+            font.family: root.textFontFamily
+            font.weight: Font.DemiBold
+            font.letterSpacing: -0.15
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
+            wrapMode: Text.NoWrap
+        }
+
+        Text {
+            visible: root.activeLyricText !== ""
+            y: root.lyricBaselineY - baselineOffset
+                + (root.previousLyricText !== "" ? 12 * (1 - root.lyricChangeProgress) : 0)
+            width: parent.width
+            text: root.activeLyricText
+            color: "white"
+            opacity: root.previousLyricText !== "" ? root.lyricChangeProgress : 1
+            font.pixelSize: root.textPixelSize
+            font.family: root.textFontFamily
+            font.weight: Font.DemiBold
+            font.letterSpacing: -0.15
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
+            wrapMode: Text.NoWrap
+        }
     }
 }

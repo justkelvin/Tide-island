@@ -16,6 +16,10 @@ Item {
     property string lastActivePlayerDbusName: ""
     property var playersList: Mpris.players.values !== undefined ? Mpris.players.values : Mpris.players
     property var activePlayer: resolveActivePlayer()
+    readonly property bool isPlaying: Boolean(
+        activePlayer
+        && activePlayer.playbackState === MprisPlaybackState.Playing
+    )
 
     readonly property string lyricsLookupTitle: activePlayer ? (activePlayer.trackTitle || activePlayer.title || "") : ""
     readonly property string lyricsLookupArtist: {
@@ -249,5 +253,21 @@ Item {
         repeat: true
 
         onTriggered: root.syncProgress()
+    }
+
+    Repeater {
+        model: root.playersList
+
+        Item {
+            Connections {
+                target: modelData
+                function onPlaybackStateChanged() {
+                    root.activePlayer = root.resolveActivePlayer();
+                }
+                function onMetadataChanged() {
+                    root.activePlayer = root.resolveActivePlayer();
+                }
+            }
+        }
     }
 }

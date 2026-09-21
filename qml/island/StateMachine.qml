@@ -110,6 +110,11 @@ FocusScope {
     readonly property real trackProgress: mediaController.trackProgress
     readonly property string timePlayed: mediaController.timePlayed
     readonly property string timeTotal: mediaController.timeTotal
+    readonly property bool isMediaPlaying: mediaController.isPlaying
+    readonly property bool hasMediaPlaying: isMediaPlaying && (currentTrack !== "" || activePlayer !== null)
+    readonly property real normalRestingWidth: hasMediaPlaying
+        ? Math.max(userConfig.islandWidth, 168)
+        : userConfig.islandWidth
     readonly property bool screenRecordingActive: windowRoot.screenRecordingActive
 
     onExpandedLayerVisibleChanged: {
@@ -359,25 +364,25 @@ FocusScope {
     function sideSwipeRestWidthForProgress(progressValue) {
         if (progressValue <= -0.5) return customCapsuleWidth;
         if (progressValue >= 0.5) return lyricsCapsuleWidth;
-        return userConfig.islandWidth;
+        return normalRestingWidth;
     }
 
     function customSideSwipeDragDistance() {
         const view = mainCapsule.customSwipeItem;
         if (view && view.dragDistance > 0) return view.dragDistance;
-        return Math.max(userConfig.islandWidth, customCapsuleWidth + 4);
+        return Math.max(normalRestingWidth, customCapsuleWidth + 4);
     }
 
     function lyricsSideSwipeDragDistance() {
         const view = mainCapsule.lyricsSwipeItem;
         if (view && view.dragDistance > 0) return view.dragDistance;
-        return Math.max(userConfig.islandWidth, lyricsCapsuleWidth + 2);
+        return Math.max(normalRestingWidth, lyricsCapsuleWidth + 2);
     }
 
     function sideSwipeDragDistanceForDirection(direction) {
         if (direction === "left") return customSideSwipeDragDistance();
         if (direction === "right") return lyricsSideSwipeDragDistance();
-        return userConfig.islandWidth;
+        return normalRestingWidth;
     }
 
     function advanceSideSwipeProgress(currentProgress, deltaX) {
@@ -431,18 +436,18 @@ FocusScope {
             if (finalProgress >= -0.44) {
                 settleAction = "time";
                 settleProgress = 0;
-                settleWidth = userConfig.islandWidth;
+                settleWidth = normalRestingWidth;
             }
         } else if (startProgress >= 0.5) {
             if (finalProgress <= 0.44) {
                 settleAction = "time";
                 settleProgress = 0;
-                settleWidth = userConfig.islandWidth;
+                settleWidth = normalRestingWidth;
             }
         } else {
             settleAction = "time";
             settleProgress = 0;
-            settleWidth = userConfig.islandWidth;
+            settleWidth = normalRestingWidth;
         }
 
         return {
