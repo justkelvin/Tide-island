@@ -58,6 +58,27 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/shortcut_config_tests.cpp")
     add_test(NAME tide_island_shortcut_config COMMAND tide_island_shortcut_config_tests)
 endif()
 
+# Diagnostics Unit Tests (Settings App Diagnostics Backend)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/diagnostics_tests.cpp")
+    add_executable(tide_island_diagnostics_tests
+        unit/diagnostics_tests.cpp
+        ${CMAKE_SOURCE_DIR}/apps/settings/src/diagnostics.hpp
+        ${CMAKE_SOURCE_DIR}/apps/settings/src/diagnostics.cpp
+    )
+
+    target_include_directories(tide_island_diagnostics_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/apps/settings/src
+    )
+
+    target_link_libraries(tide_island_diagnostics_tests PRIVATE
+        Qt6::Core
+        Qt6::DBus
+        Qt6::Test
+    )
+
+    add_test(NAME tide_island_diagnostics COMMAND tide_island_diagnostics_tests)
+endif()
+
 # Optional LyricsCore Unit Tests (if present)
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/lyricsmpris_core_tests.cpp")
     add_executable(lyricsmpris_tests

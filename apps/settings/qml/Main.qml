@@ -27,6 +27,7 @@ ApplicationWindow {
         case 2: return interactionPage
         case 3: return fontPage
         case 4: return shortcutPage
+        case 5: return diagnosticsPage
         default: return null
         }
     }
@@ -163,6 +164,14 @@ ApplicationWindow {
                         isSelected: window.currentPage === 4
                         onClicked: window.selectPage(4)
                     }
+
+                    NavItem {
+                        iconSource: "qrc:/resources/icons/nav-diagnostics.svg"
+                        label: "Diagnostics"
+                        pageIndex: 5
+                        isSelected: window.currentPage === 5
+                        onClicked: window.selectPage(5)
+                    }
                 }
             }
 
@@ -270,6 +279,13 @@ ApplicationWindow {
 
             Shortcut {
                 id: shortcutPage
+                anchors.fill: parent
+                visible: false
+                opacity: 0
+            }
+
+            Diagnostics {
+                id: diagnosticsPage
                 anchors.fill: parent
                 visible: false
                 opacity: 0

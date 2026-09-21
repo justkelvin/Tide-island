@@ -18,6 +18,7 @@ find_package(Qt6 REQUIRED COMPONENTS
     QuickDialogs2
     Svg
     Core5Compat
+    DBus
 )
 
 qt_policy(SET QTP0004 NEW)
@@ -32,6 +33,8 @@ qt_add_executable(tide-island-config-app
     src/main.cpp
     src/backend.hpp
     src/backend.cpp
+    src/diagnostics.hpp
+    src/diagnostics.cpp
     resources.qrc
 )
 
@@ -48,6 +51,7 @@ qt_add_qml_module(tide-island-config-app
         qml/pages/FontSettings.qml
         qml/pages/Interaction.qml
         qml/pages/Shortcut.qml
+        qml/pages/Diagnostics.qml
         qml/components/PagePanel.qml
         qml/components/ConfigTextField.qml
         qml/components/CustomPage.qml
@@ -73,6 +77,7 @@ target_link_libraries(tide-island-config-app PRIVATE
     Qt6::QuickDialogs2
     Qt6::Svg
     Qt6::Core5Compat
+    Qt6::DBus
 )
 
 install(TARGETS tide-island-config-app
