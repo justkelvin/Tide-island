@@ -41,7 +41,6 @@ FocusScope {
     property int notificationProgress: -1
     property string notificationImageDataUrl: ""
     property string notificationResolvedIcon: ""
-    property var bluetoothExpandedDevice: null
     readonly property var cavaLevels: systemState.cavaLevels
     property real swipeTransitionProgress: 0
     property string workspaceOriginSide: "none"
@@ -55,10 +54,8 @@ FocusScope {
     property bool expandedPlayerKeyboardFocusRequested: false
     readonly property int defaultAutoHideInterval: 1250
     readonly property int notificationAutoHideInterval: 4200
-    readonly property int bluetoothExpandedAutoHideInterval: 2500
     readonly property int swipeAnimationDuration: 220
     readonly property bool blocksTransientSplit: islandState === "expanded"
-        || islandState === "bluetooth_expanded"
         || islandState === "notification"
     readonly property bool splitShowsProgress: islandState === "split" && osdProgress >= 0
     readonly property bool splitShowsText: islandState === "split" && osdProgress < 0 && osdCustomText !== ""
@@ -96,7 +93,6 @@ FocusScope {
         )
     )
     readonly property bool expandedLayerVisible: islandState === "expanded"
-    readonly property bool bluetoothExpandedLayerVisible: islandState === "bluetooth_expanded"
     readonly property bool notificationLayerVisible: islandState === "notification"
     readonly property var activePlayer: mediaController.activePlayer
     readonly property string lyricsDisplayText: mediaController.displayText
@@ -107,7 +103,6 @@ FocusScope {
     readonly property string timePlayed: mediaController.timePlayed
     readonly property string timeTotal: mediaController.timeTotal
     readonly property bool screenRecordingActive: windowRoot.screenRecordingActive
-    readonly property var bluetoothDevices: bluetoothConnectionTracker.devices
 
     onExpandedLayerVisibleChanged: {
         if (!expandedLayerVisible)
@@ -140,16 +135,6 @@ FocusScope {
 
         expanded: root.islandState === "expanded"
         clientId: "island-mpris-" + windowRoot.screenOutputName
-    }
-
-    BluetoothConnectionTracker {
-        id: bluetoothConnectionTracker
-
-        onAdapterChanged: root.bluetoothExpandedDevice = null
-
-        onNewConnection: function(device) {
-            root.showBluetoothExpanded(device);
-        }
     }
 
     SystemState {
@@ -325,7 +310,6 @@ FocusScope {
         notificationProgress = -1;
         notificationImageDataUrl = "";
         notificationResolvedIcon = "";
-        bluetoothExpandedDevice = null;
     }
 
     function prepareRestingCapsuleGeometry() {
@@ -748,20 +732,6 @@ FocusScope {
         else stopAutoHideTimer();
     }
 
-    function showBluetoothExpanded(device) {
-        if (!device || islandState === "notification")
-            return;
-
-        cancelSideSwipeSettle();
-        abortSideTransientMode();
-        clearTransientCapsule();
-        bluetoothExpandedDevice = device;
-        islandState = "bluetooth_expanded";
-        mainCapsule.displayedWidth = mainCapsule.baseTargetWidth;
-        expandedByPlayerAutoOpen = false;
-        restartAutoHideTimer(bluetoothExpandedAutoHideInterval);
-    }
-
     function showCustomCapsule() {
         if (!hasCustomLeftItems) {
             showTimeCapsule();
@@ -915,8 +885,7 @@ FocusScope {
     onCurrentTrackChanged: {
         if (userConfig.disableAutoExpandOnTrackChange) return;
         if (currentTrack !== ""
-                && islandState !== "notification"
-                && islandState !== "bluetooth_expanded") {
+                && islandState !== "notification") {
             if (windowRoot.autoHideSuppressesTransientReveal) return;
             if (islandState === "expanded" && !expandedByPlayerAutoOpen) return;
             showExpandedPlayer(true);

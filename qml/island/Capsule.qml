@@ -44,7 +44,6 @@ Rectangle {
 
         switch (state) {
         case "expanded":
-        case "bluetooth_expanded":
             return { width: 410, height: 165, radius: 40 };
         case "notification":
             const notifWidth = notificationLoader.item
@@ -286,25 +285,6 @@ Rectangle {
                 onKeyboardFocusRequested: islandController.requestExpandedPlayerKeyboardFocus()
                 onKeyboardFocusReleased: islandController.releaseExpandedPlayerKeyboardFocus()
                 onPreviousRequested: islandController.mediaController.previous()
-            }
-        }
-    }
-
-    Loader {
-        id: bluetoothExpandedLoader
-        anchors.fill: parent
-        active: islandController.bluetoothExpandedLayerVisible
-        asynchronous: false
-        visible: active
-
-        sourceComponent: Component {
-            BluetoothLayer {
-                device: islandController.bluetoothExpandedDevice
-                volumeLevel: islandController.currentVolume
-                iconText: ""
-                iconFontFamily: windowRoot.iconFontFamily
-                textFontFamily: windowRoot.textFontFamily
-                showCondition: islandController.bluetoothExpandedLayerVisible
             }
         }
     }
