@@ -1,6 +1,7 @@
 import QtQuick
 import Qt5Compat.GraphicalEffects
 import IslandBackend
+import "TimeAgo.js" as TimeAgo
 
 Item {
     id: root
@@ -19,27 +20,6 @@ Item {
 
     readonly property int historyCount: history ? history.length : 0
     readonly property string headerText: historyCount > 0 ? "Notifications (" + historyCount + ")" : "Notifications"
-
-    function timeAgo(createdMs) {
-        const now = Date.now();
-        const created = Number(createdMs) || 0;
-        let delta = Math.max(0, now - created);
-        if (created <= 0)
-            return "";
-        const seconds = Math.floor(delta / 1000);
-        if (seconds < 10)
-            return "Just now";
-        if (seconds < 60)
-            return seconds + "s ago";
-        const minutes = Math.floor(seconds / 60);
-        if (minutes < 60)
-            return minutes + "m ago";
-        const hours = Math.floor(minutes / 60);
-        if (hours < 24)
-            return hours + "h ago";
-        const days = Math.floor(hours / 24);
-        return days + "d ago";
-    }
 
     // Local mirror of NotificationServer.history as a real ListModel.
     // QVariantList reassigns wholesale on every change (instant rebuild = blip),
@@ -277,7 +257,7 @@ Item {
                         readonly property int entryId: model.nid
                         readonly property string agoText: {
                             historyList.timestampRevision;
-                            return root.timeAgo(model.createdMs);
+                            return TimeAgo.timeAgo(model.createdMs);
                         }
 
                         Rectangle {
