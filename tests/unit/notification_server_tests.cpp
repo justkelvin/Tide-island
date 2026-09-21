@@ -391,6 +391,39 @@ private slots:
         QCOMPARE(closed.size(), 2);
     }
 
+    void removeHistoryItemRemovesSingleEntry() {
+        NotificationServer server(nullptr, false);
+        QSignalSpy changed(&server, &NotificationServer::historyChanged);
+        const uint first = server.Notify(QStringLiteral("A"), 0, QString(), QStringLiteral("one"),
+                                         QString(), {}, {}, 60000);
+        const uint second = server.Notify(QStringLiteral("B"), 0, QString(), QStringLiteral("two"),
+                                          QString(), {}, {}, 60000);
+        QCOMPARE(server.history().size(), 2);
+        server.removeHistoryItem(second);
+        QCOMPARE(server.history().size(), 1);
+        QCOMPARE(server.history().at(0).toMap().value(QStringLiteral("id")).toUInt(), first);
+        QVERIFY(changed.size() >= 1);
+        // Unknown id is a no-op.
+        const int before = server.history().size();
+        server.removeHistoryItem(999999);
+        QCOMPARE(server.history().size(), before);
+    }
+
+    void clearHistoryEmptiesHistoryOnly() {
+        NotificationServer server(nullptr, false);
+        QSignalSpy changed(&server, &NotificationServer::historyChanged);
+        server.Notify(QStringLiteral("A"), 0, QString(), QStringLiteral("1"), QString(), {}, {}, 60000);
+        server.Notify(QStringLiteral("B"), 0, QString(), QStringLiteral("2"), QString(), {}, {}, 60000);
+        QCOMPARE(server.history().size(), 2);
+        QCOMPARE(server.activeCount(), 2);
+        server.clearHistory();
+        QCOMPARE(server.history().size(), 0);
+        // Active notifications stay; clearAllNotifications() is a separate call.
+        QCOMPARE(server.activeCount(), 2);
+        QVERIFY(changed.size() >= 1);
+        server.clearAllNotifications();
+    }
+
     void modelRolesExposeNotificationFields() {
         NotificationServer server(nullptr, false);
         const uint id = server.Notify(QStringLiteral("Discord"), 0, QStringLiteral("discord"),

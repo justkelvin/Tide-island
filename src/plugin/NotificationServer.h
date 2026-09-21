@@ -143,6 +143,8 @@ public slots:
     Q_INVOKABLE void invokeAction(uint id, const QString &actionKey);
     Q_INVOKABLE void dismissNotification(uint id);
     Q_INVOKABLE void clearAllNotifications();
+    Q_INVOKABLE void removeHistoryItem(uint id);
+    Q_INVOKABLE void clearHistory();
     Q_INVOKABLE bool tryRegister();
     Q_INVOKABLE bool takeOver();
     Q_INVOKABLE void release();

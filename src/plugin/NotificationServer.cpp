@@ -362,6 +362,24 @@ void NotificationServer::clearAllNotifications() {
     }
 }
 
+void NotificationServer::removeHistoryItem(uint id) {
+    for (int i = 0; i < m_history.size(); ++i) {
+        const QVariantMap entry = m_history.at(i).toMap();
+        if (entry.value(QStringLiteral("id")).toUInt() == id) {
+            m_history.removeAt(i);
+            emit historyChanged();
+            return;
+        }
+    }
+}
+
+void NotificationServer::clearHistory() {
+    if (m_history.isEmpty())
+        return;
+    m_history.clear();
+    emit historyChanged();
+}
+
 bool NotificationServer::tryRegister() {
     if (m_registered)
         return true;
