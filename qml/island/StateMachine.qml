@@ -944,6 +944,13 @@ FocusScope {
         restoreRestingCapsule();
     }
 
+    function openTimer() {
+        hoverExpandedActive = false;
+        hoverExpandDelayTimer.stop();
+        hoverCollapseDelayTimer.stop();
+        showTimerView(!timerActive);
+    }
+
     function showTimerView(editor) {
         timerControlsCollapse.stop();
         cancelSideSwipeSettle();
@@ -1158,6 +1165,7 @@ FocusScope {
             if (!mainCapsule.gestureArea.containsMouse) return;
             if (mainCapsule.gestureArea.sideSwipeInteractive) return;
             if (root.timerActive) return;
+            if (!windowRoot.hoverExpandEnabled) return;
 
             const current = root.islandState;
             const target = "expanded";
@@ -1166,7 +1174,7 @@ FocusScope {
                 return;
 
             root.hoverExpandedActive = true;
-            root.showTimerView(true);
+            root.showExpandedPlayer(false, "player");
         }
     }
     Timer {

@@ -12,6 +12,7 @@ Item {
 
     readonly property bool sideSwipeInteractive: capsuleMouseArea.sideSwipeInteractive
     readonly property bool containsMouse: capsuleHover.hovered
+    readonly property bool timerHoldPressed: timerHoldDelay.running || capsuleMouseArea.timerHoldReady
     property alias suppressNextClick: capsuleMouseArea.suppressNextClick
 
     anchors.fill: parent
@@ -40,6 +41,15 @@ Item {
         onTriggered: capsuleMouseArea.suppressNextClick = false
     }
 
+    Timer {
+        id: timerHoldDelay
+        interval: 500
+        onTriggered: {
+            if (capsuleMouseArea.pressed && !capsuleMouseArea.swipeMoved && root.containsMouse)
+                capsuleMouseArea.timerHoldReady = true;
+        }
+    }
+
     HoverHandler {
         id: capsuleHover
         // Observe the entire capsule, including the interactive child layers.
@@ -49,7 +59,7 @@ Item {
                 if (hovered) windowRoot.showAutoHiddenIsland();
                 else windowRoot.scheduleAutoHide();
             }
-            if (hovered) root.triggerHoverExpand();
+            if (hovered && windowRoot && windowRoot.hoverExpandEnabled) root.triggerHoverExpand();
             else root.triggerHoverCollapse();
         }
     }
@@ -61,7 +71,6 @@ Item {
         enabled: twoFingerTouchArea.touchPoints.length < 2
         acceptedButtons: windowRoot ? windowRoot.dynamicIslandAcceptedButtons : (Qt.LeftButton | Qt.RightButton)
         preventStealing: true
-        // Temporary timer entry gesture, independent of the media hover setting.
         hoverEnabled: true
 
         property real swipeStartX: 0
@@ -73,9 +82,17 @@ Item {
         property bool swipeMoved: false
         property bool sideSwipeInteractive: false
         property bool suppressNextClick: false
+        property bool timerHoldReady: false
 
         onPressed: (mouse) => {
             if (!islandController || !capsule) return;
+            if (hoverExpandTimer) hoverExpandTimer.stop();
+            if (hoverCollapseTimer) hoverCollapseTimer.stop();
+            timerHoldReady = false;
+            timerHoldDelay.stop();
+            if (mouse.button === Qt.LeftButton
+                    && ["normal", "custom", "lyrics"].indexOf(islandController.islandState) !== -1)
+                timerHoldDelay.start();
             const mappedPoint = capsuleMouseArea.mapToItem(islandController, mouse.x, mouse.y);
             swipeStartX = mappedPoint.x;
             swipeStartY = mappedPoint.y;
@@ -96,6 +113,10 @@ Item {
             const mappedPoint = capsuleMouseArea.mapToItem(islandController, mouse.x, mouse.y);
             const deltaX = mappedPoint.x - swipeLastX;
             const deltaY = Math.abs(mappedPoint.y - swipeStartY);
+            if (Math.abs(mappedPoint.x - swipeStartX) > 6 || deltaY > 6) {
+                timerHoldDelay.stop();
+                timerHoldReady = false;
+            }
             const adjustedDeltaX = deltaY < sideSwipeVerticalTolerance ? deltaX : 0;
             const nextProgress = islandController.advanceSideSwipeProgress(
                 islandController.swipeTransitionProgress,
@@ -109,7 +130,20 @@ Item {
         }
 
         onReleased: {
+            timerHoldDelay.stop();
             if (!islandController || !capsule) return;
+
+            if (timerHoldReady && root.containsMouse
+                    && ["normal", "custom", "lyrics"].indexOf(islandController.islandState) !== -1) {
+                timerHoldReady = false;
+                swipeArmed = false;
+                swipeMoved = false;
+                sideSwipeInteractive = false;
+                root.suppressClick();
+                islandController.openTimer();
+                return;
+            }
+            timerHoldReady = false;
 
             if (swipeMoved) {
                 suppressNextClick = true;
@@ -156,6 +190,8 @@ Item {
         }
 
         onCanceled: {
+            timerHoldDelay.stop();
+            timerHoldReady = false;
             if (!islandController || !capsule) return;
             swipeArmed = false;
             swipeMoved = false;
@@ -226,6 +262,8 @@ Item {
         property bool swipeMoved: false
 
         onPressed: (touchPoints) => {
+            timerHoldDelay.stop();
+            capsuleMouseArea.timerHoldReady = false;
             if (!islandController) return;
             const centerPoint = islandController.mapFromItem(twoFingerTouchArea, 
                 (touchPoints[0].x + touchPoints[1].x) / 2,

@@ -127,7 +127,8 @@ Rectangle {
     height: targetHeight
     radius: targetRadius
     opacity: windowRoot.autoHideProgress
-    scale: 0.96 + windowRoot.autoHideProgress * 0.04
+    scale: (0.96 + windowRoot.autoHideProgress * 0.04) * (capsuleGestureArea.timerHoldPressed ? 0.98 : 1)
+    Behavior on scale { NumberAnimation { duration: StyleTokens.durationFast; easing.type: Easing.OutCubic } }
     transformOrigin: Item.Top
 
     onBaseTargetWidthChanged: {
