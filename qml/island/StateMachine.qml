@@ -160,8 +160,8 @@ FocusScope {
         customSwipeActive: mainCapsule.customSwipeActive
         lyricsCavaActive: (root.lyricsSwipeVisible && root.rightSwipeProgress > 0.001)
             || (root.hasMediaPlaying
-                && root.islandState !== "expanded"
                 && root.islandState !== "notification"
+                && !(root.islandState === "expanded" && root.expandedContent !== "player")
                 && (!windowRoot || windowRoot.autoHideProgress === undefined || windowRoot.autoHideProgress > 0.001))
 
         onTransientRequested: function(icon, progress, text) {

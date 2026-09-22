@@ -1,4 +1,5 @@
 import QtQuick
+import Qt5Compat.GraphicalEffects
 import IslandBackend
 import Quickshell.Services.Mpris
 import "../../components"
@@ -24,21 +25,9 @@ Item {
     property var activePlayer: null
     property string iconFontFamily: userConfig.iconFontFamily
     property string textFontFamily: userConfig.textFontFamily
-    property real visualizerPhase: 0
-
     readonly property bool isPlaying: activePlayer && activePlayer.playbackState === MprisPlaybackState.Playing
-
-    function visualizerLevel(index) {
-        const phase = visualizerPhase + index * 0.78;
-        const primary = (Math.sin(phase) + 1) * 0.5;
-        const secondary = (Math.sin(phase * 2 + index * 0.95) + 1) * 0.5;
-        return 0.22 + primary * 0.42 + secondary * 0.24;
-    }
-
-    function pausedVisualizerLevel(index) {
-        const levels = [0.34, 0.58, 0.82, 0.58, 0.34];
-        return levels[index] || 0.4;
-    }
+    property var cavaLevels: []
+    readonly property var pausedLevels: [0.34, 0.58, 0.82, 0.58, 0.34]
 
     function togglePlayback() {
         if (!activePlayer || !activePlayer.canControl) return;
@@ -66,15 +55,6 @@ Item {
         }
     }
 
-    Timer {
-        interval: 64
-        repeat: true
-        running: showCondition && isPlaying
-        onTriggered: {
-            visualizerPhase += 0.18;
-            if (visualizerPhase > Math.PI * 2) visualizerPhase -= Math.PI * 2;
-        }
-    }
 
     Item {
         id: viewport
@@ -111,7 +91,6 @@ Item {
                                 height: 60
                                 radius: 14
                                 color: "#2c2c2e"
-                                clip: true
 
                                 SvgIcon {
                                     anchors.centerIn: parent
@@ -121,6 +100,15 @@ Item {
                                     visible: !albumArt.visible
                                 }
 
+                                Rectangle {
+                                    id: albumArtMask
+                                    anchors.fill: parent
+                                    radius: 14
+                                    antialiasing: true
+                                    visible: false
+                                    layer.enabled: true
+                                }
+
                                 Image {
                                     id: albumArt
                                     anchors.fill: parent
@@ -128,6 +116,10 @@ Item {
                                     fillMode: Image.PreserveAspectCrop
                                     visible: source.toString() !== ""
                                     sourceSize: Qt.size(120, 120)
+                                    layer.enabled: true
+                                    layer.effect: OpacityMask {
+                                        maskSource: albumArtMask
+                                    }
                                 }
                             }
 
@@ -164,38 +156,15 @@ Item {
                             width: 44
                             height: 22
 
-                            Row {
+                            CavaBars {
                                 anchors.centerIn: parent
-                                height: parent.height
-                                spacing: 4
-
-                                Repeater {
-                                    model: 5
-
-                                    delegate: Rectangle {
-                                        width: 4
-                                        height: isPlaying
-                                            ? 6 + (parent.height - 6) * visualizerLevel(index)
-                                            : 6 + (parent.height - 6) * pausedVisualizerLevel(index)
-                                        radius: 2
-                                        color: isPlaying ? "#b56cff" : "#5f4b72"
-                                        anchors.verticalCenter: parent.verticalCenter
-
-                                        Behavior on height {
-                                            NumberAnimation {
-                                                duration: isPlaying ? 120 : 260
-                                                easing.type: Easing.InOutQuad
-                                            }
-                                        }
-
-                                        Behavior on color {
-                                            ColorAnimation {
-                                                duration: isPlaying ? 140 : 280
-                                                easing.type: Easing.InOutQuad
-                                            }
-                                        }
-                                    }
-                                }
+                                levels: isPlaying ? root.cavaLevels : root.pausedLevels
+                                barCount: 5
+                                barWidth: 4
+                                barSpacing: 4
+                                minimumBarHeight: 6
+                                height: 22
+                                barColor: isPlaying ? "white" : "#8e8e93"
                             }
                         }
                     }

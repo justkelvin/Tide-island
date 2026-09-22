@@ -1,4 +1,5 @@
 import QtQuick
+import Qt5Compat.GraphicalEffects
 import IslandBackend
 import "../../components"
 
@@ -290,7 +291,6 @@ Item {
             height: 20
             radius: 6
             color: "#2c2c2e"
-            clip: true
             visible: root.hasMediaPlaying
 
             SvgIcon {
@@ -301,6 +301,15 @@ Item {
                 visible: !customCoverArt.visible
             }
 
+            Rectangle {
+                id: customCoverMask
+                anchors.fill: parent
+                radius: 6
+                antialiasing: true
+                visible: false
+                layer.enabled: true
+            }
+
             Image {
                 id: customCoverArt
                 anchors.fill: parent
@@ -308,6 +317,10 @@ Item {
                 fillMode: Image.PreserveAspectCrop
                 visible: source.toString() !== ""
                 sourceSize: Qt.size(40, 40)
+                layer.enabled: true
+                layer.effect: OpacityMask {
+                    maskSource: customCoverMask
+                }
             }
         }
 

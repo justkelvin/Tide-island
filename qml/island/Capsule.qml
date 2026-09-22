@@ -301,6 +301,7 @@ Rectangle {
                 timePlayed: islandController.timePlayed
                 timeTotal: islandController.timeTotal
                 trackProgress: islandController.trackProgress
+                cavaLevels: islandController.cavaLevels
                 activePlayer: islandController.activePlayer
                 iconFontFamily: windowRoot.iconFontFamily
                 textFontFamily: windowRoot.textFontFamily

@@ -57,6 +57,13 @@ Item {
                         easing.type: Easing.InOutQuad
                     }
                 }
+
+                Behavior on color {
+                    ColorAnimation {
+                        duration: 160
+                        easing.type: Easing.InOutQuad
+                    }
+                }
             }
         }
     }
