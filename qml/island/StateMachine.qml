@@ -12,6 +12,10 @@ FocusScope {
     required property var windowRoot
 
     readonly property var userConfig: UserConfig
+    readonly property var countdown: windowRoot.shellRootController.countdown
+    readonly property bool timerActive: countdown.active
+    readonly property bool timerLayerVisible: islandState === "expanded"
+        && (expandedContent === "timerEditor" || expandedContent === "timerControls" || expandedContent === "timerFinished")
     readonly property alias capsule: mainCapsule
     readonly property alias mediaController: mediaController
     readonly property bool sideTransientRestoreTimerRunning: sideTransientRestoreTimer.running
@@ -114,7 +118,7 @@ FocusScope {
     readonly property string timeTotal: mediaController.timeTotal
     readonly property bool isMediaPlaying: mediaController.isPlaying
     readonly property bool hasMediaPlaying: isMediaPlaying && currentTrack !== ""
-    readonly property real normalRestingWidth: hasMediaPlaying
+    readonly property real normalRestingWidth: timerActive ? Math.max(userConfig.islandWidth, 252) : hasMediaPlaying
         ? Math.max(userConfig.islandWidth, 168)
         : userConfig.islandWidth
     readonly property bool screenRecordingActive: windowRoot.screenRecordingActive
@@ -162,6 +166,7 @@ FocusScope {
         customSwipeActive: mainCapsule.customSwipeActive
         lyricsCavaActive: (root.lyricsSwipeVisible && root.rightSwipeProgress > 0.001)
             || (root.hasMediaPlaying
+                && !(root.timerActive && root.islandState === "normal")
                 && root.islandState !== "notification"
                 && !(root.islandState === "expanded" && root.expandedContent !== "player")
                 && (!windowRoot || windowRoot.autoHideProgress === undefined || windowRoot.autoHideProgress > 0.001))
@@ -904,6 +909,7 @@ FocusScope {
     }
 
     function restoreRestingCapsule(forceImmediate) {
+        timerControlsCollapse.stop();
         if (forceImmediate === undefined) forceImmediate = false;
         const normalizedRestingState = normalizeRestingState(restingState);
         const targetSide = restingStateSide(normalizedRestingState);
@@ -938,6 +944,60 @@ FocusScope {
         restoreRestingCapsule();
     }
 
+    function showTimerView(editor) {
+        timerControlsCollapse.stop();
+        cancelSideSwipeSettle();
+        abortSideTransientMode();
+        clearTransientCapsule();
+        stopAutoHideTimer();
+        expandedByPlayerAutoOpen = false;
+        expandedContent = editor ? "timerEditor" : "timerControls";
+        islandState = "expanded";
+        timerControlsCollapse.interval = 10000;
+        if (!editor) timerControlsCollapse.restart();
+    }
+
+    function startCountdown() {
+        hoverExpandedActive = false;
+        countdown.start();
+        showTimeCapsule();
+    }
+
+    function toggleCountdownPause() {
+        countdown.togglePause();
+        timerControlsCollapse.restart();
+    }
+
+    Connections {
+        target: root.countdown
+        function onActiveChanged() {
+            if (root.countdown.active || root.timerLayerVisible) {
+                root.hoverExpandedActive = false;
+                root.showTimeCapsule();
+            }
+        }
+        function onPausedChanged() {
+            if (root.timerLayerVisible) timerControlsCollapse.restart();
+        }
+        function onFinished() {
+            // Do not discard a notification reply that is being composed.
+            if (root.notificationReplyKeyboardFocusRequested) return;
+            root.hoverExpandedActive = false;
+            root.showTimerView(false);
+            root.expandedContent = "timerFinished";
+            timerControlsCollapse.interval = 5000;
+            timerControlsCollapse.restart();
+        }
+    }
+
+    Timer {
+        id: timerControlsCollapse
+        interval: 10000
+        onTriggered: {
+            if (root.timerLayerVisible) root.smartRestoreState();
+        }
+    }
+
     function showRestingCapsule(nextState) {
         setRestingState(nextState);
         restoreRestingCapsule();
@@ -945,6 +1005,7 @@ FocusScope {
     }
 
     function showExpandedPlayer(autoOpened, content) {
+        timerControlsCollapse.stop();
         if (content !== "secondary")
             content = "player";
         cancelSideSwipeSettle();
@@ -1095,7 +1156,8 @@ FocusScope {
         repeat: false
         onTriggered: {
             if (!mainCapsule.gestureArea.containsMouse) return;
-            if (!windowRoot.hoverExpandEnabled) return;
+            if (mainCapsule.gestureArea.sideSwipeInteractive) return;
+            if (root.timerActive) return;
 
             const current = root.islandState;
             const target = "expanded";
@@ -1104,7 +1166,7 @@ FocusScope {
                 return;
 
             root.hoverExpandedActive = true;
-            root.showExpandedPlayer(false, "player");
+            root.showTimerView(true);
         }
     }
     Timer {
@@ -1156,6 +1218,7 @@ FocusScope {
     }
 
     onCurrentTrackChanged: {
+        if (timerActive || timerLayerVisible) return;
         if (userConfig.disableAutoExpandOnTrackChange) return;
         if (currentTrack !== ""
                 && islandState !== "notification") {

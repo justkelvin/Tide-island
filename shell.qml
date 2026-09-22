@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import IslandBackend
 import "qml/windows"
+import "qml/island"
 
 Scope {
     id: shellRoot
@@ -12,6 +13,12 @@ Scope {
     property bool islandAutoHideRuntimeEnabled: true
 
     readonly property var userConfig: UserConfig
+    readonly property alias countdown: countdown
+
+    Countdown {
+        id: countdown
+        onFinished: SystemServices.playTimerAlarm()
+    }
 
     function forEachWindow(callback) {
         const windows = panelVariants.instances ? panelVariants.instances : [];

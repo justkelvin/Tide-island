@@ -105,6 +105,20 @@ endif()
 # Integration / Runtime Tests
 # ------------------------------------------------------------------------------
 
+find_package(Qt6 REQUIRED COMPONENTS QuickTest)
+add_executable(tide_island_qml_tests helpers/qml_test_runner.cpp)
+target_link_libraries(tide_island_qml_tests PRIVATE Qt6::QuickTest)
+add_dependencies(tide_island_qml_tests IslandBackendplugin)
+add_test(NAME countdown_qml
+    COMMAND tide_island_qml_tests
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/qml"
+        -import "${CMAKE_BINARY_DIR}"
+)
+set_tests_properties(countdown_qml PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software"
+    TIMEOUT 30
+)
+
 # LyricsMPRIS D-Bus Runtime Tests
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/lyricsmpris_runtime_tests.cpp" AND TARGET lyricsmpris)
     add_executable(lyricsmpris_runtime_tests

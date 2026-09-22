@@ -40,6 +40,8 @@ class StyleTokensBackend final : public QObject {
     Q_PROPERTY(QColor accentSoft READ accentSoft CONSTANT FINAL)
     Q_PROPERTY(QColor success READ success CONSTANT FINAL)
     Q_PROPERTY(QColor warning READ warning CONSTANT FINAL)
+    Q_PROPERTY(QColor timerAccent READ timerAccent CONSTANT FINAL)
+    Q_PROPERTY(QColor timerFill READ timerFill CONSTANT FINAL)
     Q_PROPERTY(QColor danger READ danger CONSTANT FINAL)
     Q_PROPERTY(QColor error READ error CONSTANT FINAL)
     Q_PROPERTY(QColor disabledControl READ disabledControl CONSTANT FINAL)
@@ -89,6 +91,8 @@ public:
     QColor accentSoft() const;
     QColor success() const;
     QColor warning() const;
+    QColor timerAccent() const;
+    QColor timerFill() const;
     QColor danger() const;
     QColor error() const;
     QColor disabledControl() const;

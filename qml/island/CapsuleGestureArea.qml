@@ -11,7 +11,7 @@ Item {
     property var hoverCollapseTimer: null
 
     readonly property bool sideSwipeInteractive: capsuleMouseArea.sideSwipeInteractive
-    readonly property bool containsMouse: capsuleMouseArea.containsMouse
+    readonly property bool containsMouse: capsuleHover.hovered
     property alias suppressNextClick: capsuleMouseArea.suppressNextClick
 
     anchors.fill: parent
@@ -40,6 +40,20 @@ Item {
         onTriggered: capsuleMouseArea.suppressNextClick = false
     }
 
+    HoverHandler {
+        id: capsuleHover
+        // Observe the entire capsule, including the interactive child layers.
+        onHoveredChanged: {
+            if (windowRoot && windowRoot.autoHideEnabled) {
+                windowRoot.autoHidePointerInside = hovered;
+                if (hovered) windowRoot.showAutoHiddenIsland();
+                else windowRoot.scheduleAutoHide();
+            }
+            if (hovered) root.triggerHoverExpand();
+            else root.triggerHoverCollapse();
+        }
+    }
+
     MouseArea {
         id: capsuleMouseArea
         anchors.fill: parent
@@ -47,7 +61,8 @@ Item {
         enabled: twoFingerTouchArea.touchPoints.length < 2
         acceptedButtons: windowRoot ? windowRoot.dynamicIslandAcceptedButtons : (Qt.LeftButton | Qt.RightButton)
         preventStealing: true
-        hoverEnabled: windowRoot ? (windowRoot.hoverExpandEnabled || windowRoot.autoHideEnabled) : false
+        // Temporary timer entry gesture, independent of the media hover setting.
+        hoverEnabled: true
 
         property real swipeStartX: 0
         property real swipeStartY: 0
@@ -58,26 +73,6 @@ Item {
         property bool swipeMoved: false
         property bool sideSwipeInteractive: false
         property bool suppressNextClick: false
-
-        onEntered: {
-            if (windowRoot && windowRoot.autoHideEnabled) {
-                windowRoot.autoHidePointerInside = true;
-                windowRoot.showAutoHiddenIsland();
-            }
-            if (windowRoot && windowRoot.hoverExpandEnabled) {
-                root.triggerHoverExpand();
-            }
-        }
-
-        onExited: {
-            if (windowRoot && windowRoot.autoHideEnabled) {
-                windowRoot.autoHidePointerInside = false;
-                windowRoot.scheduleAutoHide();
-            }
-            if (windowRoot && windowRoot.hoverExpandEnabled) {
-                root.triggerHoverCollapse();
-            }
-        }
 
         onPressed: (mouse) => {
             if (!islandController || !capsule) return;
@@ -186,6 +181,14 @@ Item {
 
             if (mouse.button === UserConfig.mouseButton(UserConfig.dynamicIslandPrimaryButton)) {
                 if (islandController.toggleNotificationExpansionIfNeeded()) {
+                    return;
+                }
+
+                if (islandController.timerActive) {
+                    if (islandController.timerLayerVisible)
+                        islandController.smartRestoreState();
+                    else
+                        islandController.showTimerView(false);
                     return;
                 }
 

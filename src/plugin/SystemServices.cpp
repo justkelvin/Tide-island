@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <memory>
 
 namespace {
@@ -89,6 +90,34 @@ QString SystemServices::findExecutable(const QString &program) const {
     }
 
     return QStandardPaths::findExecutable(program);
+}
+
+void SystemServices::playTimerAlarm() {
+    // A short, self-contained chime: no sound-theme or multimedia dependency.
+    constexpr int rate = 48000;
+    constexpr int samples = rate * 2;
+    constexpr double tau = 6.283185307179586;
+    QByteArray pcm(samples * int(sizeof(qint16)), '\0');
+    for (int i = 0; i < samples; ++i) {
+        const double time = double(i) / rate;
+        if (time >= 1.95) break;
+        const double noteTime = std::fmod(time, 0.65);
+        const double envelope = std::min(1.0, noteTime / 0.012)
+            * std::min(1.0, (0.65 - noteTime) / 0.05) * std::exp(-noteTime * 8.0);
+        const double tone = std::sin(tau * 880 * noteTime)
+            + 0.35 * std::sin(tau * 1320 * noteTime);
+        const qint16 sample = qint16(7000 * envelope * tone);
+        // pw-play's s16 format is native endian.
+        std::memcpy(pcm.data() + i * sizeof(sample), &sample, sizeof(sample));
+    }
+    startCommand(QStringLiteral("pw-play"),
+                 {QStringLiteral("--raw"), QStringLiteral("--rate=48000"),
+                  QStringLiteral("--channels=1"), QStringLiteral("--format=s16"),
+                  QStringLiteral("--media-role=Notification"), QStringLiteral("-")},
+                 5000, [this](const CommandResult &result) {
+        const QString error = commandErrorText(QStringLiteral("pw-play"), result);
+        if (!error.isEmpty()) qWarning() << "Timer alarm:" << error;
+    }, pcm);
 }
 
 QProcess *SystemServices::startCommand(const QString &program,

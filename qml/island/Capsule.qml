@@ -59,6 +59,10 @@ Rectangle {
 
         switch (state) {
         case "expanded":
+            if (expandedContent === "timerEditor")
+                return { width: 410, height: 180, radius: 40 };
+            if (expandedContent === "timerControls" || expandedContent === "timerFinished")
+                return { width: 300, height: 62, radius: 31 };
             if (expandedContent === "secondary")
                 return secondaryPanelGeometry();
             return { width: 410, height: 165, radius: 40 };
@@ -196,6 +200,7 @@ Rectangle {
         id: lyricsSwipeLoader
         anchors.fill: parent
         active: islandController.lyricsSwipeVisible
+            && !(islandController.timerActive && islandController.islandState === "normal")
         asynchronous: false
         visible: active
 
@@ -285,6 +290,29 @@ Rectangle {
                 showCondition: true
                 slideDirection: islandController.workspaceOriginSide
             }
+        }
+    }
+
+    Loader {
+        anchors.fill: parent
+        active: islandController.timerActive && islandController.islandState === "normal"
+        sourceComponent: TimerIdleLayer {
+            countdown: islandController.countdown
+            timeText: timeObj.currentTime
+            fontFamily: windowRoot.timeFontFamily
+            recordingActive: islandController.screenRecordingActive
+        }
+    }
+
+    Loader {
+        anchors.fill: parent
+        active: islandController.timerLayerVisible
+        sourceComponent: TimerLayer {
+            countdown: islandController.countdown
+            controller: islandController
+            editing: islandController.expandedContent === "timerEditor"
+            finished: islandController.expandedContent === "timerFinished"
+            fontFamily: windowRoot.textFontFamily
         }
     }
 

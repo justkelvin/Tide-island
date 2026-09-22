@@ -37,6 +37,7 @@ public:
     Q_INVOKABLE void requestStorage();
     Q_INVOKABLE void setCavaClientActive(const QString &clientId, bool active);
     Q_INVOKABLE void ensureUserConfigAvailable();
+    Q_INVOKABLE void playTimerAlarm();
 
 signals:
     void screenRecordingActiveChanged();
