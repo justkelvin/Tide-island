@@ -42,7 +42,7 @@ signals:
     void micVolumeChanged(int micPercentage, bool isMuted);
     void batteryCapacityChanged(int capacity);
     void batteryStatusChanged(const QString &statusString);
-    void batteryChanged(int capacity, const QString &statusString);
+    void batteryChanged(int capacity, const QString &statusString, int acOnline);
     void bluetoothChanged(bool isConnected);
     void lyricsCurrentLyricChanged();
     void lyricsIsSyncedChanged();
@@ -80,7 +80,7 @@ private:
     void detectPowerSupplyPaths();
     void detectBacklightPath();
     QString readSysfsTextFile(const QString &path) const;
-    void updateBatteryState(int capacity, const QString &statusString);
+    void updateBatteryState(int capacity, const QString &statusString, int acOnline);
     QString upowerStateToBatteryStatus(uint state) const;
     QString findLyricsBackendExecutable() const;
     void setLyricsCurrentLyric(const QString &lyric);
@@ -113,6 +113,10 @@ private:
     QString m_backlightPath;
     int m_batteryCap;
     QString m_batteryStatus;
+    // Adapter presence: -1 unknown (no AC supply found), 0 unplugged, 1 plugged.
+    // Authoritative for plug/unplug edges; battery status strings oscillate on
+    // their own at the top of the charge and must not drive them.
+    int m_acOnline;
     QString m_upowerBatteryPath;
     bool m_hasBatteryState;
 

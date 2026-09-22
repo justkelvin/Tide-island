@@ -41,6 +41,7 @@ SysBackend::SysBackend(QObject *parent)
       m_lyricsIsSynced(false),
       m_batteryCap(0),
       m_batteryStatus("Unknown"),
+      m_acOnline(-1),
       m_upowerBatteryPath(),
       m_hasBatteryState(false),
       m_udev(nullptr),
@@ -211,21 +212,23 @@ void SysBackend::setupBatteryUpower() {
     updateBatteryUpower();
 }
 
-void SysBackend::updateBatteryState(int capacity, const QString &statusString) {
+void SysBackend::updateBatteryState(int capacity, const QString &statusString, int acOnline) {
     const bool capacityChanged = !m_hasBatteryState || capacity != m_batteryCap;
     const bool statusChanged = !m_hasBatteryState || statusString != m_batteryStatus;
+    const bool acChanged = !m_hasBatteryState || acOnline != m_acOnline;
 
-    if (!capacityChanged && !statusChanged) return;
+    if (!capacityChanged && !statusChanged && !acChanged) return;
 
     m_batteryCap = capacity;
     m_batteryStatus = statusString;
+    m_acOnline = acOnline;
     m_hasBatteryState = true;
 
-    qDebug() << "[Battery] State:" << m_batteryCap << "% -" << m_batteryStatus;
+    qDebug() << "[Battery] State:" << m_batteryCap << "% -" << m_batteryStatus << "AC:" << m_acOnline;
 
     if (capacityChanged) emit batteryCapacityChanged(m_batteryCap);
     if (statusChanged) emit batteryStatusChanged(m_batteryStatus);
-    emit batteryChanged(m_batteryCap, m_batteryStatus);
+    emit batteryChanged(m_batteryCap, m_batteryStatus, m_acOnline);
 }
 
 QString SysBackend::upowerStateToBatteryStatus(uint state) const {
@@ -248,6 +251,7 @@ QString SysBackend::upowerStateToBatteryStatus(uint state) const {
 void SysBackend::updateBatterySysfs() {
     int currentCap = m_batteryCap;
     QString currentStatus = m_batteryStatus;
+    int currentAc = m_acOnline;
 
     if (!m_batteryPath.isEmpty()) {
         QFile capFile(m_batteryPath + "/capacity");
@@ -263,16 +267,19 @@ void SysBackend::updateBatterySysfs() {
         }
     }
 
-    if ((currentStatus.isEmpty() || currentStatus == "Unknown") && !m_acPath.isEmpty()) {
+    if (!m_acPath.isEmpty()) {
         QFile acFile(m_acPath + "/online");
         if (acFile.open(QIODevice::ReadOnly)) {
-            int isPlugged = acFile.readAll().trimmed().toInt();
-            currentStatus = (isPlugged > 0) ? "Charging" : "Discharging";
+            currentAc = acFile.readAll().trimmed().toInt() > 0 ? 1 : 0;
             acFile.close();
         }
     }
 
-    updateBatteryState(currentCap, currentStatus);
+    if ((currentStatus.isEmpty() || currentStatus == "Unknown") && currentAc >= 0) {
+        currentStatus = (currentAc > 0) ? "Charging" : "Discharging";
+    }
+
+    updateBatteryState(currentCap, currentStatus, currentAc);
 }
 
 void SysBackend::updateBatteryUpower() {
@@ -301,7 +308,7 @@ void SysBackend::updateBatteryUpower() {
 
     const int currentCap = qRound(percentageReply.value().toDouble());
     const QString currentStatus = upowerStateToBatteryStatus(stateReply.value().toUInt());
-    updateBatteryState(currentCap, currentStatus);
+    updateBatteryState(currentCap, currentStatus, m_acOnline);
 }
 
 void SysBackend::handleBatteryMonitorEvent() {

@@ -145,115 +145,22 @@ Item {
                         font.family: root.iconFontFamily
                     }
 
-                    Item {
-                        id: batteryShape
+                    BatteryIcon {
                         visible: parent.parent.isBattery
                         width: root.batteryIconWidth
                         height: root.batteryIconHeight
                         anchors.verticalCenter: parent.verticalCenter
-
-                        readonly property real level: Math.max(0, Math.min(100, Number(modelData.level || 0)))
-                        readonly property bool charging: modelData.isCharging || false
-                        readonly property bool roundedEnd: level >= 85
-                        readonly property color bodyColor: {
-                            if (charging)
-                                return "white";
-                            if (level <= 20)
-                                return "#ff3b30";
-                            return "white";
-                        }
-                        readonly property color emptyColor: Qt.rgba(1, 1, 1, 0.56)
-
-                        Rectangle {
-                            id: batteryBody
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width - root.batteryTipWidth - 1
-                            height: parent.height
-                            radius: root.batteryOuterRadius
-                            color: batteryShape.emptyColor
-                            border.width: 0
-                            clip: true
-
-                            Rectangle {
-                                id: batteryFill
-                                anchors.left: parent.left
-                                anchors.top: parent.top
-                                anchors.bottom: parent.bottom
-                                radius: 0
-                                topLeftRadius: root.batteryOuterRadius
-                                bottomLeftRadius: root.batteryOuterRadius
-                                topRightRadius: batteryShape.roundedEnd ? root.batteryOuterRadius : 0
-                                bottomRightRadius: batteryShape.roundedEnd ? root.batteryOuterRadius : 0
-                                width: Math.max(root.batteryOuterRadius * 2, parent.width * (batteryShape.level / 100.0))
-                                color: batteryShape.bodyColor
-
-                                Behavior on width {
-                                    NumberAnimation {
-                                        duration: 300
-                                        easing.type: Easing.OutCubic
-                                    }
-                                }
-                                Behavior on color {
-                                    ColorAnimation { duration: 300 }
-                                }
-                            }
-
-                            Row {
-                                visible: batteryShape.charging
-                                anchors.centerIn: parent
-                                anchors.horizontalCenterOffset: root.batteryChargingXOffset
-                                anchors.verticalCenterOffset: root.batteryChargingYOffset
-                                spacing: 2
-                                z: 2
-
-                                Text {
-                                    text: batteryShape.level + ""
-                                    color: "black"
-                                    font.pixelSize: root.batteryFontSizeCharging
-                                    font.family: root.textFontFamily
-                                    font.weight: Font.DemiBold
-                                    verticalAlignment: Text.AlignVCenter
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-
-                                Text {
-                                    text: root.chargingIconGlyph
-                                    color: "#242424"
-                                    font.pixelSize: root.batteryBoltSize
-                                    font.family: root.iconFontFamily
-                                    verticalAlignment: Text.AlignVCenter
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-                            }
-
-                            Text {
-                                visible: !batteryShape.charging
-                                anchors.centerIn: parent
-                                text: batteryShape.level + ""
-                                color: batteryShape.level <= 20 ? "white" : "black"
-                                font.pixelSize: root.batteryFontSize
-                                font.family: root.textFontFamily
-                                font.weight: batteryShape.level <= 20 ? Font.Bold : Font.DemiBold
-                                verticalAlignment: Text.AlignVCenter
-                                horizontalAlignment: Text.AlignHCenter
-                                z: 2
-                            }
-                        }
-
-                        Rectangle {
-                            width: root.batteryTipWidth
-                            height: root.batteryTipHeight
-                            radius: Math.round(root.batteryTipWidth / 2)
-                            color: batteryShape.level >= 100 ? batteryShape.bodyColor : batteryShape.emptyColor
-                            anchors.left: batteryBody.right
-                            anchors.leftMargin: 1
-                            anchors.verticalCenter: parent.verticalCenter
-
-                            Behavior on color {
-                                ColorAnimation { duration: 300 }
-                            }
-                        }
+                        level: Number(modelData.level || 0)
+                        charging: modelData.isCharging || false
+                        textFontFamily: root.textFontFamily
+                        iconFontFamily: root.iconFontFamily
+                        batteryFontSize: root.batteryFontSize
+                        batteryFontSizeCharging: root.batteryFontSizeCharging
+                        batteryBoltSize: root.batteryBoltSize
+                        chargingGlyph: root.chargingIconGlyph
+                        tipWidth: root.batteryTipWidth
+                        tipHeight: root.batteryTipHeight
+                        outerRadius: root.batteryOuterRadius
                     }
                 }
 

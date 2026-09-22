@@ -10,6 +10,7 @@ Item {
     height: 0
 
     signal transientRequested(string icon, real progress, string text)
+    signal batteryRequested(real level, bool charging, string text)
 
     property var configuredLeftSwipeItems: []
     property string timeText: "00:00"
@@ -35,8 +36,6 @@ Item {
     readonly property string brightnessLowStatusIcon: Qt.resolvedUrl("../resources/icons/brightness-low.svg")
     readonly property string brightnessMediumStatusIcon: Qt.resolvedUrl("../resources/icons/brightness.svg")
     readonly property string brightnessHighStatusIcon: Qt.resolvedUrl("../resources/icons/brightness.svg")
-    readonly property string chargingStatusIcon: Qt.resolvedUrl("../resources/icons/battery-bolt.svg")
-    readonly property string dischargingStatusIcon: Qt.resolvedUrl("../resources/icons/battery-discharging.svg")
     readonly property string cpuStatusIcon: Qt.resolvedUrl("../resources/icons/cpu.svg")
     readonly property string ramStatusIcon: Qt.resolvedUrl("../resources/icons/memory.svg")
     readonly property string bluetoothStatusIcon: Qt.resolvedUrl("../resources/icons/bluetooth-off.svg")
@@ -55,7 +54,17 @@ Item {
     property real currentStorageUsage: -1
     property var customLeftItems: []
 
-    property string _lastChargeStatus: SysBackend.batteryStatus
+    // Plug state: -1 unknown (baseline next), 0 unplugged, 1 plugged.
+    // Edges here — not battery status strings, which oscillate between
+    // Full/Not charging/Discharging on their own at the top of the charge.
+    property int _lastPlugged: -1
+    property real _lastBatteryLevel: -1
+    property bool _low20: false
+    property bool _low15: false
+    property bool _low10: false
+    property bool _crit5: false
+    property bool _unplug80: false
+    property bool _full100: false
     property string _pendingVolType: ""
     property real _pendingVolVal: 0.0
     property string _lastVolType: ""
@@ -127,10 +136,6 @@ Item {
             return brightnessMediumStatusIcon;
         case "brightnessHigh":
             return brightnessHighStatusIcon;
-        case "charging":
-            return chargingStatusIcon;
-        case "discharging":
-            return dischargingStatusIcon;
         case "cpu":
             return cpuStatusIcon;
         case "ram":
@@ -476,18 +481,83 @@ Item {
             micDebounce.restart();
         }
 
-        function onBatteryChanged(capacity, statusString) {
+        function onBatteryChanged(capacity, statusString, acOnline) {
             root.batteryCapacity = capacity;
             const nowCharging = (statusString === "Charging" || statusString === "Full");
-            const wasCharging = (root._lastChargeStatus === "Charging" || root._lastChargeStatus === "Full");
             root.isCharging = nowCharging;
-            if (root._lastChargeStatus !== "" && wasCharging !== nowCharging) {
-                if (nowCharging)
-                    root.transientRequested(root.statusIcon("charging"), -1.0, "");
-                else
-                    root.transientRequested(root.statusIcon("discharging"), -1.0, "");
+
+            // AC presence is authoritative for plug/unplug. Falls back to the
+            // status strings only when no adapter supply exists (acOnline < 0).
+            const plugged = acOnline >= 0 ? acOnline === 1 : nowCharging;
+            const baseline = root._lastPlugged < 0;
+            const level = Math.max(0, Math.min(100, capacity));
+            const haveLevel = capacity >= 0;
+            let fired = false;
+
+            if (haveLevel && baseline) {
+                // Seed one-shot flags from the live state so launch never pops.
+                root._low20 = level <= 20;
+                root._low15 = level <= 15;
+                root._low10 = level <= 10;
+                root._crit5 = level <= 5;
+                root._unplug80 = plugged && level >= 80;
+                root._full100 = plugged && (statusString === "Full" || level >= 100);
+                root._lastBatteryLevel = level;
+            } else if (root._lastPlugged >= 0 && plugged !== (root._lastPlugged === 1)) {
+                if (plugged) {
+                    root._low20 = false;
+                    root._low15 = false;
+                    root._low10 = false;
+                    root._crit5 = false;
+                    if (haveLevel) {
+                        if (statusString === "Full" || level >= 100)
+                            root.batteryRequested(level, true, "Fully Charged");
+                        else {
+                            // Already above the unplug nudge: seed it silently so
+                            // it doesn't fire later. The greeting is Charging.
+                            if (level >= 80)
+                                root._unplug80 = true;
+                            root.batteryRequested(level, true, "Charging");
+                        }
+                    }
+                } else {
+                    root._unplug80 = false;
+                    root._full100 = false;
+                    if (haveLevel)
+                        root.batteryRequested(level, false, "On Battery");
+                }
+                fired = true;
             }
-            root._lastChargeStatus = statusString;
+            root._lastPlugged = plugged ? 1 : 0;
+
+            if (haveLevel && !baseline && !fired && root._lastBatteryLevel >= 0) {
+                if (!plugged) {
+                    if (level <= 5 && root._lastBatteryLevel > 5 && !root._crit5) {
+                        root._crit5 = true;
+                        root.batteryRequested(level, false, "Critical · 5%");
+                    } else if (level <= 10 && root._lastBatteryLevel > 10 && !root._low10) {
+                        root._low10 = true;
+                        root.batteryRequested(level, false, "Low Battery · 10%");
+                    } else if (level <= 15 && root._lastBatteryLevel > 15 && !root._low15) {
+                        root._low15 = true;
+                        root.batteryRequested(level, false, "Low Battery · 15%");
+                    } else if (level <= 20 && root._lastBatteryLevel > 20 && !root._low20) {
+                        root._low20 = true;
+                        root.batteryRequested(level, false, "Low Battery · 20%");
+                    }
+                } else if (statusString !== "Full") {
+                    if (level >= 80 && root._lastBatteryLevel < 80 && !root._unplug80) {
+                        root._unplug80 = true;
+                        root.batteryRequested(level, true, "Unplug Charger");
+                    }
+                }
+                if (plugged && (statusString === "Full" || level >= 100) && !root._full100) {
+                    root._full100 = true;
+                    root.batteryRequested(level, true, "Fully Charged");
+                }
+            }
+            if (haveLevel)
+                root._lastBatteryLevel = level;
         }
 
         function onBrightnessChanged(value) {

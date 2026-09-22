@@ -253,6 +253,8 @@ Rectangle {
                 iconText: islandController.splitIcon
                 progress: islandController.osdProgress
                 customText: islandController.osdCustomText
+                batteryLevel: islandController.osdBatteryLevel
+                batteryCharging: islandController.osdBatteryCharging
                 iconFontFamily: windowRoot.iconFontFamily
                 textFontFamily: windowRoot.textFontFamily
                 heroFontFamily: windowRoot.heroFontFamily

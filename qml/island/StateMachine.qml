@@ -22,6 +22,8 @@ FocusScope {
     property real osdProgress: -1.0
     property bool osdProgressAnimationEnabled: true
     property string osdCustomText: ""
+    property real osdBatteryLevel: -1.0
+    property bool osdBatteryCharging: false
     property int currentWs: windowRoot.currentMonitorWorkspaceId > 0 ? windowRoot.currentMonitorWorkspaceId : 1
     readonly property int batteryCapacity: systemState.batteryCapacity
     readonly property bool isCharging: systemState.isCharging
@@ -166,6 +168,10 @@ FocusScope {
 
         onTransientRequested: function(icon, progress, text) {
             root.showTransientCapsule(icon, progress, text);
+        }
+
+        onBatteryRequested: function(level, charging, text) {
+            root.showBatteryTransient(level, charging, text);
         }
     }
 
@@ -329,6 +335,8 @@ FocusScope {
         notificationReplyKeyboardFocusRequested = false;
         setOsdProgress(-1.0, false);
         osdCustomText = "";
+        osdBatteryLevel = -1.0;
+        osdBatteryCharging = false;
         notificationAppName = "";
         notificationSummary = "";
         notificationBody = "";
@@ -592,7 +600,35 @@ FocusScope {
             clearTransientCapsule();
         splitIcon = icon;
         osdCustomText = customText;
+        osdBatteryLevel = -1.0;
+        osdBatteryCharging = false;
         setOsdProgress(nextProgress, animateProgress);
+        splitOriginSide = animateFromSide;
+        islandState = "split";
+        swipeTransitionProgress = 0;
+        restartAutoHideTimer();
+    }
+
+    function showBatteryTransient(level, charging, customText) {
+        if (customText === undefined)  customText = "";
+
+        // Same precedence as showTransientCapsule: system battery state wins
+        // over banners, never over the expanded player or a reply draft.
+        if (islandState === "expanded") return;
+        if (notificationReplyKeyboardFocusRequested) return;
+        if (windowRoot.autoHideSuppressesTransientReveal)
+            windowRoot.showAutoHiddenIsland("state");
+
+        const animateFromSide = currentTransientOriginSide();
+
+        abortSideTransientMode();
+        if (islandState === "notification")
+            clearTransientCapsule();
+        splitIcon = "";
+        osdCustomText = customText;
+        setOsdProgress(-1.0, false);
+        osdBatteryLevel = clamp01(level / 100.0) * 100.0;
+        osdBatteryCharging = charging === true;
         splitOriginSide = animateFromSide;
         islandState = "split";
         swipeTransitionProgress = 0;
@@ -638,21 +674,9 @@ FocusScope {
                          : Qt.resolvedUrl("../resources/icons/bluetooth-connected.svg");
         }
 
-        // 4. Battery / Power
-        const isBat = ico.indexOf("battery") !== -1 || app.indexOf("power") !== -1 || app.indexOf("upower") !== -1 || app.indexOf("battery") !== -1 || combined.indexOf("battery") !== -1;
-        if (isBat) {
-            const isDischarging = ico.indexOf("discharging") !== -1 || combined.indexOf("discharging") !== -1 || combined.indexOf("unplugged") !== -1 || combined.indexOf("on battery") !== -1;
-            const isCharging = !isDischarging && (ico.indexOf("charging") !== -1 || ico.indexOf("ac-adapter") !== -1 || ico.indexOf("bolt") !== -1
-                || combined.indexOf("charging") !== -1 || combined.indexOf("plugged in") !== -1 || combined.indexOf("connected to power") !== -1);
-            if (isCharging) return Qt.resolvedUrl("../resources/icons/battery-bolt.svg");
-            if (isDischarging) return Qt.resolvedUrl("../resources/icons/battery-discharging.svg");
-
-            const isFull = ico.indexOf("full") !== -1 || ico.indexOf("charged") !== -1
-                || combined.indexOf("battery full") !== -1 || combined.indexOf("fully charged") !== -1 || combined.indexOf("charged") !== -1;
-            if (isFull) return Qt.resolvedUrl("../resources/icons/battery-full.svg");
-
-            return Qt.resolvedUrl("../resources/icons/battery-discharging.svg");
-        }
+        // 4. Battery / Power — battery state renders natively through the
+        // island's live battery OSD, so third-party battery banners keep the
+        // generic icon instead of pointing at removed static glyphs.
 
         // 5. Brightness
         const isBrightness = ico.indexOf("brightness") !== -1 || ico.indexOf("backlight") !== -1
