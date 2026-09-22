@@ -111,7 +111,7 @@ FocusScope {
     readonly property string timePlayed: mediaController.timePlayed
     readonly property string timeTotal: mediaController.timeTotal
     readonly property bool isMediaPlaying: mediaController.isPlaying
-    readonly property bool hasMediaPlaying: isMediaPlaying && (currentTrack !== "" || activePlayer !== null)
+    readonly property bool hasMediaPlaying: isMediaPlaying && currentTrack !== ""
     readonly property real normalRestingWidth: hasMediaPlaying
         ? Math.max(userConfig.islandWidth, 168)
         : userConfig.islandWidth

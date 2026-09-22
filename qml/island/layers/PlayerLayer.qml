@@ -128,7 +128,7 @@ Item {
                                 spacing: 4
 
                                 Text {
-                                    text: currentTrack
+                                    text: currentTrack !== "" ? currentTrack : "No media playing"
                                     color: "white"
                                     font.pixelSize: userConfig.bodyFontSize
                                     font.family: textFontFamily
@@ -140,6 +140,7 @@ Item {
 
                                 Text {
                                     text: currentArtist
+                                    visible: currentArtist !== ""
                                     color: "#8e8e93"
                                     font.pixelSize: userConfig.bodyFontSize - 2
                                     font.family: textFontFamily
@@ -155,6 +156,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             width: 44
                             height: 22
+                            visible: currentTrack !== ""
 
                             CavaBars {
                                 anchors.centerIn: parent
