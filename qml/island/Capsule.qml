@@ -39,7 +39,7 @@ Rectangle {
             panelHeight = 220;
         else if (count === 3)
             panelHeight = 285;
-        return { width: 430, height: panelHeight, radius: 40 };
+        return { width: 430, height: panelHeight + 48, radius: 40 };
     }
 
     function capsuleTargetGeometry(state, expandedContent, historyCount) {
@@ -356,6 +356,8 @@ Rectangle {
         sourceComponent: Component {
             SecondaryPanelLayer {
                 history: NotificationServer.history
+                timerActive: islandController.timerActive
+                onTimerRequested: islandController.openTimer()
                 textFontFamily: windowRoot.textFontFamily
                 showCondition: islandController.secondaryPanelVisible
                 onControlPressed: islandController.suppressCapsuleClick()

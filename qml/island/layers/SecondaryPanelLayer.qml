@@ -10,11 +10,13 @@ Item {
     signal backgroundClicked()
     signal closeRequested()
     signal clearAllRequested()
+    signal timerRequested()
     signal removeHistoryItemRequested(var notificationId)
 
     readonly property var userConfig: UserConfig
 
     property bool showCondition: false
+    property bool timerActive: false
     property var history: []
     property string textFontFamily: userConfig.textFontFamily
 
@@ -146,6 +148,33 @@ Item {
             anchors.bottomMargin: 16
             spacing: 10
 
+            Rectangle {
+                width: parent.width
+                height: 38
+                radius: StyleTokens.radiusButton
+                color: timerArea.pressed ? StyleTokens.moduleHover : StyleTokens.timerFill
+                Accessible.role: Accessible.Button
+                Accessible.name: timerLabel.text
+                Accessible.onPressAction: root.timerRequested()
+
+                Text {
+                    id: timerLabel
+                    anchors.centerIn: parent
+                    text: root.timerActive ? "Show Timer" : "Set Timer"
+                    color: StyleTokens.timerAccent
+                    font.family: root.textFontFamily
+                    font.pixelSize: userConfig.bodyFontSize - 2
+                    font.weight: Font.DemiBold
+                }
+                MouseArea {
+                    id: timerArea
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onPressed: root.controlPressed()
+                    onClicked: root.timerRequested()
+                }
+            }
+
             Item {
                 width: parent.width
                 height: 28
@@ -203,7 +232,7 @@ Item {
 
             Item {
                 width: parent.width
-                height: parent.height - 38
+                height: parent.height - 86
 
                 Text {
                     anchors.centerIn: parent
