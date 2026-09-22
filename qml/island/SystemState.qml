@@ -30,6 +30,8 @@ Item {
     readonly property string volumeUpStatusIcon: Qt.resolvedUrl("../resources/icons/volume-up.svg")
     readonly property string volumeStatusIcon: Qt.resolvedUrl("../resources/icons/volume-up.svg")
     readonly property string muteStatusIcon: Qt.resolvedUrl("../resources/icons/volume-mute.svg")
+    readonly property string micStatusIcon: Qt.resolvedUrl("../resources/icons/microphone.svg")
+    readonly property string micMutedStatusIcon: Qt.resolvedUrl("../resources/icons/microphone-slash.svg")
     readonly property string brightnessLowStatusIcon: Qt.resolvedUrl("../resources/icons/brightness-low.svg")
     readonly property string brightnessMediumStatusIcon: Qt.resolvedUrl("../resources/icons/brightness.svg")
     readonly property string brightnessHighStatusIcon: Qt.resolvedUrl("../resources/icons/brightness.svg")
@@ -44,6 +46,8 @@ Item {
     property bool isCharging: SysBackend.batteryStatus === "Charging" || SysBackend.batteryStatus === "Full"
     property real currentVolume: -1
     property bool isMuted: false
+    property real currentMicVolume: -1
+    property bool isMicMuted: false
     property real currentBrightness: -1
     property real currentCpuUsage: -1
     property real currentRamUsage: -1
@@ -56,6 +60,16 @@ Item {
     property real _pendingVolVal: 0.0
     property string _lastVolType: ""
     property real _lastVolVal: -1.0
+    property string _pendingMicType: ""
+    property real _pendingMicVal: 0.0
+    property string _lastMicType: ""
+    property real _lastMicVal: -1.0
+    // First backend sync only seeds state; OSD fires from the second update
+    // on so the island never pops up on launch. Keeps working once HyDE's
+    // duplicate notifies are disabled because real key events always follow.
+    property bool _volumeSynced: false
+    property bool _micSynced: false
+    property bool _brightnessSynced: false
     property bool _bluetoothVolumeSuppressed: false
     property real _pendingBrightnessValue: 0.0
     property string _customLeftItemsSignature: ""
@@ -103,6 +117,10 @@ Item {
             return volumeUpStatusIcon;
         case "mute":
             return muteStatusIcon;
+        case "mic":
+            return micStatusIcon;
+        case "micMute":
+            return micMutedStatusIcon;
         case "brightnessLow":
             return brightnessLowStatusIcon;
         case "brightnessMedium":
@@ -320,6 +338,24 @@ Item {
     }
 
     Timer {
+        id: micDebounce
+
+        interval: 16
+
+        onTriggered: {
+            if (root._pendingMicType !== root._lastMicType
+                    || Math.abs(root._pendingMicVal - root._lastMicVal) > 0.001) {
+                root._lastMicType = root._pendingMicType;
+                root._lastMicVal = root._pendingMicVal;
+                if (root._pendingMicType === "MUTE")
+                    root.transientRequested(root.statusIcon("micMute"), -1.0, "Mic muted");
+                else
+                    root.transientRequested(root.statusIcon("mic"), root._pendingMicVal, "");
+            }
+        }
+    }
+
+    Timer {
         id: brightnessDebounce
 
         interval: 16
@@ -382,6 +418,17 @@ Item {
         function onVolumeChanged(volPercentage, isMuted) {
             const nextVolType = isMuted ? "MUTE" : "VOL";
             const nextVolValue = root.clamp01(volPercentage / 100.0);
+            if (!root._volumeSynced) {
+                root._volumeSynced = true;
+                root._pendingVolType = nextVolType;
+                root._pendingVolVal = nextVolValue;
+                root._lastVolType = nextVolType;
+                root._lastVolVal = nextVolValue;
+                root.currentVolume = nextVolValue;
+                root.isMuted = isMuted;
+                return;
+            }
+
             const unchanged = root.isMuted === isMuted
                 && Math.abs(root.currentVolume - nextVolValue) <= 0.001
                 && root._pendingVolType === nextVolType
@@ -395,6 +442,35 @@ Item {
             root.currentVolume = nextVolValue;
             root.isMuted = isMuted;
             volumeDebounce.restart();
+        }
+
+        function onMicVolumeChanged(micPercentage, isMuted) {
+            const nextMicType = isMuted ? "MUTE" : "VOL";
+            const nextMicValue = root.clamp01(micPercentage / 100.0);
+            if (!root._micSynced) {
+                root._micSynced = true;
+                root._pendingMicType = nextMicType;
+                root._pendingMicVal = nextMicValue;
+                root._lastMicType = nextMicType;
+                root._lastMicVal = nextMicValue;
+                root.currentMicVolume = nextMicValue;
+                root.isMicMuted = isMuted;
+                return;
+            }
+
+            const unchanged = root.isMicMuted === isMuted
+                && Math.abs(root.currentMicVolume - nextMicValue) <= 0.001
+                && root._pendingMicType === nextMicType
+                && Math.abs(root._pendingMicVal - nextMicValue) <= 0.001;
+
+            if (unchanged)
+                return;
+
+            root._pendingMicType = nextMicType;
+            root._pendingMicVal = nextMicValue;
+            root.currentMicVolume = nextMicValue;
+            root.isMicMuted = isMuted;
+            micDebounce.restart();
         }
 
         function onBatteryChanged(capacity, statusString) {
@@ -412,6 +488,12 @@ Item {
         }
 
         function onBrightnessChanged(value) {
+            if (!root._brightnessSynced) {
+                root._brightnessSynced = true;
+                root._pendingBrightnessValue = value;
+                root.currentBrightness = value;
+                return;
+            }
             root._pendingBrightnessValue = value;
             root.currentBrightness = value;
             brightnessDebounce.restart();

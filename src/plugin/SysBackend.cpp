@@ -24,11 +24,13 @@ SysBackend::SysBackend(QObject *parent)
       m_paSubscriber(nullptr),
       m_volumeQueryProcess(nullptr),
       m_defaultSinkQueryProcess(nullptr),
+      m_micVolumeQueryProcess(nullptr),
       m_brightnessWatcher(nullptr),
       m_batteryNotifier(nullptr),
       m_audioDebounceTimer(nullptr),
       m_volumeQueryTimeoutTimer(nullptr),
       m_defaultSinkQueryTimeoutTimer(nullptr),
+      m_micVolumeQueryTimeoutTimer(nullptr),
       m_lyricsProcess(nullptr),
       m_lyricsRestartTimer(nullptr),
       m_maxBrightness(1.0),
@@ -373,18 +375,34 @@ void SysBackend::setupAudio() {
     m_audioDebounceTimer->setInterval(kAudioEventDebounceMs);
     connect(m_audioDebounceTimer, &QTimer::timeout, this, [this]() {
         fetchCurrentVolume();
+        fetchCurrentMicVolume();
         checkDefaultAudioDevice();
+    });
+
+    m_micVolumeQueryProcess = new QProcess(this);
+    m_micVolumeQueryTimeoutTimer = new QTimer(this);
+    m_micVolumeQueryTimeoutTimer->setSingleShot(true);
+    m_micVolumeQueryTimeoutTimer->setInterval(kCommandTimeoutMs);
+    connect(m_micVolumeQueryTimeoutTimer, &QTimer::timeout, this, [this]() {
+        if (m_micVolumeQueryProcess && m_micVolumeQueryProcess->state() != QProcess::NotRunning)
+            m_micVolumeQueryProcess->kill();
+    });
+    connect(m_micVolumeQueryProcess, qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
+            this, &SysBackend::handleMicVolumeQueryFinished);
+    connect(m_micVolumeQueryProcess, &QProcess::errorOccurred, this, [this](QProcess::ProcessError) {
+        if (m_micVolumeQueryTimeoutTimer) m_micVolumeQueryTimeoutTimer->stop();
     });
 
     m_paSubscriber->start("pactl", QStringList() << "subscribe");
     fetchCurrentVolume();
+    fetchCurrentMicVolume();
     checkDefaultAudioDevice();
 }
 
 void SysBackend::handleVolumeEvent() {
     QByteArray output = m_paSubscriber->readAllStandardOutput();
 
-    if (output.contains("sink") || output.contains("card") || output.contains("server")) {
+    if (output.contains("sink") || output.contains("source") || output.contains("card") || output.contains("server")) {
         if (m_audioDebounceTimer) m_audioDebounceTimer->start();
     }
 }
@@ -412,6 +430,32 @@ void SysBackend::handleVolumeQueryFinished(int exitCode, QProcess::ExitStatus ex
         if (!ok) return;
 
         emit volumeChanged(volPercentage, isMuted);
+    }
+}
+
+void SysBackend::fetchCurrentMicVolume() {
+    startTimedProcess(
+        m_micVolumeQueryProcess,
+        m_micVolumeQueryTimeoutTimer,
+        QStringLiteral("wpctl"),
+        QStringList() << QStringLiteral("get-volume") << QStringLiteral("@DEFAULT_AUDIO_SOURCE@")
+    );
+}
+
+void SysBackend::handleMicVolumeQueryFinished(int exitCode, QProcess::ExitStatus exitStatus) {
+    if (m_micVolumeQueryTimeoutTimer) m_micVolumeQueryTimeoutTimer->stop();
+    if (!m_micVolumeQueryProcess || exitStatus != QProcess::NormalExit || exitCode != 0) return;
+
+    const QString output = QString::fromUtf8(m_micVolumeQueryProcess->readAllStandardOutput()).trimmed();
+
+    if (output.startsWith("Volume:")) {
+        const bool isMuted = output.contains("[MUTED]");
+        const QString valStr = output.section(' ', 1, 1);
+        bool ok = false;
+        const int micPercentage = static_cast<int>(valStr.toDouble(&ok) * 100);
+        if (!ok) return;
+
+        emit micVolumeChanged(micPercentage, isMuted);
     }
 }
 

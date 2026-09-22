@@ -574,14 +574,22 @@ FocusScope {
         if (progress === undefined)    progress = -1.0;
         if (customText === undefined)  customText = "";
 
-        if (windowRoot.autoHideSuppressesTransientReveal) return;
-        if (blocksTransientSplit) return;
+        // Hardware/system OSD (volume, brightness, mic, charger) always wins
+        // over a notification banner — the banner is already in history and
+        // the model, so nothing is lost. Never preempts the expanded player
+        // or an inline-reply draft the user is actively typing.
+        if (islandState === "expanded") return;
+        if (notificationReplyKeyboardFocusRequested) return;
+        if (windowRoot.autoHideSuppressesTransientReveal)
+            windowRoot.showAutoHiddenIsland("state");
 
         const nextProgress = progress >= 0 ? progress : -1.0;
         const animateProgress = islandState === "split" && osdProgress >= 0 && nextProgress >= 0;
         const animateFromSide = currentTransientOriginSide();
 
         abortSideTransientMode();
+        if (islandState === "notification")
+            clearTransientCapsule();
         splitIcon = icon;
         osdCustomText = customText;
         setOsdProgress(nextProgress, animateProgress);
