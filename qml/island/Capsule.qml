@@ -299,6 +299,7 @@ Rectangle {
         active: islandController.timerActive && islandController.islandState === "normal"
         sourceComponent: TimerIdleLayer {
             countdown: islandController.countdown
+            countdownWidth: islandController.timerCountdownWidth
             timeText: timeObj.currentTime
             fontFamily: windowRoot.timeFontFamily
             recordingActive: islandController.screenRecordingActive

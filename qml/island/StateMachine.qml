@@ -118,10 +118,31 @@ FocusScope {
     readonly property string timeTotal: mediaController.timeTotal
     readonly property bool isMediaPlaying: mediaController.isPlaying
     readonly property bool hasMediaPlaying: isMediaPlaying && currentTrack !== ""
-    readonly property real normalRestingWidth: timerActive ? Math.max(userConfig.islandWidth, 252) : hasMediaPlaying
+    readonly property real timerRestingWidth: Math.ceil(22 + timerClockMetrics.advanceWidth
+        + timerCountdownMetrics.advanceWidth + (screenRecordingActive ? 10 : 0) + 28 + 32)
+    readonly property real timerCountdownWidth: Math.ceil(timerCountdownMetrics.advanceWidth)
+    readonly property real normalRestingWidth: timerActive ? Math.max(userConfig.islandWidth, timerRestingWidth) : hasMediaPlaying
         ? Math.max(userConfig.islandWidth, 168)
         : userConfig.islandWidth
     readonly property bool screenRecordingActive: windowRoot.screenRecordingActive
+
+    TextMetrics {
+        id: timerClockMetrics
+        text: timeObj.currentTime
+        font.family: windowRoot.timeFontFamily
+        font.pixelSize: userConfig.bodyFontSize + 1
+        font.weight: Font.Bold
+    }
+
+    TextMetrics {
+        id: timerCountdownMetrics
+        // Reserve the original duration's digit count so ticking does not resize the pill.
+        text: countdown.formatTime(Math.ceil(countdown.durationMs / 1000)).replace(/[0-9]/g, "8")
+        font.family: windowRoot.timeFontFamily
+        font.pixelSize: userConfig.bodyFontSize + 1
+        font.weight: Font.DemiBold
+        font.features: { "tnum": 1 }
+    }
 
     onExpandedLayerVisibleChanged: {
         if (!expandedLayerVisible)

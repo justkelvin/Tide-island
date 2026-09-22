@@ -208,21 +208,26 @@ If the systemd service is already enabled, you do not need to add `exec-once`.
 
 Search `Tide Island Settings` in any application launcher.
 
-### Timer (temporary hover gesture)
+### Timer
 
-Hover over the resting pill to set a timer. Drag the ruler left/right or scroll
+Open the secondary panel (right-click by default) and choose **Set Timer**, or
+hold the left mouse button on the collapsed pill for half a second and release.
+The pill compresses slightly while held; dragging still performs a swipe.
+If a timer is already active, either entry opens its controls instead.
+Drag the ruler left/right or scroll
 to adjust seconds; click the ruler to switch between seconds and minutes without
 changing the selected duration. Click **Start Timer** to begin.
 
 While running or paused, the idle pill shows a countdown ring, the normal clock,
-and the remaining time. Click it for pause/resume and cancel controls; these
-collapse after 10 seconds. Cancel restores the clock and any playing media.
+and the remaining time. Click it for pause/resume and cancel controls; click the
+preview's empty space to dismiss it immediately. Otherwise,
+the controls collapse after 10 seconds. Cancel restores the clock and any playing media.
 At zero, a short chime plays and **Timer done** appears for five seconds.
 
 The timer takes precedence over media in the idle pill and is shared across
 screens. Durations range from one second to 24 hours. Timers live for the current
-shell session; restarting Tide Island clears them. Hover entry temporarily
-overrides the media hover setting while this gesture is being tested.
+shell session; restarting Tide Island clears them. Hover no longer opens the
+timer editor; the existing media hover preference applies again.
 
 ## Common Commands
 

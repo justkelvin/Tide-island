@@ -12,13 +12,38 @@ Item {
     property string fontFamily: ""
     readonly property color accent: StyleTokens.timerAccent
 
-    // Swallow background clicks so they cannot trigger configured media actions.
-    MouseArea { anchors.fill: parent; onClicked: {} }
+    // Controls above this area consume their own clicks; empty space dismisses the preview.
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.AllButtons
+        onClicked: {
+            if (!root.editing) root.controller.smartRestoreState();
+        }
+    }
 
     Item {
         id: editor
         anchors.fill: parent
         visible: root.editing
+
+        Item {
+            anchors.right: parent.right
+            anchors.rightMargin: 20
+            y: 14
+            width: 28
+            height: 28
+            SvgIcon {
+                anchors.centerIn: parent
+                iconSize: 16
+                source: Qt.resolvedUrl("../../resources/icons/cancel.svg")
+                color: StyleTokens.textSecondary
+            }
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.controller.smartRestoreState()
+            }
+        }
 
         Text {
             x: 26; y: 22
@@ -26,6 +51,7 @@ Item {
             color: root.accent
             font.family: root.fontFamily
             font.pixelSize: 12
+            font.weight: Font.Medium
             opacity: 0.75
         }
 
@@ -54,7 +80,7 @@ Item {
                     required property int index
                     readonly property int value: Math.floor(ruler.position) + index - 22
                     x: ruler.width / 2 + (value - ruler.position) * ruler.spacing
-                    width: 2
+                    width: 3
                     height: 55
                     visible: value >= 0 && value * ruler.step <= 86400
                     opacity: Math.max(0, 1 - Math.pow(Math.abs(x - ruler.width / 2) / (ruler.width / 2), 2))
@@ -66,12 +92,13 @@ Item {
                         color: root.accent
                         font.family: root.fontFamily
                         font.pixelSize: 12
+                        font.weight: Font.Medium
                     }
                     Rectangle {
                         y: 23
-                        width: 2
+                        width: 3
                         height: tick.value % 5 === 0 ? 30 : 24
-                        radius: 1
+                        radius: 1.5
                         color: root.accent
                         opacity: tick.value <= ruler.position ? 1 : 0.35
                     }
@@ -157,7 +184,7 @@ Item {
             color: root.accent
             font.family: root.fontFamily
             font.pixelSize: 38
-            font.weight: Font.Light
+            font.weight: Font.Medium
             font.features: { "tnum": 1 }
         }
     }
@@ -215,6 +242,7 @@ Item {
             color: root.accent
             font.family: root.fontFamily
             font.pixelSize: 28
+            font.weight: Font.Medium
             font.features: { "tnum": 1 }
         }
     }
