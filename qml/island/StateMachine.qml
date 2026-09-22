@@ -67,7 +67,7 @@ FocusScope {
     readonly property bool splitShowsText: islandState === "split" && osdProgress < 0 && osdCustomText !== ""
     readonly property bool splitShowsIconOnly: islandState === "split" && osdProgress < 0 && osdCustomText === ""
     readonly property bool splitUsesExtendedLayout: splitShowsProgress || splitShowsText
-    readonly property real splitCapsuleWidth: splitShowsProgress ? 248 : (splitShowsText ? 220 : userConfig.islandWidth)
+    readonly property real splitCapsuleWidth: splitShowsProgress ? (userConfig.osdProgressStyle === "ring" ? 248 : 220) : (splitShowsText ? 220 : userConfig.islandWidth)
     readonly property bool canShowSideSwipe: islandState === "normal"
         || islandState === "custom"
         || islandState === "lyrics"

@@ -177,6 +177,11 @@ QString UserConfigBackend::clockFormat() const
     return m_clockFormat;
 }
 
+QString UserConfigBackend::osdProgressStyle() const
+{
+    return m_osdProgressStyle;
+}
+
 int UserConfigBackend::dynamicIslandPrimaryButton() const
 {
     return m_dynamicIslandPrimaryButton;
@@ -371,6 +376,8 @@ void UserConfigBackend::loadConfig()
     updateField(this, m_timeFontFamily, jsonString(configObject, QLatin1String("timeFontFamily"), QStringLiteral("Inter Display")), &UserConfigBackend::timeFontFamilyChanged);
     const QString configuredClockFormat = jsonString(configObject, QLatin1String("clockFormat"), QStringLiteral("12"));
     updateField(this, m_clockFormat, configuredClockFormat == QLatin1String("24") ? QStringLiteral("24") : QStringLiteral("12"), &UserConfigBackend::clockFormatChanged);
+    const QString configuredOsdStyle = jsonString(configObject, QLatin1String("osdProgressStyle"), QStringLiteral("line"));
+    updateField(this, m_osdProgressStyle, configuredOsdStyle == QLatin1String("ring") ? QStringLiteral("ring") : QStringLiteral("line"), &UserConfigBackend::osdProgressStyleChanged);
     updateField(this, m_dynamicIslandPrimaryButton, jsonInt(configObject, QLatin1String("dynamicIslandPrimaryButton"), 1), &UserConfigBackend::dynamicIslandPrimaryButtonChanged);
     updateField(this, m_dynamicIslandPrimaryAction, jsonString(configObject, QLatin1String("dynamicIslandPrimaryAction"), QStringLiteral("toggleExpandedPlayer")), &UserConfigBackend::dynamicIslandPrimaryActionChanged);
     updateField(this, m_dynamicIslandSecondaryButton, jsonInt(configObject, QLatin1String("dynamicIslandSecondaryButton"), 3), &UserConfigBackend::dynamicIslandSecondaryButtonChanged);

@@ -328,11 +328,14 @@ Item {
                     || Math.abs(root._pendingVolVal - root._lastVolVal) > 0.001) {
                 root._lastVolType = root._pendingVolType;
                 root._lastVolVal = root._pendingVolVal;
-                root.transientRequested(
-                    root._pendingVolType === "MUTE" ? root.statusIcon("mute") : (root._pendingVolVal <= 0.4 ? root.statusIcon("volumeDown") : root.statusIcon("volumeUp")),
-                    root._pendingVolVal,
-                    ""
-                );
+                if (root._pendingVolType === "MUTE")
+                    root.transientRequested(root.statusIcon("mute"), -1.0, "Muted");
+                else
+                    root.transientRequested(
+                        root._pendingVolVal <= 0.4 ? root.statusIcon("volumeDown") : root.statusIcon("volumeUp"),
+                        root._pendingVolVal,
+                        ""
+                    );
             }
         }
     }

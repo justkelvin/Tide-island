@@ -22,6 +22,7 @@ class UserConfigBackend final : public QObject {
     Q_PROPERTY(QString heroFontFamily READ heroFontFamily NOTIFY heroFontFamilyChanged FINAL)
     Q_PROPERTY(QString timeFontFamily READ timeFontFamily NOTIFY timeFontFamilyChanged FINAL)
     Q_PROPERTY(QString clockFormat READ clockFormat NOTIFY clockFormatChanged FINAL)
+    Q_PROPERTY(QString osdProgressStyle READ osdProgressStyle NOTIFY osdProgressStyleChanged FINAL)
 
     Q_PROPERTY(int dynamicIslandPrimaryButton READ dynamicIslandPrimaryButton NOTIFY dynamicIslandPrimaryButtonChanged FINAL)
     Q_PROPERTY(QString dynamicIslandPrimaryAction READ dynamicIslandPrimaryAction NOTIFY dynamicIslandPrimaryActionChanged FINAL)
@@ -61,6 +62,7 @@ public:
     QString heroFontFamily() const;
     QString timeFontFamily() const;
     QString clockFormat() const;
+    QString osdProgressStyle() const;
     int dynamicIslandPrimaryButton() const;
     QString dynamicIslandPrimaryAction() const;
     int dynamicIslandSecondaryButton() const;
@@ -93,6 +95,7 @@ signals:
     void heroFontFamilyChanged();
     void timeFontFamilyChanged();
     void clockFormatChanged();
+    void osdProgressStyleChanged();
     void dynamicIslandPrimaryButtonChanged();
     void dynamicIslandPrimaryActionChanged();
     void dynamicIslandSecondaryButtonChanged();
@@ -127,6 +130,7 @@ private:
     QString m_heroFontFamily = QStringLiteral("Inter Display");
     QString m_timeFontFamily = QStringLiteral("Inter Display");
     QString m_clockFormat = QStringLiteral("12");
+    QString m_osdProgressStyle = QStringLiteral("line");
     int m_dynamicIslandPrimaryButton = 1;
     QString m_dynamicIslandPrimaryAction = QStringLiteral("toggleExpandedPlayer");
     int m_dynamicIslandSecondaryButton = 3;
