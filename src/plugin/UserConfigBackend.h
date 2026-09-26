@@ -6,6 +6,9 @@
 #include <QVariantList>
 #include <QtQml/qqml.h>
 
+class QQmlEngine;
+class QJSEngine;
+
 class UserConfigBackend final : public QObject {
     Q_OBJECT
     QML_NAMED_ELEMENT(UserConfig)
@@ -19,6 +22,7 @@ class UserConfigBackend final : public QObject {
     Q_PROPERTY(QString heroFontFamily READ heroFontFamily NOTIFY heroFontFamilyChanged FINAL)
     Q_PROPERTY(QString timeFontFamily READ timeFontFamily NOTIFY timeFontFamilyChanged FINAL)
     Q_PROPERTY(QString clockFormat READ clockFormat NOTIFY clockFormatChanged FINAL)
+    Q_PROPERTY(QString osdProgressStyle READ osdProgressStyle NOTIFY osdProgressStyleChanged FINAL)
 
     Q_PROPERTY(int dynamicIslandPrimaryButton READ dynamicIslandPrimaryButton NOTIFY dynamicIslandPrimaryButtonChanged FINAL)
     Q_PROPERTY(QString dynamicIslandPrimaryAction READ dynamicIslandPrimaryAction NOTIFY dynamicIslandPrimaryActionChanged FINAL)
@@ -30,6 +34,7 @@ class UserConfigBackend final : public QObject {
     Q_PROPERTY(bool islandAutoHideEnabled READ islandAutoHideEnabled NOTIFY islandAutoHideEnabledChanged FINAL)
     Q_PROPERTY(int islandAutoHideDelayMs READ islandAutoHideDelayMs NOTIFY islandAutoHideDelayMsChanged FINAL)
     Q_PROPERTY(bool islandShowWorkspaceOnAutoHide READ islandShowWorkspaceOnAutoHide NOTIFY islandShowWorkspaceOnAutoHideChanged FINAL)
+    Q_PROPERTY(bool cleanNotificationUrls READ cleanNotificationUrls NOTIFY cleanNotificationUrlsChanged FINAL)
 
     Q_PROPERTY(int islandWidth READ islandWidth NOTIFY islandWidthChanged FINAL)
     Q_PROPERTY(int islandHeight READ islandHeight NOTIFY islandHeightChanged FINAL)
@@ -43,6 +48,12 @@ class UserConfigBackend final : public QObject {
 
 public:
     explicit UserConfigBackend(QObject *parent = nullptr);
+    ~UserConfigBackend() override;
+
+    // Shared instance for C++ consumers (e.g. NotificationServer sanitizer).
+    // QML uses the same object via create(), so the flag stays live.
+    static UserConfigBackend *instance();
+    static UserConfigBackend *create(QQmlEngine *qmlEngine, QJSEngine *jsEngine);
 
     QString userConfigPath() const;
     QString configError() const;
@@ -51,6 +62,7 @@ public:
     QString heroFontFamily() const;
     QString timeFontFamily() const;
     QString clockFormat() const;
+    QString osdProgressStyle() const;
     int dynamicIslandPrimaryButton() const;
     QString dynamicIslandPrimaryAction() const;
     int dynamicIslandSecondaryButton() const;
@@ -61,6 +73,7 @@ public:
     bool islandShowWorkspaceOnAutoHide() const;
     bool islandAutoHideEnabled() const;
     int islandAutoHideDelayMs() const;
+    bool cleanNotificationUrls() const;
     int islandWidth() const;
     int islandHeight() const;
     int islandExclusiveZone() const;
@@ -82,6 +95,7 @@ signals:
     void heroFontFamilyChanged();
     void timeFontFamilyChanged();
     void clockFormatChanged();
+    void osdProgressStyleChanged();
     void dynamicIslandPrimaryButtonChanged();
     void dynamicIslandPrimaryActionChanged();
     void dynamicIslandSecondaryButtonChanged();
@@ -92,6 +106,7 @@ signals:
     void hoverExpandActionChanged();
     void islandAutoHideEnabledChanged();
     void islandAutoHideDelayMsChanged();
+    void cleanNotificationUrlsChanged();
     void islandWidthChanged();
     void islandHeightChanged();
     void islandExclusiveZoneChanged();
@@ -115,16 +130,18 @@ private:
     QString m_heroFontFamily = QStringLiteral("Inter Display");
     QString m_timeFontFamily = QStringLiteral("Inter Display");
     QString m_clockFormat = QStringLiteral("12");
+    QString m_osdProgressStyle = QStringLiteral("line");
     int m_dynamicIslandPrimaryButton = 1;
     QString m_dynamicIslandPrimaryAction = QStringLiteral("toggleExpandedPlayer");
     int m_dynamicIslandSecondaryButton = 3;
-    QString m_dynamicIslandSecondaryAction = QString();
+    QString m_dynamicIslandSecondaryAction = QStringLiteral("toggleSecondaryPanel");
     QVariantList m_dynamicIslandLeftSwipeItems;
     bool m_islandShowWorkspaceOnAutoHide = true;
     bool m_disableAutoExpandOnTrackChange = false;
     int m_hoverExpandAction = 1;
     bool m_islandAutoHideEnabled = true;
     int m_islandAutoHideDelayMs = 1000;
+    bool m_cleanNotificationUrls = true;
     int m_islandWidth = 140;
     int m_islandBackgroundOpacity = 60;
     int m_islandHeight = 38;
@@ -137,4 +154,6 @@ private:
 
     QFileSystemWatcher m_watcher;
     QTimer m_reloadTimer;
+
+    static UserConfigBackend *s_instance;
 };

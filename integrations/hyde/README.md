@@ -82,3 +82,18 @@ dunstctl set-paused true
 ```
 
 Restore the backed-up Tide and Waybar configuration directories to revert.
+
+## Volume / brightness OSD ownership
+
+Tide now renders volume, mic-mute, and brightness feedback natively from
+PipeWire (`@DEFAULT_AUDIO_SINK@` / `@DEFAULT_AUDIO_SOURCE@`) and sysfs
+backlight events, using its own `split`/OSD capsule design. HyDE's own
+volume/brightness notifier (`HyDE Notify`, `knob-*.svg`) therefore produces a
+duplicate banner for every keypress.
+
+Disable only HyDE's volume/brightness/mic notifications at the source (find
+them with `hyprctl binds | grep -i volume` and your HyDE volume/brightness
+helper's `--help` / `NO_NOTIFY` switch) so Tide is the single OSD owner.
+Genuine app notifications keep flowing through Tide's notification server
+unchanged. Until you flip that switch, Tide's native OSD preempts the HyDE
+banner, so you may briefly see the banner replaced by the native design.

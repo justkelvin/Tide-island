@@ -285,6 +285,26 @@ PagePanel {
                 CardDivider {}
 
                 SettingRow {
+                    title: "OSD Progress Style"
+                    description: "Progress indicator on the volume and brightness overlay (line fills the capsule, ring hugs the edge)"
+
+                    SegmentedControl {
+                        options: [
+                            { label: "Line", value: "line" },
+                            { label: "Ring", value: "ring" }
+                        ]
+                        currentValue: String(ConfigStore.value("osdProgressStyle", "line"))
+                        onSelected: function(val) {
+                            ConfigStore.setValue("osdProgressStyle", val)
+                            ConfigStore.save()
+                        }
+                        implicitWidth: 160
+                    }
+                }
+
+                CardDivider {}
+
+                SettingRow {
                     title: "Clock Format"
                     description: "Time display standard on the resting capsule"
 

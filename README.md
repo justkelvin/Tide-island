@@ -151,6 +151,31 @@ Useful installer options:
 | `./install.sh --force-build-quickshell` | Rebuild and install the project's pinned Quickshell version even when Quickshell is already installed. |
 | `./install.sh --uninstall` | Remove the Tide Island files installed by the source installer; installed dependencies and Quickshell are kept. |
 
+### Building from source (development)
+
+If you're working on the code and want to install directly from your local checkout:
+
+```bash
+# Configure once — PREFIX=/usr is required so the launcher and QML module
+# land where Quickshell and systemd expect them
+cmake -GNinja -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=/usr
+
+# Build and install
+cmake --build build --parallel
+sudo cmake --install build
+
+# Start the service
+systemctl --user restart tide-island
+```
+
+After the first configure, the iteration loop is just:
+
+```bash
+cmake --build build --parallel && sudo cmake --install build && systemctl --user restart tide-island
+```
+
+Each install overwrites the previous one with no manifest or package-manager involvement.
+
 <br>
 
 ## Starting Tide Island
@@ -181,7 +206,28 @@ If the systemd service is already enabled, you do not need to add `exec-once`.
 
 ## Configuration
 
-Search `Tide Island Settings` in any application launcher
+Search `Tide Island Settings` in any application launcher.
+
+### Timer
+
+Open the secondary panel (right-click by default) and choose **Set Timer**, or
+hold the left mouse button on the collapsed pill for half a second and release.
+The pill compresses slightly while held; dragging still performs a swipe.
+If a timer is already active, either entry opens its controls instead.
+Drag the ruler left/right or scroll
+to adjust seconds; click the ruler to switch between seconds and minutes without
+changing the selected duration. Click **Start Timer** to begin.
+
+While running or paused, the idle pill shows a countdown ring, the normal clock,
+and the remaining time. Click it for pause/resume and cancel controls; click the
+preview's empty space to dismiss it immediately. Otherwise,
+the controls collapse after 10 seconds. Cancel restores the clock and any playing media.
+At zero, a short chime plays and **Timer done** appears for five seconds.
+
+The timer takes precedence over media in the idle pill and is shared across
+screens. Durations range from one second to 24 hours. Timers live for the current
+shell session; restarting Tide Island clears them. Hover no longer opens the
+timer editor; the existing media hover preference applies again.
 
 ## Common Commands
 

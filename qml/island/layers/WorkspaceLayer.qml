@@ -1,5 +1,6 @@
 import QtQuick
 import IslandBackend
+import "../../components"
 
 Item {
     id: root
@@ -49,19 +50,34 @@ Item {
         }
     }
 
-    Text {
+    Item {
         x: labelX
         width: textWidth
-        anchors.verticalCenter: parent.verticalCenter
-        text: displayText
-        color: "white"
+        height: parent.height
         opacity: revealProgress
-        font.pixelSize: textPixelSize
-        font.family: textFontFamily
-        font.weight: Font.DemiBold
-        font.letterSpacing: -0.15
-        horizontalAlignment: Text.AlignHCenter
-        elide: Text.ElideRight
-        wrapMode: Text.NoWrap
+
+        Row {
+            anchors.centerIn: parent
+            spacing: 8
+
+            SvgIcon {
+                source: Qt.resolvedUrl("../../resources/icons/workspace-change.svg")
+                iconSize: textPixelSize + 2
+                color: "white"
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Text {
+                text: displayText
+                color: "white"
+                font.pixelSize: textPixelSize
+                font.family: textFontFamily
+                font.weight: Font.DemiBold
+                font.letterSpacing: -0.15
+                anchors.verticalCenter: parent.verticalCenter
+                elide: Text.ElideRight
+                wrapMode: Text.NoWrap
+            }
+        }
     }
 }

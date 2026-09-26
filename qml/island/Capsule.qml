@@ -26,8 +26,23 @@ Rectangle {
     readonly property alias lyricsSwipeItem: lyricsSwipeLoader.item
     readonly property alias notificationItem: notificationLoader.item
     readonly property alias customSwipeActive: customSwipeLoader.active
+    readonly property int secondaryHistoryCount: NotificationServer.history.length
 
-    function capsuleTargetGeometry(state) {
+    function secondaryPanelGeometry() {
+        const count = secondaryHistoryCount;
+        let panelHeight = 360;
+        if (count <= 0)
+            panelHeight = 130;
+        else if (count === 1)
+            panelHeight = 155;
+        else if (count === 2)
+            panelHeight = 220;
+        else if (count === 3)
+            panelHeight = 285;
+        return { width: 430, height: panelHeight + 48, radius: 40 };
+    }
+
+    function capsuleTargetGeometry(state, expandedContent, historyCount) {
         if (islandController.sideTransientRestoreTimerRunning) {
             if (islandController.restingState === "lyrics"
                     && ((state === "split" && islandController.splitOriginSide === "right")
@@ -44,7 +59,12 @@ Rectangle {
 
         switch (state) {
         case "expanded":
-        case "bluetooth_expanded":
+            if (expandedContent === "timerEditor")
+                return { width: 410, height: 180, radius: 40 };
+            if (expandedContent === "timerControls" || expandedContent === "timerFinished")
+                return { width: 300, height: 62, radius: 31 };
+            if (expandedContent === "secondary")
+                return secondaryPanelGeometry();
             return { width: 410, height: 165, radius: 40 };
         case "notification":
             const notifWidth = notificationLoader.item
@@ -65,23 +85,28 @@ Rectangle {
         case "lyrics":
             return { width: islandController.lyricsCapsuleWidth, height: userConfig.islandHeight, radius: userConfig.islandHeight / 2 };
         default:
-            return { width: userConfig.islandWidth, height: userConfig.islandHeight, radius: userConfig.islandHeight / 2 };
+            return { width: islandController.normalRestingWidth, height: userConfig.islandHeight, radius: userConfig.islandHeight / 2 };
         }
     }
 
-    readonly property var targetGeometry: capsuleTargetGeometry(islandController.islandState)
+    readonly property var targetGeometry: capsuleTargetGeometry(
+        islandController.islandState,
+        islandController.expandedContent,
+        secondaryHistoryCount
+    )
     readonly property real baseTargetWidth: targetGeometry.width
     readonly property real targetHeight: targetGeometry.height
     readonly property real targetRadius: targetGeometry.radius
 
     function sideSwipeWidthForProgress(progressValue) {
+        const baseWidth = islandController.normalRestingWidth;
         if (progressValue < 0)
-            return userConfig.islandWidth + (islandController.customCapsuleWidth - userConfig.islandWidth)
+            return baseWidth + (islandController.customCapsuleWidth - baseWidth)
                 * islandController.clamp01(-progressValue);
         if (progressValue > 0)
-            return userConfig.islandWidth + (islandController.lyricsCapsuleWidth - userConfig.islandWidth)
+            return baseWidth + (islandController.lyricsCapsuleWidth - baseWidth)
                 * islandController.clamp01(progressValue);
-        return userConfig.islandWidth;
+        return baseWidth;
     }
 
     readonly property real sideSwipePreviewWidth: root.sideSwipeWidthForProgress(
@@ -102,7 +127,8 @@ Rectangle {
     height: targetHeight
     radius: targetRadius
     opacity: windowRoot.autoHideProgress
-    scale: 0.96 + windowRoot.autoHideProgress * 0.04
+    scale: (0.96 + windowRoot.autoHideProgress * 0.04) * (capsuleGestureArea.timerHoldPressed ? 0.98 : 1)
+    Behavior on scale { NumberAnimation { duration: StyleTokens.durationFast; easing.type: Easing.OutCubic } }
     transformOrigin: Item.Top
 
     onBaseTargetWidthChanged: {
@@ -151,6 +177,8 @@ Rectangle {
             CustomInfoLayer {
                 items: islandController.customLeftItems
                 cavaLevels: islandController.cavaLevels
+                currentArtUrl: islandController.currentArtUrl
+                hasMediaPlaying: islandController.hasMediaPlaying
                 timeText: timeObj.currentTime
                 iconFontFamily: windowRoot.iconFontFamily
                 textFontFamily: windowRoot.heroFontFamily
@@ -173,6 +201,7 @@ Rectangle {
         id: lyricsSwipeLoader
         anchors.fill: parent
         active: islandController.lyricsSwipeVisible
+            && !(islandController.timerActive && islandController.islandState === "normal")
         asynchronous: false
         visible: active
 
@@ -183,6 +212,7 @@ Rectangle {
                 lyricText: islandController.lyricsDisplayText
                 currentArtUrl: islandController.currentArtUrl
                 cavaLevels: islandController.cavaLevels
+                hasMediaPlaying: islandController.hasMediaPlaying
                 timeText: timeObj.currentTime
                 textFontFamily: windowRoot.textFontFamily
                 timeFontFamily: windowRoot.timeFontFamily
@@ -229,6 +259,8 @@ Rectangle {
                 iconText: islandController.splitIcon
                 progress: islandController.osdProgress
                 customText: islandController.osdCustomText
+                batteryLevel: islandController.osdBatteryLevel
+                batteryCharging: islandController.osdBatteryCharging
                 iconFontFamily: windowRoot.iconFontFamily
                 textFontFamily: windowRoot.textFontFamily
                 heroFontFamily: windowRoot.heroFontFamily
@@ -263,9 +295,33 @@ Rectangle {
     }
 
     Loader {
+        anchors.fill: parent
+        active: islandController.timerActive && islandController.islandState === "normal"
+        sourceComponent: TimerIdleLayer {
+            countdown: islandController.countdown
+            countdownWidth: islandController.timerCountdownWidth
+            timeText: timeObj.currentTime
+            fontFamily: windowRoot.timeFontFamily
+            recordingActive: islandController.screenRecordingActive
+        }
+    }
+
+    Loader {
+        anchors.fill: parent
+        active: islandController.timerLayerVisible
+        sourceComponent: TimerLayer {
+            countdown: islandController.countdown
+            controller: islandController
+            editing: islandController.expandedContent === "timerEditor"
+            finished: islandController.expandedContent === "timerFinished"
+            fontFamily: windowRoot.textFontFamily
+        }
+    }
+
+    Loader {
         id: expandedPlayerLoader
         anchors.fill: parent
-        active: islandController.expandedLayerVisible
+        active: islandController.expandedLayerVisible && islandController.expandedContent === "player"
         asynchronous: false
         visible: active
 
@@ -277,10 +333,11 @@ Rectangle {
                 timePlayed: islandController.timePlayed
                 timeTotal: islandController.timeTotal
                 trackProgress: islandController.trackProgress
+                cavaLevels: islandController.cavaLevels
                 activePlayer: islandController.activePlayer
                 iconFontFamily: windowRoot.iconFontFamily
                 textFontFamily: windowRoot.textFontFamily
-                showCondition: islandController.expandedLayerVisible
+                showCondition: islandController.playerLayerVisible
                 onControlPressed: islandController.suppressCapsuleClick()
                 onBackgroundClicked: islandController.smartRestoreState()
                 onKeyboardFocusRequested: islandController.requestExpandedPlayerKeyboardFocus()
@@ -291,20 +348,31 @@ Rectangle {
     }
 
     Loader {
-        id: bluetoothExpandedLoader
+        id: secondaryPanelLoader
         anchors.fill: parent
-        active: islandController.bluetoothExpandedLayerVisible
+        active: islandController.secondaryPanelVisible
         asynchronous: false
         visible: active
 
         sourceComponent: Component {
-            BluetoothLayer {
-                device: islandController.bluetoothExpandedDevice
-                volumeLevel: islandController.currentVolume
-                iconText: ""
-                iconFontFamily: windowRoot.iconFontFamily
+            SecondaryPanelLayer {
+                history: NotificationServer.history
+                timerActive: islandController.timerActive
+                onTimerRequested: islandController.openTimer()
                 textFontFamily: windowRoot.textFontFamily
-                showCondition: islandController.bluetoothExpandedLayerVisible
+                showCondition: islandController.secondaryPanelVisible
+                onControlPressed: islandController.suppressCapsuleClick()
+                onBackgroundClicked: islandController.smartRestoreState()
+                onCloseRequested: islandController.smartRestoreState()
+                onClearAllRequested: {
+                    islandController.suppressCapsuleClick();
+                    NotificationServer.clearHistory();
+                    NotificationServer.clearAllNotifications();
+                }
+                onRemoveHistoryItemRequested: (notificationId) => {
+                    islandController.suppressCapsuleClick();
+                    NotificationServer.removeHistoryItem(notificationId);
+                }
             }
         }
     }
@@ -323,11 +391,44 @@ Rectangle {
                 body: islandController.notificationBody
                 expanded: islandController.notificationExpanded
                 toggleButton: userConfig.mouseButton(userConfig.dynamicIslandPrimaryButton)
+                iconSource: islandController.notificationIconSource
+                iconImage: islandController.notificationIconImage
                 iconText: windowRoot.notificationStatusIcon
+                notificationId: islandController.notificationId
+                actions: islandController.notificationActions
+                urgency: islandController.notificationUrgency
+                progress: islandController.notificationProgress
+                imageDataUrl: islandController.notificationImageDataUrl
+                createdMs: islandController.notificationCreatedMs
+                replyPlaceholder: islandController.notificationReplyPlaceholder
                 iconFontFamily: windowRoot.iconFontFamily
                 textFontFamily: windowRoot.textFontFamily
                 heroFontFamily: windowRoot.heroFontFamily
                 showCondition: true
+                onControlPressed: {
+                    islandController.suppressCapsuleClick(true);
+                    islandController.noteNotificationActivity();
+                }
+                onBackgroundClicked: {
+                    islandController.suppressCapsuleClick(true);
+                    islandController.activateNotificationBackground();
+                }
+                onCloseRequested: {
+                    islandController.suppressCapsuleClick(true);
+                    islandController.dismissNotificationCapsule();
+                }
+                onActionClicked: (actionKey) => {
+                    islandController.suppressCapsuleClick(true);
+                    islandController.invokeNotificationAction(actionKey);
+                }
+                onReplySubmitted: (text) => {
+                    islandController.suppressCapsuleClick(true);
+                    islandController.submitNotificationReply(text);
+                }
+                onReplyCancelled: islandController.cancelNotificationReply()
+                onKeyboardFocusRequested: islandController.requestNotificationReplyKeyboardFocus()
+                onKeyboardFocusReleased: islandController.releaseNotificationReplyKeyboardFocus()
+                onUserActivity: islandController.noteNotificationActivity()
                 onExpansionToggleRequested: {
                     islandController.suppressCapsuleClick(true);
                     islandController.toggleNotificationExpansionIfNeeded();

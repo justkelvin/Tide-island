@@ -24,10 +24,14 @@ Item {
     }
 
     function levelAt(index) {
-        if (!levels || index < 0 || index >= levelCount())
+        const total = levelCount();
+        if (total <= 0 || index < 0 || index >= barCount)
             return 0;
 
-        return Number(levels[index]);
+        const mappedIndex = total > barCount
+            ? Math.min(total - 1, Math.floor(index * total / barCount))
+            : index;
+        return Number(levels[mappedIndex]);
     }
 
     Row {
@@ -50,6 +54,13 @@ Item {
                 Behavior on height {
                     NumberAnimation {
                         duration: 90
+                        easing.type: Easing.InOutQuad
+                    }
+                }
+
+                Behavior on color {
+                    ColorAnimation {
+                        duration: 160
                         easing.type: Easing.InOutQuad
                     }
                 }

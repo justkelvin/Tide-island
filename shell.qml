@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import IslandBackend
 import "qml/windows"
+import "qml/island"
 
 Scope {
     id: shellRoot
@@ -12,6 +13,12 @@ Scope {
     property bool islandAutoHideRuntimeEnabled: true
 
     readonly property var userConfig: UserConfig
+    readonly property alias countdown: countdown
+
+    Countdown {
+        id: countdown
+        onFinished: SystemServices.playTimerAlarm()
+    }
 
     function forEachWindow(callback) {
         const windows = panelVariants.instances ? panelVariants.instances : [];
@@ -22,10 +29,10 @@ Scope {
         }
     }
 
-    function showNotificationAll(appName, summary, body) {
+    function showNotificationAll(item) {
         shellRoot.forEachWindow((window) => {
             if (window && window.showNotification)
-                window.showNotification(appName, summary, body);
+                window.showNotification(item);
         });
     }
 
@@ -148,10 +155,14 @@ Scope {
     }
 
     Connections {
-        target: SystemServices
+        target: NotificationServer
 
-        function onNotificationReceived(appName, summary, body) {
-            shellRoot.showNotificationAll(appName, summary, body);
+        function onNotificationAdded(item) {
+            shellRoot.showNotificationAll(item);
+        }
+
+        function onNotificationUpdated(item) {
+            shellRoot.showNotificationAll(item);
         }
     }
 

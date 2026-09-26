@@ -16,22 +16,28 @@ Item {
     property string lastActivePlayerDbusName: ""
     property var playersList: Mpris.players.values !== undefined ? Mpris.players.values : Mpris.players
     property var activePlayer: resolveActivePlayer()
+    readonly property bool isPlaying: Boolean(
+        activePlayer
+        && activePlayer.playbackState === MprisPlaybackState.Playing
+    )
 
-    readonly property string lyricsLookupTitle: activePlayer ? (activePlayer.trackTitle || activePlayer.title || "") : ""
+    readonly property string lyricsLookupTitle: {
+        if (!activePlayer) return "";
+        let title = activePlayer.trackTitle || activePlayer.title || "";
+        if (!title && activePlayer.metadata) title = activePlayer.metadata["xesam:title"] || "";
+        return title ? String(title).trim() : "";
+    }
     readonly property string lyricsLookupArtist: {
         if (!activePlayer) return "";
         let artist = activePlayer.artist;
         if (!artist && activePlayer.metadata) artist = activePlayer.metadata["xesam:artist"];
-        if (artist) return Array.isArray(artist) ? artist.join(", ") : String(artist);
+        if (artist) return Array.isArray(artist) ? artist.join(", ").trim() : String(artist).trim();
         return "";
     }
-    readonly property string currentTrack: activePlayer ? (lyricsLookupTitle !== "" ? lyricsLookupTitle : "Unknown") : ""
-    readonly property string currentArtist: {
-        if (!activePlayer) return "";
-        if (lyricsLookupArtist !== "") return lyricsLookupArtist;
-        return "Unknown";
-    }
-    readonly property string currentArtUrl: activePlayer ? (activePlayer.trackArtUrl || activePlayer.artUrl || "") : ""
+    readonly property bool hasValidTrack: activePlayer !== null && lyricsLookupTitle !== ""
+    readonly property string currentTrack: hasValidTrack ? lyricsLookupTitle : ""
+    readonly property string currentArtist: hasValidTrack ? (lyricsLookupArtist !== "" ? lyricsLookupArtist : "Unknown Artist") : ""
+    readonly property string currentArtUrl: hasValidTrack ? (activePlayer.trackArtUrl || activePlayer.artUrl || "") : ""
     readonly property string inlineLyricsRaw: {
         if (!activePlayer || !activePlayer.metadata) return "";
         let inlineLyrics = activePlayer.metadata["xesam:asText"];
@@ -175,13 +181,13 @@ Item {
 
     function playerHasTrackInfo(player) {
         if (!player) return false;
-        if ((player.trackTitle || player.title || "") !== "") return true;
+        const directTitle = String(player.trackTitle || player.title || "").trim();
+        if (directTitle !== "") return true;
         if (!player.metadata) return false;
-        return Boolean(
-            player.metadata["xesam:title"]
-            || player.metadata["mpris:trackid"]
-            || player.metadata["xesam:url"]
-        );
+        const metaTitle = String(player.metadata["xesam:title"] || "").trim();
+        if (metaTitle !== "") return true;
+        const metaUrl = String(player.metadata["xesam:url"] || "").trim();
+        return metaUrl !== "";
     }
 
     function findPlayerByDbusName(dbusName) {
@@ -197,18 +203,31 @@ Item {
         if (!playersList || playersList.length === 0) return null;
 
         for (let index = 0; index < playersList.length; index++) {
+            if (playersList[index].playbackState === MprisPlaybackState.Playing && playerHasTrackInfo(playersList[index]))
+                return playersList[index];
+        }
+
+        for (let index = 0; index < playersList.length; index++) {
             if (playersList[index].playbackState === MprisPlaybackState.Playing)
                 return playersList[index];
         }
 
         const rememberedPlayer = findPlayerByDbusName(lastActivePlayerDbusName);
-        if (rememberedPlayer && (playerHasTrackInfo(rememberedPlayer) || rememberedPlayer.canControl))
+        if (rememberedPlayer && playerHasTrackInfo(rememberedPlayer))
             return rememberedPlayer;
 
         for (let index = 0; index < playersList.length; index++) {
             if (playersList[index].playbackState === MprisPlaybackState.Paused && playerHasTrackInfo(playersList[index]))
                 return playersList[index];
         }
+
+        for (let index = 0; index < playersList.length; index++) {
+            if (playerHasTrackInfo(playersList[index]))
+                return playersList[index];
+        }
+
+        if (rememberedPlayer && rememberedPlayer.canControl)
+            return rememberedPlayer;
 
         for (let index = 0; index < playersList.length; index++) {
             if (playersList[index].canControl)
@@ -249,5 +268,21 @@ Item {
         repeat: true
 
         onTriggered: root.syncProgress()
+    }
+
+    Repeater {
+        model: root.playersList
+
+        Item {
+            Connections {
+                target: modelData
+                function onPlaybackStateChanged() {
+                    root.activePlayer = root.resolveActivePlayer();
+                }
+                function onMetadataChanged() {
+                    root.activePlayer = root.resolveActivePlayer();
+                }
+            }
+        }
     }
 }

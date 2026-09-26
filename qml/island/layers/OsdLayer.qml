@@ -1,5 +1,6 @@
 import QtQuick
 import IslandBackend
+import "../../components"
 
 Item {
     id: root
@@ -7,8 +8,14 @@ Item {
     readonly property var userConfig: UserConfig
 
     property string iconText: ""
+    readonly property bool hasSvgIcon: iconText.indexOf(".svg") !== -1
     property real progress: -1
     property string customText: ""
+    // Battery mode: live native glyph at the exact level instead of a static
+    // icon. showBattery forces the text layout even with empty customText.
+    property real batteryLevel: -1
+    property bool batteryCharging: false
+    readonly property bool showBattery: batteryLevel >= 0
     property var configSource: null
     readonly property var activeConfig: configSource || userConfig
     property string iconFontFamily: activeConfig.iconFontFamily
@@ -17,7 +24,10 @@ Item {
     property string slideDirection: "none"
     property real transitionProgress: 0
     readonly property bool showProgress: progress >= 0
-    readonly property bool showText: progress < 0 && customText !== ""
+    readonly property bool showText: progress < 0 && (customText !== "" || showBattery)
+    readonly property real clampedProgressValue: Math.max(0, Math.min(1, progress))
+    readonly property bool showRingProgress: showProgress && userConfig.osdProgressStyle === "ring"
+    readonly property bool showLineProgress: showProgress && userConfig.osdProgressStyle !== "ring"
     property bool showCondition: false
     property real hiddenLeftPadding: 16
     property real hiddenRightPadding: 16
@@ -52,30 +62,44 @@ Item {
         height: parent.height
         visible: showProgress
 
-        Row {
-            anchors.left: parent.left
-            anchors.leftMargin: 18
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 12
+        // Ring style: icon + % pinned left, progress ring pinned right.
+        Item {
+            anchors.fill: parent
+            visible: root.showRingProgress
+
+            Row {
+                anchors.left: parent.left
+                anchors.leftMargin: 18
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 12
+
+                SvgIcon {
+                    visible: root.hasSvgIcon
+                    source: root.hasSvgIcon ? iconText : ""
+                    iconSize: userConfig.iconFontSize
+                    color: "white"
+                    anchors.verticalCenter: parent.verticalCenter
+                }
 
             Text {
+                visible: !root.hasSvgIcon
                 text: iconText
-                color: "white"
-                font.pixelSize: userConfig.iconFontSize
-                font.family: iconFontFamily
-                anchors.verticalCenter: parent.verticalCenter
-            }
+                    color: "white"
+                    font.pixelSize: userConfig.iconFontSize
+                    font.family: iconFontFamily
+                    anchors.verticalCenter: parent.verticalCenter
+                }
 
-            Text {
-                text: Math.round(progress * 100) + "%"
-                color: "white"
-                font.pixelSize: userConfig.titleFontSize
-                font.family: heroFontFamily
-                font.weight: Font.Bold
-                font.letterSpacing: -0.35
-                anchors.verticalCenter: parent.verticalCenter
+                Text {
+                    text: Math.round(root.clampedProgressValue * 100) + "%"
+                    color: "white"
+                    font.pixelSize: userConfig.titleFontSize
+                    font.family: heroFontFamily
+                    font.weight: Font.Bold
+                    font.letterSpacing: -0.35
+                    anchors.verticalCenter: parent.verticalCenter
+                }
             }
-        }
 
         Item {
             width: 30
@@ -128,6 +152,64 @@ Item {
                 }
             }
         }
+        }
+
+        // Line style: centered icon + % + linear bar, matching the settings
+        // typography preview. Fills the capsule instead of hugging its edges.
+        Row {
+            anchors.centerIn: parent
+            spacing: 12
+            visible: root.showLineProgress
+
+            SvgIcon {
+                visible: root.hasSvgIcon
+                source: root.hasSvgIcon ? iconText : ""
+                iconSize: userConfig.iconFontSize
+                color: "white"
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Text {
+                visible: !root.hasSvgIcon
+                text: iconText
+                color: "white"
+                font.pixelSize: userConfig.iconFontSize
+                font.family: iconFontFamily
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Text {
+                text: Math.round(root.clampedProgressValue * 100) + "%"
+                color: "white"
+                font.pixelSize: userConfig.titleFontSize
+                font.family: heroFontFamily
+                font.weight: Font.Bold
+                font.letterSpacing: -0.35
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Rectangle {
+                width: 80
+                height: 5
+                radius: 2.5
+                color: Qt.rgba(1, 1, 1, 0.28)
+                anchors.verticalCenter: parent.verticalCenter
+                clip: true
+
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    width: parent.width * root.clampedProgressValue
+                    radius: 2.5
+                    color: "white"
+
+                    Behavior on width {
+                        NumberAnimation { duration: 120; easing.type: Easing.InOutQuad }
+                    }
+                }
+            }
+        }
     }
 
     Item {
@@ -136,11 +218,50 @@ Item {
         height: parent.height
         visible: showText
 
+        // Battery mode takes the edges: text pinned left, live glyph pinned
+        // right — same posture as the ring layout. Icon/text transients
+        // without a battery visual stay centered.
+        Text {
+            visible: root.showBattery
+            anchors.left: parent.left
+            anchors.leftMargin: 18
+            anchors.verticalCenter: parent.verticalCenter
+            text: customText
+            color: "white"
+            font.pixelSize: userConfig.bodyFontSize
+            font.family: textFontFamily
+            font.weight: Font.DemiBold
+            font.letterSpacing: -0.15
+        }
+
+        BatteryIcon {
+            visible: root.showBattery
+            width: 37
+            height: 17
+            anchors.right: parent.right
+            anchors.rightMargin: 16
+            anchors.verticalCenter: parent.verticalCenter
+            level: root.batteryLevel
+            charging: root.batteryCharging
+            textFontFamily: textFontFamily
+            iconFontFamily: iconFontFamily
+        }
+
         Row {
             anchors.centerIn: parent
             spacing: 14
+            visible: !root.showBattery
+
+            SvgIcon {
+                visible: root.hasSvgIcon
+                source: root.hasSvgIcon ? iconText : ""
+                iconSize: userConfig.iconFontSize
+                color: "white"
+                anchors.verticalCenter: parent.verticalCenter
+            }
 
             Text {
+                visible: !root.hasSvgIcon
                 text: iconText
                 color: "white"
                 font.pixelSize: userConfig.iconFontSize

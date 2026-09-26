@@ -24,11 +24,13 @@ SysBackend::SysBackend(QObject *parent)
       m_paSubscriber(nullptr),
       m_volumeQueryProcess(nullptr),
       m_defaultSinkQueryProcess(nullptr),
+      m_micVolumeQueryProcess(nullptr),
       m_brightnessWatcher(nullptr),
       m_batteryNotifier(nullptr),
       m_audioDebounceTimer(nullptr),
       m_volumeQueryTimeoutTimer(nullptr),
       m_defaultSinkQueryTimeoutTimer(nullptr),
+      m_micVolumeQueryTimeoutTimer(nullptr),
       m_lyricsProcess(nullptr),
       m_lyricsRestartTimer(nullptr),
       m_maxBrightness(1.0),
@@ -39,6 +41,7 @@ SysBackend::SysBackend(QObject *parent)
       m_lyricsIsSynced(false),
       m_batteryCap(0),
       m_batteryStatus("Unknown"),
+      m_acOnline(-1),
       m_upowerBatteryPath(),
       m_hasBatteryState(false),
       m_udev(nullptr),
@@ -106,8 +109,9 @@ void SysBackend::setupBattery() {
     }
 
     if (udev_monitor_filter_add_match_subsystem_devtype(m_batteryMonitor, "power_supply", nullptr) < 0 ||
+        udev_monitor_filter_add_match_subsystem_devtype(m_batteryMonitor, "backlight", nullptr) < 0 ||
         udev_monitor_enable_receiving(m_batteryMonitor) < 0) {
-        qWarning() << "[Battery] Failed to enable udev monitor for power_supply monitoring";
+        qWarning() << "[Battery] Failed to enable udev monitor for power_supply and backlight monitoring";
         udev_monitor_unref(m_batteryMonitor);
         m_batteryMonitor = nullptr;
         return;
@@ -208,21 +212,23 @@ void SysBackend::setupBatteryUpower() {
     updateBatteryUpower();
 }
 
-void SysBackend::updateBatteryState(int capacity, const QString &statusString) {
+void SysBackend::updateBatteryState(int capacity, const QString &statusString, int acOnline) {
     const bool capacityChanged = !m_hasBatteryState || capacity != m_batteryCap;
     const bool statusChanged = !m_hasBatteryState || statusString != m_batteryStatus;
+    const bool acChanged = !m_hasBatteryState || acOnline != m_acOnline;
 
-    if (!capacityChanged && !statusChanged) return;
+    if (!capacityChanged && !statusChanged && !acChanged) return;
 
     m_batteryCap = capacity;
     m_batteryStatus = statusString;
+    m_acOnline = acOnline;
     m_hasBatteryState = true;
 
-    qDebug() << "[Battery] State:" << m_batteryCap << "% -" << m_batteryStatus;
+    qDebug() << "[Battery] State:" << m_batteryCap << "% -" << m_batteryStatus << "AC:" << m_acOnline;
 
     if (capacityChanged) emit batteryCapacityChanged(m_batteryCap);
     if (statusChanged) emit batteryStatusChanged(m_batteryStatus);
-    emit batteryChanged(m_batteryCap, m_batteryStatus);
+    emit batteryChanged(m_batteryCap, m_batteryStatus, m_acOnline);
 }
 
 QString SysBackend::upowerStateToBatteryStatus(uint state) const {
@@ -245,6 +251,7 @@ QString SysBackend::upowerStateToBatteryStatus(uint state) const {
 void SysBackend::updateBatterySysfs() {
     int currentCap = m_batteryCap;
     QString currentStatus = m_batteryStatus;
+    int currentAc = m_acOnline;
 
     if (!m_batteryPath.isEmpty()) {
         QFile capFile(m_batteryPath + "/capacity");
@@ -260,16 +267,19 @@ void SysBackend::updateBatterySysfs() {
         }
     }
 
-    if ((currentStatus.isEmpty() || currentStatus == "Unknown") && !m_acPath.isEmpty()) {
+    if (!m_acPath.isEmpty()) {
         QFile acFile(m_acPath + "/online");
         if (acFile.open(QIODevice::ReadOnly)) {
-            int isPlugged = acFile.readAll().trimmed().toInt();
-            currentStatus = (isPlugged > 0) ? "Charging" : "Discharging";
+            currentAc = acFile.readAll().trimmed().toInt() > 0 ? 1 : 0;
             acFile.close();
         }
     }
 
-    updateBatteryState(currentCap, currentStatus);
+    if ((currentStatus.isEmpty() || currentStatus == "Unknown") && currentAc >= 0) {
+        currentStatus = (currentAc > 0) ? "Charging" : "Discharging";
+    }
+
+    updateBatteryState(currentCap, currentStatus, currentAc);
 }
 
 void SysBackend::updateBatteryUpower() {
@@ -298,20 +308,26 @@ void SysBackend::updateBatteryUpower() {
 
     const int currentCap = qRound(percentageReply.value().toDouble());
     const QString currentStatus = upowerStateToBatteryStatus(stateReply.value().toUInt());
-    updateBatteryState(currentCap, currentStatus);
+    updateBatteryState(currentCap, currentStatus, m_acOnline);
 }
 
 void SysBackend::handleBatteryMonitorEvent() {
     if (!m_batteryMonitor) return;
 
-    bool shouldRefresh = false;
+    bool refreshBattery = false;
+    bool refreshBrightness = false;
     udev_device *device = nullptr;
     while ((device = udev_monitor_receive_device(m_batteryMonitor)) != nullptr) {
-        shouldRefresh = true;
+        const char *subsystem = udev_device_get_subsystem(device);
+        if (subsystem) {
+            if (strcmp(subsystem, "power_supply") == 0) refreshBattery = true;
+            else if (strcmp(subsystem, "backlight") == 0) refreshBrightness = true;
+        }
         udev_device_unref(device);
     }
 
-    if (shouldRefresh) updateBatterySysfs();
+    if (refreshBattery) updateBatterySysfs();
+    if (refreshBrightness) updateBrightness();
 }
 
 void SysBackend::handleBatteryPropertiesChanged(const QString &interfaceName, const QVariantMap &changedProperties, const QStringList &invalidatedProperties) {
@@ -366,18 +382,34 @@ void SysBackend::setupAudio() {
     m_audioDebounceTimer->setInterval(kAudioEventDebounceMs);
     connect(m_audioDebounceTimer, &QTimer::timeout, this, [this]() {
         fetchCurrentVolume();
+        fetchCurrentMicVolume();
         checkDefaultAudioDevice();
+    });
+
+    m_micVolumeQueryProcess = new QProcess(this);
+    m_micVolumeQueryTimeoutTimer = new QTimer(this);
+    m_micVolumeQueryTimeoutTimer->setSingleShot(true);
+    m_micVolumeQueryTimeoutTimer->setInterval(kCommandTimeoutMs);
+    connect(m_micVolumeQueryTimeoutTimer, &QTimer::timeout, this, [this]() {
+        if (m_micVolumeQueryProcess && m_micVolumeQueryProcess->state() != QProcess::NotRunning)
+            m_micVolumeQueryProcess->kill();
+    });
+    connect(m_micVolumeQueryProcess, qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
+            this, &SysBackend::handleMicVolumeQueryFinished);
+    connect(m_micVolumeQueryProcess, &QProcess::errorOccurred, this, [this](QProcess::ProcessError) {
+        if (m_micVolumeQueryTimeoutTimer) m_micVolumeQueryTimeoutTimer->stop();
     });
 
     m_paSubscriber->start("pactl", QStringList() << "subscribe");
     fetchCurrentVolume();
+    fetchCurrentMicVolume();
     checkDefaultAudioDevice();
 }
 
 void SysBackend::handleVolumeEvent() {
     QByteArray output = m_paSubscriber->readAllStandardOutput();
 
-    if (output.contains("sink") || output.contains("card") || output.contains("server")) {
+    if (output.contains("sink") || output.contains("source") || output.contains("card") || output.contains("server")) {
         if (m_audioDebounceTimer) m_audioDebounceTimer->start();
     }
 }
@@ -405,6 +437,32 @@ void SysBackend::handleVolumeQueryFinished(int exitCode, QProcess::ExitStatus ex
         if (!ok) return;
 
         emit volumeChanged(volPercentage, isMuted);
+    }
+}
+
+void SysBackend::fetchCurrentMicVolume() {
+    startTimedProcess(
+        m_micVolumeQueryProcess,
+        m_micVolumeQueryTimeoutTimer,
+        QStringLiteral("wpctl"),
+        QStringList() << QStringLiteral("get-volume") << QStringLiteral("@DEFAULT_AUDIO_SOURCE@")
+    );
+}
+
+void SysBackend::handleMicVolumeQueryFinished(int exitCode, QProcess::ExitStatus exitStatus) {
+    if (m_micVolumeQueryTimeoutTimer) m_micVolumeQueryTimeoutTimer->stop();
+    if (!m_micVolumeQueryProcess || exitStatus != QProcess::NormalExit || exitCode != 0) return;
+
+    const QString output = QString::fromUtf8(m_micVolumeQueryProcess->readAllStandardOutput()).trimmed();
+
+    if (output.startsWith("Volume:")) {
+        const bool isMuted = output.contains("[MUTED]");
+        const QString valStr = output.section(' ', 1, 1);
+        bool ok = false;
+        const int micPercentage = static_cast<int>(valStr.toDouble(&ok) * 100);
+        if (!ok) return;
+
+        emit micVolumeChanged(micPercentage, isMuted);
     }
 }
 

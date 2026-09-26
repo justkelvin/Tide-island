@@ -11,7 +11,8 @@ Item {
     property var hoverCollapseTimer: null
 
     readonly property bool sideSwipeInteractive: capsuleMouseArea.sideSwipeInteractive
-    readonly property bool containsMouse: capsuleMouseArea.containsMouse
+    readonly property bool containsMouse: capsuleHover.hovered
+    readonly property bool timerHoldPressed: timerHoldDelay.running || capsuleMouseArea.timerHoldReady
     property alias suppressNextClick: capsuleMouseArea.suppressNextClick
 
     anchors.fill: parent
@@ -40,6 +41,29 @@ Item {
         onTriggered: capsuleMouseArea.suppressNextClick = false
     }
 
+    Timer {
+        id: timerHoldDelay
+        interval: 500
+        onTriggered: {
+            if (capsuleMouseArea.pressed && !capsuleMouseArea.swipeMoved && root.containsMouse)
+                capsuleMouseArea.timerHoldReady = true;
+        }
+    }
+
+    HoverHandler {
+        id: capsuleHover
+        // Observe the entire capsule, including the interactive child layers.
+        onHoveredChanged: {
+            if (windowRoot && windowRoot.autoHideEnabled) {
+                windowRoot.autoHidePointerInside = hovered;
+                if (hovered) windowRoot.showAutoHiddenIsland();
+                else windowRoot.scheduleAutoHide();
+            }
+            if (hovered && windowRoot && windowRoot.hoverExpandEnabled) root.triggerHoverExpand();
+            else root.triggerHoverCollapse();
+        }
+    }
+
     MouseArea {
         id: capsuleMouseArea
         anchors.fill: parent
@@ -47,7 +71,7 @@ Item {
         enabled: twoFingerTouchArea.touchPoints.length < 2
         acceptedButtons: windowRoot ? windowRoot.dynamicIslandAcceptedButtons : (Qt.LeftButton | Qt.RightButton)
         preventStealing: true
-        hoverEnabled: windowRoot ? (windowRoot.hoverExpandEnabled || windowRoot.autoHideEnabled) : false
+        hoverEnabled: true
 
         property real swipeStartX: 0
         property real swipeStartY: 0
@@ -58,29 +82,17 @@ Item {
         property bool swipeMoved: false
         property bool sideSwipeInteractive: false
         property bool suppressNextClick: false
-
-        onEntered: {
-            if (windowRoot && windowRoot.autoHideEnabled) {
-                windowRoot.autoHidePointerInside = true;
-                windowRoot.showAutoHiddenIsland();
-            }
-            if (windowRoot && windowRoot.hoverExpandEnabled) {
-                root.triggerHoverExpand();
-            }
-        }
-
-        onExited: {
-            if (windowRoot && windowRoot.autoHideEnabled) {
-                windowRoot.autoHidePointerInside = false;
-                windowRoot.scheduleAutoHide();
-            }
-            if (windowRoot && windowRoot.hoverExpandEnabled) {
-                root.triggerHoverCollapse();
-            }
-        }
+        property bool timerHoldReady: false
 
         onPressed: (mouse) => {
             if (!islandController || !capsule) return;
+            if (hoverExpandTimer) hoverExpandTimer.stop();
+            if (hoverCollapseTimer) hoverCollapseTimer.stop();
+            timerHoldReady = false;
+            timerHoldDelay.stop();
+            if (mouse.button === Qt.LeftButton
+                    && ["normal", "custom", "lyrics"].indexOf(islandController.islandState) !== -1)
+                timerHoldDelay.start();
             const mappedPoint = capsuleMouseArea.mapToItem(islandController, mouse.x, mouse.y);
             swipeStartX = mappedPoint.x;
             swipeStartY = mappedPoint.y;
@@ -101,6 +113,10 @@ Item {
             const mappedPoint = capsuleMouseArea.mapToItem(islandController, mouse.x, mouse.y);
             const deltaX = mappedPoint.x - swipeLastX;
             const deltaY = Math.abs(mappedPoint.y - swipeStartY);
+            if (Math.abs(mappedPoint.x - swipeStartX) > 6 || deltaY > 6) {
+                timerHoldDelay.stop();
+                timerHoldReady = false;
+            }
             const adjustedDeltaX = deltaY < sideSwipeVerticalTolerance ? deltaX : 0;
             const nextProgress = islandController.advanceSideSwipeProgress(
                 islandController.swipeTransitionProgress,
@@ -114,7 +130,20 @@ Item {
         }
 
         onReleased: {
+            timerHoldDelay.stop();
             if (!islandController || !capsule) return;
+
+            if (timerHoldReady && root.containsMouse
+                    && ["normal", "custom", "lyrics"].indexOf(islandController.islandState) !== -1) {
+                timerHoldReady = false;
+                swipeArmed = false;
+                swipeMoved = false;
+                sideSwipeInteractive = false;
+                root.suppressClick();
+                islandController.openTimer();
+                return;
+            }
+            timerHoldReady = false;
 
             if (swipeMoved) {
                 suppressNextClick = true;
@@ -161,6 +190,8 @@ Item {
         }
 
         onCanceled: {
+            timerHoldDelay.stop();
+            timerHoldReady = false;
             if (!islandController || !capsule) return;
             swipeArmed = false;
             swipeMoved = false;
@@ -189,12 +220,31 @@ Item {
                     return;
                 }
 
+                if (islandController.timerActive) {
+                    if (islandController.timerLayerVisible)
+                        islandController.smartRestoreState();
+                    else
+                        islandController.showTimerView(false);
+                    return;
+                }
+
                 islandController.handleConfiguredClickAction(UserConfig.dynamicIslandPrimaryAction);
                 return;
             }
 
             if (mouse.button === UserConfig.mouseButton(UserConfig.dynamicIslandSecondaryButton)) {
-                islandController.handleConfiguredClickAction(UserConfig.dynamicIslandSecondaryAction);
+                const secondaryAction = UserConfig.dynamicIslandSecondaryAction;
+                if (secondaryAction === "" || secondaryAction === "none") {
+                    if (mouse.button === Qt.RightButton)
+                        islandController.toggleSecondaryPanel();
+                    return;
+                }
+                islandController.handleConfiguredClickAction(secondaryAction);
+                return;
+            }
+
+            if (mouse.button === Qt.RightButton) {
+                islandController.toggleSecondaryPanel();
             }
         }
     }
@@ -212,6 +262,8 @@ Item {
         property bool swipeMoved: false
 
         onPressed: (touchPoints) => {
+            timerHoldDelay.stop();
+            capsuleMouseArea.timerHoldReady = false;
             if (!islandController) return;
             const centerPoint = islandController.mapFromItem(twoFingerTouchArea, 
                 (touchPoints[0].x + touchPoints[1].x) / 2,

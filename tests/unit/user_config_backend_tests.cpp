@@ -31,7 +31,9 @@ private slots:
         QCOMPARE(config.islandAutoHideEnabled(), true);
         QCOMPARE(config.islandAutoHideDelayMs(), 1000);
         QCOMPARE(config.islandShowWorkspaceOnAutoHide(), true);
+        QCOMPARE(config.cleanNotificationUrls(), true);
         QCOMPARE(config.clockFormat(), QStringLiteral("12"));
+        QCOMPARE(config.osdProgressStyle(), QStringLiteral("line"));
         QCOMPARE(config.dynamicIslandPrimaryButton(), 1);
         QCOMPARE(config.dynamicIslandPrimaryAction(), QStringLiteral("toggleExpandedPlayer"));
         QCOMPARE(config.dynamicIslandSecondaryButton(), 3);
@@ -62,7 +64,9 @@ private slots:
             "    \"islandBackgroundOpacity\": 150,\n"
             "    /* Auto hide delay clamped 100-10000 */\n"
             "    \"islandAutoHideDelayMs\": 50,\n"
+            "    \"cleanNotificationUrls\": false,\n"
             "    \"clockFormat\": \"24\",\n"
+            "    \"osdProgressStyle\": \"ring\",\n"
             "    \"dynamicIslandPrimaryButton\": 2\n"
             "}\n";
         file.write(jsonContent);
@@ -76,8 +80,29 @@ private slots:
         QCOMPARE(config.islandBackgroundOpacity(), 100);
         // 50 clamped to minimum 100
         QCOMPARE(config.islandAutoHideDelayMs(), 100);
+        QCOMPARE(config.cleanNotificationUrls(), false);
         QCOMPARE(config.clockFormat(), QStringLiteral("24"));
+        QCOMPARE(config.osdProgressStyle(), QStringLiteral("ring"));
         QCOMPARE(config.dynamicIslandPrimaryButton(), 2);
+        QVERIFY(config.configError().isEmpty());
+    }
+
+    void testOsdProgressStyleFallback() {
+        QTemporaryDir tempDir;
+        QVERIFY(tempDir.isValid());
+        qputenv("XDG_CONFIG_HOME", tempDir.path().toUtf8());
+
+        const QString tideDir = tempDir.path() + QStringLiteral("/tide-island");
+        QDir().mkpath(tideDir);
+        const QString configPath = tideDir + QStringLiteral("/userconfig.json");
+
+        QFile file(configPath);
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+        file.write("{\"osdProgressStyle\": \"dial\"}\n");
+        file.close();
+
+        UserConfigBackend config;
+        QCOMPARE(config.osdProgressStyle(), QStringLiteral("line"));
         QVERIFY(config.configError().isEmpty());
     }
 

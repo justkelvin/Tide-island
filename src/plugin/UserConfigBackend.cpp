@@ -11,6 +11,8 @@
 #include <QVariant>
 #include <Qt>
 
+#include <QtQml/qqmlengine.h>
+
 #include <algorithm>
 #include <cmath>
 
@@ -101,6 +103,8 @@ void updateField(Owner *owner, T &field, T nextValue, Signal signal)
 }
 }
 
+UserConfigBackend *UserConfigBackend::s_instance = nullptr;
+
 UserConfigBackend::UserConfigBackend(QObject *parent)
     : QObject(parent)
     , m_userConfigPath(configHome() + QStringLiteral("/tide-island/userconfig.json"))
@@ -114,6 +118,28 @@ UserConfigBackend::UserConfigBackend(QObject *parent)
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, &UserConfigBackend::scheduleReload);
 
     loadConfig();
+}
+
+UserConfigBackend::~UserConfigBackend()
+{
+    if (s_instance == this)
+        s_instance = nullptr;
+}
+
+UserConfigBackend *UserConfigBackend::instance()
+{
+    if (!s_instance) {
+        s_instance = new UserConfigBackend(nullptr);
+        QQmlEngine::setObjectOwnership(s_instance, QQmlEngine::CppOwnership);
+    }
+    return s_instance;
+}
+
+UserConfigBackend *UserConfigBackend::create(QQmlEngine *qmlEngine, QJSEngine *jsEngine)
+{
+    Q_UNUSED(qmlEngine);
+    Q_UNUSED(jsEngine);
+    return instance();
 }
 
 QString UserConfigBackend::userConfigPath() const
@@ -149,6 +175,11 @@ QString UserConfigBackend::timeFontFamily() const
 QString UserConfigBackend::clockFormat() const
 {
     return m_clockFormat;
+}
+
+QString UserConfigBackend::osdProgressStyle() const
+{
+    return m_osdProgressStyle;
 }
 
 int UserConfigBackend::dynamicIslandPrimaryButton() const
@@ -199,6 +230,11 @@ bool UserConfigBackend::islandShowWorkspaceOnAutoHide() const
 int UserConfigBackend::islandAutoHideDelayMs() const
 {
     return m_islandAutoHideDelayMs;
+}
+
+bool UserConfigBackend::cleanNotificationUrls() const
+{
+    return m_cleanNotificationUrls;
 }
 
 int UserConfigBackend::islandWidth() const
@@ -340,16 +376,19 @@ void UserConfigBackend::loadConfig()
     updateField(this, m_timeFontFamily, jsonString(configObject, QLatin1String("timeFontFamily"), QStringLiteral("Inter Display")), &UserConfigBackend::timeFontFamilyChanged);
     const QString configuredClockFormat = jsonString(configObject, QLatin1String("clockFormat"), QStringLiteral("12"));
     updateField(this, m_clockFormat, configuredClockFormat == QLatin1String("24") ? QStringLiteral("24") : QStringLiteral("12"), &UserConfigBackend::clockFormatChanged);
+    const QString configuredOsdStyle = jsonString(configObject, QLatin1String("osdProgressStyle"), QStringLiteral("line"));
+    updateField(this, m_osdProgressStyle, configuredOsdStyle == QLatin1String("ring") ? QStringLiteral("ring") : QStringLiteral("line"), &UserConfigBackend::osdProgressStyleChanged);
     updateField(this, m_dynamicIslandPrimaryButton, jsonInt(configObject, QLatin1String("dynamicIslandPrimaryButton"), 1), &UserConfigBackend::dynamicIslandPrimaryButtonChanged);
     updateField(this, m_dynamicIslandPrimaryAction, jsonString(configObject, QLatin1String("dynamicIslandPrimaryAction"), QStringLiteral("toggleExpandedPlayer")), &UserConfigBackend::dynamicIslandPrimaryActionChanged);
     updateField(this, m_dynamicIslandSecondaryButton, jsonInt(configObject, QLatin1String("dynamicIslandSecondaryButton"), 3), &UserConfigBackend::dynamicIslandSecondaryButtonChanged);
     updateField(this, m_islandShowWorkspaceOnAutoHide, jsonBool(configObject, QLatin1String("islandShowWorkspaceOnAutoHide"), true), &UserConfigBackend::islandShowWorkspaceOnAutoHideChanged);
-    updateField(this, m_dynamicIslandSecondaryAction, jsonString(configObject, QLatin1String("dynamicIslandSecondaryAction"), QString()), &UserConfigBackend::dynamicIslandSecondaryActionChanged);
+    updateField(this, m_dynamicIslandSecondaryAction, jsonString(configObject, QLatin1String("dynamicIslandSecondaryAction"), QStringLiteral("toggleSecondaryPanel")), &UserConfigBackend::dynamicIslandSecondaryActionChanged);
     updateField(this, m_dynamicIslandLeftSwipeItems, jsonArray(configObject, QLatin1String("dynamicIslandLeftSwipeItems"), defaultDynamicIslandLeftSwipeItems()), &UserConfigBackend::dynamicIslandLeftSwipeItemsChanged);
     updateField(this, m_disableAutoExpandOnTrackChange, jsonBool(configObject, QLatin1String("disableAutoExpandOnTrackChange"), false), &UserConfigBackend::disableAutoExpandOnTrackChangeChanged);
     updateField(this, m_hoverExpandAction, jsonInt(configObject, QLatin1String("hoverExpandAction"), 1), &UserConfigBackend::hoverExpandActionChanged);
     updateField(this, m_islandAutoHideEnabled, jsonBool(configObject, QLatin1String("islandAutoHideEnabled"), true), &UserConfigBackend::islandAutoHideEnabledChanged);
     updateField(this, m_islandAutoHideDelayMs, jsonBoundedInt(configObject, QLatin1String("islandAutoHideDelayMs"), 1000, 100, 10000), &UserConfigBackend::islandAutoHideDelayMsChanged);
+    updateField(this, m_cleanNotificationUrls, jsonBool(configObject, QLatin1String("cleanNotificationUrls"), true), &UserConfigBackend::cleanNotificationUrlsChanged);
     updateField(this, m_islandWidth, jsonInt(configObject, QLatin1String("islandWidth"), 140), &UserConfigBackend::islandWidthChanged);
     updateField(this, m_islandBackgroundOpacity, jsonBoundedInt(configObject, QLatin1String("islandBackgroundOpacity"), 60, 0, 100), &UserConfigBackend::islandBackgroundOpacityChanged);
     updateField(this, m_islandHeight, jsonInt(configObject, QLatin1String("islandHeight"), 38), &UserConfigBackend::islandHeightChanged);

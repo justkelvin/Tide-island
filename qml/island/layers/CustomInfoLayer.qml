@@ -1,4 +1,5 @@
 import QtQuick
+import Qt5Compat.GraphicalEffects
 import IslandBackend
 import "../../components"
 
@@ -9,6 +10,8 @@ Item {
 
     property var items: []
     property var cavaLevels: []
+    property string currentArtUrl: ""
+    property bool hasMediaPlaying: false
     property string timeText: ""
     property var configSource: null
     readonly property var activeConfig: configSource || userConfig
@@ -124,125 +127,40 @@ Item {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
 
+                    SvgIcon {
+                        anchors.centerIn: parent
+                        visible: parent.parent.hasIcon && !parent.parent.isBattery && String(modelData.icon || "").indexOf(".svg") !== -1
+                        source: visible ? modelData.icon : ""
+                        iconSize: root.iconPixelSize
+                        color: "white"
+                    }
+
                     Text {
                         anchors.centerIn: parent
                         anchors.verticalCenterOffset: root.iconVerticalOffset
-                        visible: parent.parent.hasIcon && !parent.parent.isBattery
+                        visible: parent.parent.hasIcon && !parent.parent.isBattery && String(modelData.icon || "").indexOf(".svg") === -1
                         text: modelData.icon || ""
                         color: "white"
                         font.pixelSize: root.iconPixelSize
                         font.family: root.iconFontFamily
                     }
 
-                    Item {
-                        id: batteryShape
+                    BatteryIcon {
                         visible: parent.parent.isBattery
                         width: root.batteryIconWidth
                         height: root.batteryIconHeight
                         anchors.verticalCenter: parent.verticalCenter
-
-                        readonly property real level: Math.max(0, Math.min(100, Number(modelData.level || 0)))
-                        readonly property bool charging: modelData.isCharging || false
-                        readonly property bool roundedEnd: level >= 85
-                        readonly property color bodyColor: {
-                            if (charging)
-                                return "white";
-                            if (level <= 20)
-                                return "#ff3b30";
-                            return "white";
-                        }
-                        readonly property color emptyColor: Qt.rgba(1, 1, 1, 0.56)
-
-                        Rectangle {
-                            id: batteryBody
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width - root.batteryTipWidth - 1
-                            height: parent.height
-                            radius: root.batteryOuterRadius
-                            color: batteryShape.emptyColor
-                            border.width: 0
-                            clip: true
-
-                            Rectangle {
-                                id: batteryFill
-                                anchors.left: parent.left
-                                anchors.top: parent.top
-                                anchors.bottom: parent.bottom
-                                radius: 0
-                                topLeftRadius: root.batteryOuterRadius
-                                bottomLeftRadius: root.batteryOuterRadius
-                                topRightRadius: batteryShape.roundedEnd ? root.batteryOuterRadius : 0
-                                bottomRightRadius: batteryShape.roundedEnd ? root.batteryOuterRadius : 0
-                                width: Math.max(root.batteryOuterRadius * 2, parent.width * (batteryShape.level / 100.0))
-                                color: batteryShape.bodyColor
-
-                                Behavior on width {
-                                    NumberAnimation {
-                                        duration: 300
-                                        easing.type: Easing.OutCubic
-                                    }
-                                }
-                                Behavior on color {
-                                    ColorAnimation { duration: 300 }
-                                }
-                            }
-
-                            Row {
-                                visible: batteryShape.charging
-                                anchors.centerIn: parent
-                                anchors.horizontalCenterOffset: root.batteryChargingXOffset
-                                anchors.verticalCenterOffset: root.batteryChargingYOffset
-                                spacing: 2
-                                z: 2
-
-                                Text {
-                                    text: batteryShape.level + ""
-                                    color: "black"
-                                    font.pixelSize: root.batteryFontSizeCharging
-                                    font.family: root.textFontFamily
-                                    font.weight: Font.DemiBold
-                                    verticalAlignment: Text.AlignVCenter
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-
-                                Text {
-                                    text: root.chargingIconGlyph
-                                    color: "#242424"
-                                    font.pixelSize: root.batteryBoltSize
-                                    font.family: root.iconFontFamily
-                                    verticalAlignment: Text.AlignVCenter
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-                            }
-
-                            Text {
-                                visible: !batteryShape.charging
-                                anchors.centerIn: parent
-                                text: batteryShape.level + ""
-                                color: batteryShape.level <= 20 ? "white" : "black"
-                                font.pixelSize: root.batteryFontSize
-                                font.family: root.textFontFamily
-                                font.weight: batteryShape.level <= 20 ? Font.Bold : Font.DemiBold
-                                verticalAlignment: Text.AlignVCenter
-                                horizontalAlignment: Text.AlignHCenter
-                                z: 2
-                            }
-                        }
-
-                        Rectangle {
-                            width: root.batteryTipWidth
-                            height: root.batteryTipHeight
-                            radius: Math.round(root.batteryTipWidth / 2)
-                            color: batteryShape.level >= 100 ? batteryShape.bodyColor : batteryShape.emptyColor
-                            anchors.left: batteryBody.right
-                            anchors.leftMargin: 1
-                            anchors.verticalCenter: parent.verticalCenter
-
-                            Behavior on color {
-                                ColorAnimation { duration: 300 }
-                            }
-                        }
+                        level: Number(modelData.level || 0)
+                        charging: modelData.isCharging || false
+                        textFontFamily: root.textFontFamily
+                        iconFontFamily: root.iconFontFamily
+                        batteryFontSize: root.batteryFontSize
+                        batteryFontSizeCharging: root.batteryFontSizeCharging
+                        batteryBoltSize: root.batteryBoltSize
+                        chargingGlyph: root.chargingIconGlyph
+                        tipWidth: root.batteryTipWidth
+                        tipHeight: root.batteryTipHeight
+                        outerRadius: root.batteryOuterRadius
                     }
                 }
 
@@ -264,31 +182,88 @@ Item {
         }
     }
 
-    RecordingIndicator {
-        id: timeRecordingIndicator
-        active: root.recordingActive
-            && root.showSecondaryText
-            && root.timeText !== ""
-            && root.clampedProgress < 0.001
-        contentOpacity: 1 - root.clampedProgress
-        x: root.timeRecordingDotX
-        anchors.verticalCenter: parent.verticalCenter
-    }
+    Item {
+        id: restingTimeContainer
+        x: root.timeX
+        width: root.textWidth
+        height: parent.height
+        opacity: 1 - root.clampedProgress
+        visible: opacity > 0.001 && root.showSecondaryText && root.timeText !== ""
 
-    Text {
-        visible: timeText !== "" && showSecondaryText
-        x: timeX
-        width: textWidth
-        anchors.verticalCenter: parent.verticalCenter
-        text: timeText
-        color: "white"
-        opacity: 1 - clampedProgress
-        font.pixelSize: root.textPixelSize + 1
-        font.family: timeFontFamily
-        font.weight: Font.Bold
-        font.letterSpacing: -0.25
-        horizontalAlignment: Text.AlignHCenter
-        elide: Text.ElideRight
-        wrapMode: Text.NoWrap
+        Rectangle {
+            id: customCoverFrame
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            width: 20
+            height: 20
+            radius: 6
+            color: "#2c2c2e"
+            visible: root.hasMediaPlaying
+
+            SvgIcon {
+                anchors.centerIn: parent
+                source: Qt.resolvedUrl("../../resources/icons/music-alt.svg")
+                iconSize: 11
+                color: "#9e9ea0"
+                visible: !customCoverArt.visible
+            }
+
+            Rectangle {
+                id: customCoverMask
+                anchors.fill: parent
+                radius: 6
+                antialiasing: true
+                visible: false
+                layer.enabled: true
+            }
+
+            Image {
+                id: customCoverArt
+                anchors.fill: parent
+                source: root.currentArtUrl
+                fillMode: Image.PreserveAspectCrop
+                visible: source.toString() !== ""
+                sourceSize: Qt.size(40, 40)
+                layer.enabled: true
+                layer.effect: OpacityMask {
+                    maskSource: customCoverMask
+                }
+            }
+        }
+
+        Row {
+            anchors.centerIn: parent
+            spacing: root.recordingDotSpacing
+
+            RecordingIndicator {
+                id: timeRecordingIndicator
+                active: root.recordingActive && root.clampedProgress < 0.001
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Text {
+                text: root.timeText
+                color: "white"
+                font.pixelSize: root.textPixelSize + 1
+                font.family: root.timeFontFamily
+                font.weight: Font.Bold
+                font.letterSpacing: -0.25
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.NoWrap
+                anchors.verticalCenter: parent.verticalCenter
+            }
+        }
+
+        CavaBars {
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            levels: root.cavaLevels
+            barCount: 4
+            barWidth: 3
+            barSpacing: 2
+            minimumBarHeight: 3
+            barColor: "white"
+            visible: root.hasMediaPlaying
+        }
     }
 }

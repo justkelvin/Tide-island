@@ -3,6 +3,7 @@
 #include <QQmlContext>
 
 #include "backend.hpp"
+#include "diagnostics.hpp"
 
 int main(int argc, char *argv[]) {
     bool validateQml = false;
@@ -13,8 +14,10 @@ int main(int argc, char *argv[]) {
 
     QGuiApplication app(argc, argv);
     Backend backend;
+    Diagnostics diagnostics;
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
+    engine.rootContext()->setContextProperty(QStringLiteral("diagnostics"), &diagnostics);
     engine.loadFromModule(QStringLiteral("TideIsland"), QStringLiteral("Main"));
     if (engine.rootObjects().isEmpty()) return -1;
     if (validateQml) return 0;

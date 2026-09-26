@@ -10,6 +10,7 @@ Item {
     height: 0
 
     signal transientRequested(string icon, real progress, string text)
+    signal batteryRequested(real level, bool charging, string text)
 
     property var configuredLeftSwipeItems: []
     property string timeText: "00:00"
@@ -25,35 +26,59 @@ Item {
     readonly property bool usesCavaModule: configuredLeftSwipeIds.indexOf("cava") !== -1
     readonly property bool hasCustomLeftItems: customLeftItems.length > 0
     readonly property string systemServicesClientId: "island-system-state-" + Math.random().toString(36).slice(2)
-    readonly property string defaultStatusIcon: "\ud83c\udfa7"
-    readonly property string volumeStatusIcon: "\u{F057E}"
-    readonly property string muteStatusIcon: "\u{F075F}"
-    readonly property string brightnessLowStatusIcon: "\u{F00DE}"
-    readonly property string brightnessMediumStatusIcon: "\u{F00DF}"
-    readonly property string brightnessHighStatusIcon: "\u{F00E0}"
-    readonly property string chargingStatusIcon: "\uf0e7"
-    readonly property string dischargingStatusIcon: "\uf244"
-    readonly property string cpuStatusIcon: "\u{F035B}"
-    readonly property string ramStatusIcon: "\u{F061A}"
-    readonly property string bluetoothStatusIcon: "\u{F02CB}"
+    readonly property string defaultStatusIcon: Qt.resolvedUrl("../resources/icons/notification.svg")
+    readonly property string volumeDownStatusIcon: Qt.resolvedUrl("../resources/icons/volume-down.svg")
+    readonly property string volumeUpStatusIcon: Qt.resolvedUrl("../resources/icons/volume-up.svg")
+    readonly property string volumeStatusIcon: Qt.resolvedUrl("../resources/icons/volume-up.svg")
+    readonly property string muteStatusIcon: Qt.resolvedUrl("../resources/icons/volume-mute.svg")
+    readonly property string micStatusIcon: Qt.resolvedUrl("../resources/icons/microphone.svg")
+    readonly property string micMutedStatusIcon: Qt.resolvedUrl("../resources/icons/microphone-slash.svg")
+    readonly property string brightnessLowStatusIcon: Qt.resolvedUrl("../resources/icons/brightness-low.svg")
+    readonly property string brightnessMediumStatusIcon: Qt.resolvedUrl("../resources/icons/brightness.svg")
+    readonly property string brightnessHighStatusIcon: Qt.resolvedUrl("../resources/icons/brightness.svg")
+    readonly property string cpuStatusIcon: Qt.resolvedUrl("../resources/icons/cpu.svg")
+    readonly property string ramStatusIcon: Qt.resolvedUrl("../resources/icons/memory.svg")
+    readonly property string bluetoothStatusIcon: Qt.resolvedUrl("../resources/icons/bluetooth-off.svg")
+    readonly property string storageStatusIcon: Qt.resolvedUrl("../resources/icons/hard-drive.svg")
 
     property int batteryCapacity: SysBackend.batteryCapacity
     property bool isCharging: SysBackend.batteryStatus === "Charging" || SysBackend.batteryStatus === "Full"
     property real currentVolume: -1
     property bool isMuted: false
+    property real currentMicVolume: -1
+    property bool isMicMuted: false
     property real currentBrightness: -1
     property real currentCpuUsage: -1
     property real currentRamUsage: -1
     property var cavaLevels: [0, 0, 0, 0, 0, 0, 0, 0]
     property real currentStorageUsage: -1
-    readonly property string storageStatusIcon: "\u{F1C0}"
     property var customLeftItems: []
 
-    property string _lastChargeStatus: SysBackend.batteryStatus
+    // Plug state: -1 unknown (baseline next), 0 unplugged, 1 plugged.
+    // Edges here — not battery status strings, which oscillate between
+    // Full/Not charging/Discharging on their own at the top of the charge.
+    property int _lastPlugged: -1
+    property real _lastBatteryLevel: -1
+    property bool _low20: false
+    property bool _low15: false
+    property bool _low10: false
+    property bool _crit5: false
+    property bool _unplug80: false
+    property bool _full100: false
     property string _pendingVolType: ""
     property real _pendingVolVal: 0.0
     property string _lastVolType: ""
     property real _lastVolVal: -1.0
+    property string _pendingMicType: ""
+    property real _pendingMicVal: 0.0
+    property string _lastMicType: ""
+    property real _lastMicVal: -1.0
+    // First backend sync only seeds state; OSD fires from the second update
+    // on so the island never pops up on launch. Keeps working once HyDE's
+    // duplicate notifies are disabled because real key events always follow.
+    property bool _volumeSynced: false
+    property bool _micSynced: false
+    property bool _brightnessSynced: false
     property bool _bluetoothVolumeSuppressed: false
     property real _pendingBrightnessValue: 0.0
     property string _customLeftItemsSignature: ""
@@ -94,25 +119,31 @@ Item {
         case "default":
             return defaultStatusIcon;
         case "volume":
-            return volumeStatusIcon;
+            return currentVolume <= 0.4 ? volumeDownStatusIcon : volumeUpStatusIcon;
+        case "volumeDown":
+            return volumeDownStatusIcon;
+        case "volumeUp":
+            return volumeUpStatusIcon;
         case "mute":
             return muteStatusIcon;
+        case "mic":
+            return micStatusIcon;
+        case "micMute":
+            return micMutedStatusIcon;
         case "brightnessLow":
             return brightnessLowStatusIcon;
         case "brightnessMedium":
             return brightnessMediumStatusIcon;
         case "brightnessHigh":
             return brightnessHighStatusIcon;
-        case "charging":
-            return chargingStatusIcon;
-        case "discharging":
-            return dischargingStatusIcon;
         case "cpu":
             return cpuStatusIcon;
         case "ram":
             return ramStatusIcon;
         case "bluetooth":
             return bluetoothStatusIcon;
+        case "storage":
+            return storageStatusIcon;
         default:
             return "";
         }
@@ -214,7 +245,7 @@ Item {
                 text: formatPercentText(currentBrightness)
             };
         case "workspace":
-            return { id: itemId, icon: "", text: "Workspace " + currentWorkspace };
+            return { id: itemId, icon: Qt.resolvedUrl("../resources/icons/workspace-change.svg"), text: "Workspace " + currentWorkspace };
         case "cpu":
             return {
                 id: itemId,
@@ -302,11 +333,32 @@ Item {
                     || Math.abs(root._pendingVolVal - root._lastVolVal) > 0.001) {
                 root._lastVolType = root._pendingVolType;
                 root._lastVolVal = root._pendingVolVal;
-                root.transientRequested(
-                    root._pendingVolType === "MUTE" ? root.statusIcon("mute") : root.statusIcon("volume"),
-                    root._pendingVolVal,
-                    ""
-                );
+                if (root._pendingVolType === "MUTE")
+                    root.transientRequested(root.statusIcon("mute"), -1.0, "Muted");
+                else
+                    root.transientRequested(
+                        root._pendingVolVal <= 0.4 ? root.statusIcon("volumeDown") : root.statusIcon("volumeUp"),
+                        root._pendingVolVal,
+                        ""
+                    );
+            }
+        }
+    }
+
+    Timer {
+        id: micDebounce
+
+        interval: 16
+
+        onTriggered: {
+            if (root._pendingMicType !== root._lastMicType
+                    || Math.abs(root._pendingMicVal - root._lastMicVal) > 0.001) {
+                root._lastMicType = root._pendingMicType;
+                root._lastMicVal = root._pendingMicVal;
+                if (root._pendingMicType === "MUTE")
+                    root.transientRequested(root.statusIcon("micMute"), -1.0, "Mic muted");
+                else
+                    root.transientRequested(root.statusIcon("mic"), root._pendingMicVal, "");
             }
         }
     }
@@ -374,6 +426,17 @@ Item {
         function onVolumeChanged(volPercentage, isMuted) {
             const nextVolType = isMuted ? "MUTE" : "VOL";
             const nextVolValue = root.clamp01(volPercentage / 100.0);
+            if (!root._volumeSynced) {
+                root._volumeSynced = true;
+                root._pendingVolType = nextVolType;
+                root._pendingVolVal = nextVolValue;
+                root._lastVolType = nextVolType;
+                root._lastVolVal = nextVolValue;
+                root.currentVolume = nextVolValue;
+                root.isMuted = isMuted;
+                return;
+            }
+
             const unchanged = root.isMuted === isMuted
                 && Math.abs(root.currentVolume - nextVolValue) <= 0.001
                 && root._pendingVolType === nextVolType
@@ -389,19 +452,121 @@ Item {
             volumeDebounce.restart();
         }
 
-        function onBatteryChanged(capacity, statusString) {
-            root.batteryCapacity = capacity;
-            root.isCharging = (statusString === "Charging" || statusString === "Full");
-            if (root._lastChargeStatus !== "" && root._lastChargeStatus !== statusString) {
-                if (statusString === "Charging")
-                    root.transientRequested(root.statusIcon("charging"), -1.0, "");
-                else if (statusString === "Discharging")
-                    root.transientRequested(root.statusIcon("discharging"), -1.0, "");
+        function onMicVolumeChanged(micPercentage, isMuted) {
+            const nextMicType = isMuted ? "MUTE" : "VOL";
+            const nextMicValue = root.clamp01(micPercentage / 100.0);
+            if (!root._micSynced) {
+                root._micSynced = true;
+                root._pendingMicType = nextMicType;
+                root._pendingMicVal = nextMicValue;
+                root._lastMicType = nextMicType;
+                root._lastMicVal = nextMicValue;
+                root.currentMicVolume = nextMicValue;
+                root.isMicMuted = isMuted;
+                return;
             }
-            root._lastChargeStatus = statusString;
+
+            const unchanged = root.isMicMuted === isMuted
+                && Math.abs(root.currentMicVolume - nextMicValue) <= 0.001
+                && root._pendingMicType === nextMicType
+                && Math.abs(root._pendingMicVal - nextMicValue) <= 0.001;
+
+            if (unchanged)
+                return;
+
+            root._pendingMicType = nextMicType;
+            root._pendingMicVal = nextMicValue;
+            root.currentMicVolume = nextMicValue;
+            root.isMicMuted = isMuted;
+            micDebounce.restart();
+        }
+
+        function onBatteryChanged(capacity, statusString, acOnline) {
+            root.batteryCapacity = capacity;
+            const nowCharging = (statusString === "Charging" || statusString === "Full");
+            root.isCharging = nowCharging;
+
+            // AC presence is authoritative for plug/unplug. Falls back to the
+            // status strings only when no adapter supply exists (acOnline < 0).
+            const plugged = acOnline >= 0 ? acOnline === 1 : nowCharging;
+            const baseline = root._lastPlugged < 0;
+            const level = Math.max(0, Math.min(100, capacity));
+            const haveLevel = capacity >= 0;
+            let fired = false;
+
+            if (haveLevel && baseline) {
+                // Seed one-shot flags from the live state so launch never pops.
+                root._low20 = level <= 20;
+                root._low15 = level <= 15;
+                root._low10 = level <= 10;
+                root._crit5 = level <= 5;
+                root._unplug80 = plugged && level >= 80;
+                root._full100 = plugged && (statusString === "Full" || level >= 100);
+                root._lastBatteryLevel = level;
+            } else if (root._lastPlugged >= 0 && plugged !== (root._lastPlugged === 1)) {
+                if (plugged) {
+                    root._low20 = false;
+                    root._low15 = false;
+                    root._low10 = false;
+                    root._crit5 = false;
+                    if (haveLevel) {
+                        if (statusString === "Full" || level >= 100)
+                            root.batteryRequested(level, true, "Fully Charged");
+                        else {
+                            // Already above the unplug nudge: seed it silently so
+                            // it doesn't fire later. The greeting is Charging.
+                            if (level >= 80)
+                                root._unplug80 = true;
+                            root.batteryRequested(level, true, "Charging");
+                        }
+                    }
+                } else {
+                    root._unplug80 = false;
+                    root._full100 = false;
+                    if (haveLevel)
+                        root.batteryRequested(level, false, "On Battery");
+                }
+                fired = true;
+            }
+            root._lastPlugged = plugged ? 1 : 0;
+
+            if (haveLevel && !baseline && !fired && root._lastBatteryLevel >= 0) {
+                if (!plugged) {
+                    if (level <= 5 && root._lastBatteryLevel > 5 && !root._crit5) {
+                        root._crit5 = true;
+                        root.batteryRequested(level, false, "Critical · 5%");
+                    } else if (level <= 10 && root._lastBatteryLevel > 10 && !root._low10) {
+                        root._low10 = true;
+                        root.batteryRequested(level, false, "Low Battery · 10%");
+                    } else if (level <= 15 && root._lastBatteryLevel > 15 && !root._low15) {
+                        root._low15 = true;
+                        root.batteryRequested(level, false, "Low Battery · 15%");
+                    } else if (level <= 20 && root._lastBatteryLevel > 20 && !root._low20) {
+                        root._low20 = true;
+                        root.batteryRequested(level, false, "Low Battery · 20%");
+                    }
+                } else if (statusString !== "Full") {
+                    if (level >= 80 && root._lastBatteryLevel < 80 && !root._unplug80) {
+                        root._unplug80 = true;
+                        root.batteryRequested(level, true, "Unplug Charger");
+                    }
+                }
+                if (plugged && (statusString === "Full" || level >= 100) && !root._full100) {
+                    root._full100 = true;
+                    root.batteryRequested(level, true, "Fully Charged");
+                }
+            }
+            if (haveLevel)
+                root._lastBatteryLevel = level;
         }
 
         function onBrightnessChanged(value) {
+            if (!root._brightnessSynced) {
+                root._brightnessSynced = true;
+                root._pendingBrightnessValue = value;
+                root.currentBrightness = value;
+                return;
+            }
             root._pendingBrightnessValue = value;
             root.currentBrightness = value;
             brightnessDebounce.restart();

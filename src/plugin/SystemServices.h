@@ -37,9 +37,9 @@ public:
     Q_INVOKABLE void requestStorage();
     Q_INVOKABLE void setCavaClientActive(const QString &clientId, bool active);
     Q_INVOKABLE void ensureUserConfigAvailable();
+    Q_INVOKABLE void playTimerAlarm();
 
 signals:
-    void notificationReceived(const QString &appName, const QString &summary, const QString &body);
     void screenRecordingActiveChanged();
     void hyprlandSnapshotReady(const QString &requestId,
                                const QString &subject,
@@ -73,23 +73,19 @@ private:
     QString findExecutable(const QString &program) const;
     QString commandErrorText(const QString &program, const CommandResult &result) const;
 
-    void startNotificationMonitor();
     void startPipeWireMonitor();
     void startRecordingPortalMonitor();
     void stopProcess(QProcess *&process);
     void setPortalPipeWireActive(bool active);
     void updateScreenRecordingActive();
 
-    void handleNotificationOutput();
     void handlePipeWireOutput();
     void handleRecordingPortalOutput();
     void processLines(QByteArray &buffer, const QByteArray &chunk, const std::function<void(const QString &)> &handler);
-    void handleNotificationLine(const QString &line);
     void handlePipeWireLine(const QString &line);
     void handleRecordingPortalLine(const QString &line);
     void applyPipeWireSnapshot(const QString &text);
 
-    QString decodeDbusMonitorString(const QString &line) const;
     QString extractHeaderPath(const QString &line) const;
     QString extractObjectPath(const QString &line) const;
     bool screenCastMemberHasSessionArgument(const QString &memberName) const;
@@ -105,19 +101,16 @@ private:
 
     bool m_shuttingDown = false;
 
-    QProcess *m_notificationMonitor = nullptr;
     QProcess *m_pipeWireMonitor = nullptr;
     QProcess *m_recordingPortalMonitor = nullptr;
     QProcess *m_recordingSnapshot = nullptr;
     QProcess *m_cavaProcess = nullptr;
 
-    QTimer m_notificationRestartTimer;
     QTimer m_pipeWireRestartTimer;
     QTimer m_recordingPortalRestartTimer;
     QTimer m_recordingSnapshotDebounceTimer;
     QTimer m_cavaRestartTimer;
 
-    QByteArray m_notificationBuffer;
     QByteArray m_pipeWireBuffer;
     QByteArray m_recordingPortalBuffer;
     QByteArray m_cavaBuffer;
@@ -127,14 +120,6 @@ private:
     QSet<QString> m_activeScreenCastSessions;
     QString m_pendingScreenCastMember;
     QString m_pendingSessionCandidate;
-
-    bool m_notificationCaptureActive = false;
-    int m_notificationCaptureStage = -1;
-    bool m_notificationInQuotedString = false;
-    QString m_pendingQuotedAccumulator;
-    QString m_pendingNotificationAppName;
-    QString m_pendingNotificationSummary;
-    QString m_pendingNotificationBody;
 
     qint64 m_lastCpuTotal = -1;
     qint64 m_lastCpuIdle = -1;

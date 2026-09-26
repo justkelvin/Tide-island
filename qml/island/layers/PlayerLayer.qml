@@ -1,6 +1,8 @@
 import QtQuick
+import Qt5Compat.GraphicalEffects
 import IslandBackend
 import Quickshell.Services.Mpris
+import "../../components"
 
 Item {
     id: root
@@ -23,21 +25,9 @@ Item {
     property var activePlayer: null
     property string iconFontFamily: userConfig.iconFontFamily
     property string textFontFamily: userConfig.textFontFamily
-    property real visualizerPhase: 0
-
     readonly property bool isPlaying: activePlayer && activePlayer.playbackState === MprisPlaybackState.Playing
-
-    function visualizerLevel(index) {
-        const phase = visualizerPhase + index * 0.78;
-        const primary = (Math.sin(phase) + 1) * 0.5;
-        const secondary = (Math.sin(phase * 2 + index * 0.95) + 1) * 0.5;
-        return 0.22 + primary * 0.42 + secondary * 0.24;
-    }
-
-    function pausedVisualizerLevel(index) {
-        const levels = [0.34, 0.58, 0.82, 0.58, 0.34];
-        return levels[index] || 0.4;
-    }
+    property var cavaLevels: []
+    readonly property var pausedLevels: [0.34, 0.58, 0.82, 0.58, 0.34]
 
     function togglePlayback() {
         if (!activePlayer || !activePlayer.canControl) return;
@@ -65,15 +55,6 @@ Item {
         }
     }
 
-    Timer {
-        interval: 64
-        repeat: true
-        running: showCondition && isPlaying
-        onTriggered: {
-            visualizerPhase += 0.18;
-            if (visualizerPhase > Math.PI * 2) visualizerPhase -= Math.PI * 2;
-        }
-    }
 
     Item {
         id: viewport
@@ -110,14 +91,35 @@ Item {
                                 height: 60
                                 radius: 14
                                 color: "#2c2c2e"
-                                clip: true
+
+                                SvgIcon {
+                                    anchors.centerIn: parent
+                                    source: Qt.resolvedUrl("../../resources/icons/music-alt.svg")
+                                    iconSize: 28
+                                    color: "#5f6368"
+                                    visible: !albumArt.visible
+                                }
+
+                                Rectangle {
+                                    id: albumArtMask
+                                    anchors.fill: parent
+                                    radius: 14
+                                    antialiasing: true
+                                    visible: false
+                                    layer.enabled: true
+                                }
 
                                 Image {
+                                    id: albumArt
                                     anchors.fill: parent
                                     source: currentArtUrl
                                     fillMode: Image.PreserveAspectCrop
                                     visible: source.toString() !== ""
                                     sourceSize: Qt.size(120, 120)
+                                    layer.enabled: true
+                                    layer.effect: OpacityMask {
+                                        maskSource: albumArtMask
+                                    }
                                 }
                             }
 
@@ -126,7 +128,7 @@ Item {
                                 spacing: 4
 
                                 Text {
-                                    text: currentTrack
+                                    text: currentTrack !== "" ? currentTrack : "No media playing"
                                     color: "white"
                                     font.pixelSize: userConfig.bodyFontSize
                                     font.family: textFontFamily
@@ -138,6 +140,7 @@ Item {
 
                                 Text {
                                     text: currentArtist
+                                    visible: currentArtist !== ""
                                     color: "#8e8e93"
                                     font.pixelSize: userConfig.bodyFontSize - 2
                                     font.family: textFontFamily
@@ -153,39 +156,17 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             width: 44
                             height: 22
+                            visible: currentTrack !== ""
 
-                            Row {
+                            CavaBars {
                                 anchors.centerIn: parent
-                                height: parent.height
-                                spacing: 4
-
-                                Repeater {
-                                    model: 5
-
-                                    delegate: Rectangle {
-                                        width: 4
-                                        height: isPlaying
-                                            ? 6 + (parent.height - 6) * visualizerLevel(index)
-                                            : 6 + (parent.height - 6) * pausedVisualizerLevel(index)
-                                        radius: 2
-                                        color: isPlaying ? "#b56cff" : "#5f4b72"
-                                        anchors.verticalCenter: parent.verticalCenter
-
-                                        Behavior on height {
-                                            NumberAnimation {
-                                                duration: isPlaying ? 120 : 260
-                                                easing.type: Easing.InOutQuad
-                                            }
-                                        }
-
-                                        Behavior on color {
-                                            ColorAnimation {
-                                                duration: isPlaying ? 140 : 280
-                                                easing.type: Easing.InOutQuad
-                                            }
-                                        }
-                                    }
-                                }
+                                levels: isPlaying ? root.cavaLevels : root.pausedLevels
+                                barCount: 5
+                                barWidth: 4
+                                barSpacing: 4
+                                minimumBarHeight: 6
+                                height: 22
+                                barColor: isPlaying ? "white" : "#8e8e93"
                             }
                         }
                     }
@@ -256,31 +237,11 @@ Item {
                                     NumberAnimation { duration: 100 }
                                 }
 
-                                Canvas {
-                                    anchors.fill: parent
-                                    property color fillColor: prevArea.pressed ? "#888" : "white"
-
-                                    onFillColorChanged: requestPaint()
-                                    onPaint: {
-                                        var ctx = getContext("2d");
-                                        ctx.clearRect(0, 0, width, height);
-                                        ctx.fillStyle = fillColor;
-                                        ctx.strokeStyle = fillColor;
-                                        ctx.lineJoin = "round";
-                                        ctx.lineWidth = 2;
-                                        ctx.beginPath();
-                                        ctx.rect(3, 5, 3, 18);
-                                        ctx.moveTo(14, 5);
-                                        ctx.lineTo(6, 14);
-                                        ctx.lineTo(14, 23);
-                                        ctx.closePath();
-                                        ctx.moveTo(23, 5);
-                                        ctx.lineTo(15, 14);
-                                        ctx.lineTo(23, 23);
-                                        ctx.closePath();
-                                        ctx.fill();
-                                        ctx.stroke();
-                                    }
+                                SvgIcon {
+                                    anchors.centerIn: parent
+                                    iconSize: 22
+                                    source: Qt.resolvedUrl("../../resources/icons/step-backward.svg")
+                                    color: prevArea.pressed ? "#888888" : "white"
                                 }
 
                                 MouseArea {
@@ -305,36 +266,13 @@ Item {
                                     NumberAnimation { duration: 100 }
                                 }
 
-                                Row {
+                                SvgIcon {
                                     anchors.centerIn: parent
-                                    spacing: 6
-                                    visible: activePlayer && activePlayer.playbackState === MprisPlaybackState.Playing
-
-                                    Rectangle { width: 6; height: 20; radius: 2; color: playArea.pressed ? "#888" : "white" }
-                                    Rectangle { width: 6; height: 20; radius: 2; color: playArea.pressed ? "#888" : "white" }
-                                }
-
-                                Canvas {
-                                    anchors.fill: parent
-                                    visible: !activePlayer || activePlayer.playbackState !== MprisPlaybackState.Playing
-                                    property color fillColor: playArea.pressed ? "#888" : "white"
-
-                                    onFillColorChanged: requestPaint()
-                                    onPaint: {
-                                        var ctx = getContext("2d");
-                                        ctx.clearRect(0, 0, width, height);
-                                        ctx.fillStyle = fillColor;
-                                        ctx.strokeStyle = fillColor;
-                                        ctx.lineJoin = "round";
-                                        ctx.lineWidth = 2;
-                                        ctx.beginPath();
-                                        ctx.moveTo(8, 4);
-                                        ctx.lineTo(24, 14);
-                                        ctx.lineTo(8, 24);
-                                        ctx.closePath();
-                                        ctx.fill();
-                                        ctx.stroke();
-                                    }
+                                    iconSize: 22
+                                    source: isPlaying
+                                        ? Qt.resolvedUrl("../../resources/icons/pause.svg")
+                                        : Qt.resolvedUrl("../../resources/icons/play.svg")
+                                    color: playArea.pressed ? "#888888" : "white"
                                 }
 
                                 MouseArea {
@@ -359,31 +297,11 @@ Item {
                                     NumberAnimation { duration: 100 }
                                 }
 
-                                Canvas {
-                                    anchors.fill: parent
-                                    property color fillColor: nextArea.pressed ? "#888" : "white"
-
-                                    onFillColorChanged: requestPaint()
-                                    onPaint: {
-                                        var ctx = getContext("2d");
-                                        ctx.clearRect(0, 0, width, height);
-                                        ctx.fillStyle = fillColor;
-                                        ctx.strokeStyle = fillColor;
-                                        ctx.lineJoin = "round";
-                                        ctx.lineWidth = 2;
-                                        ctx.beginPath();
-                                        ctx.moveTo(5, 5);
-                                        ctx.lineTo(13, 14);
-                                        ctx.lineTo(5, 23);
-                                        ctx.closePath();
-                                        ctx.moveTo(14, 5);
-                                        ctx.lineTo(22, 14);
-                                        ctx.lineTo(14, 23);
-                                        ctx.closePath();
-                                        ctx.rect(22, 5, 3, 18);
-                                        ctx.fill();
-                                        ctx.stroke();
-                                    }
+                                SvgIcon {
+                                    anchors.centerIn: parent
+                                    iconSize: 22
+                                    source: Qt.resolvedUrl("../../resources/icons/step-forward.svg")
+                                    color: nextArea.pressed ? "#888888" : "white"
                                 }
 
                                 MouseArea {

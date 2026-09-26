@@ -39,9 +39,10 @@ public:
 signals:
     void brightnessChanged(double val);
     void volumeChanged(int volPercentage, bool isMuted);
+    void micVolumeChanged(int micPercentage, bool isMuted);
     void batteryCapacityChanged(int capacity);
     void batteryStatusChanged(const QString &statusString);
-    void batteryChanged(int capacity, const QString &statusString);
+    void batteryChanged(int capacity, const QString &statusString, int acOnline);
     void bluetoothChanged(bool isConnected);
     void lyricsCurrentLyricChanged();
     void lyricsIsSyncedChanged();
@@ -50,7 +51,9 @@ signals:
 private slots:
     void handleVolumeEvent();
     void fetchCurrentVolume();
+    void fetchCurrentMicVolume();
     void handleVolumeQueryFinished(int exitCode, QProcess::ExitStatus exitStatus);
+    void handleMicVolumeQueryFinished(int exitCode, QProcess::ExitStatus exitStatus);
     void handleDefaultSinkQueryFinished(int exitCode, QProcess::ExitStatus exitStatus);
     void handleBatteryMonitorEvent();
     void handleBatteryPropertiesChanged(const QString &interfaceName, const QVariantMap &changedProperties, const QStringList &invalidatedProperties);
@@ -77,7 +80,7 @@ private:
     void detectPowerSupplyPaths();
     void detectBacklightPath();
     QString readSysfsTextFile(const QString &path) const;
-    void updateBatteryState(int capacity, const QString &statusString);
+    void updateBatteryState(int capacity, const QString &statusString, int acOnline);
     QString upowerStateToBatteryStatus(uint state) const;
     QString findLyricsBackendExecutable() const;
     void setLyricsCurrentLyric(const QString &lyric);
@@ -88,11 +91,13 @@ private:
     QProcess *m_paSubscriber;
     QProcess *m_volumeQueryProcess;
     QProcess *m_defaultSinkQueryProcess;
+    QProcess *m_micVolumeQueryProcess;
     QFileSystemWatcher *m_brightnessWatcher;
     QSocketNotifier *m_batteryNotifier;
     QTimer *m_audioDebounceTimer;
     QTimer *m_volumeQueryTimeoutTimer;
     QTimer *m_defaultSinkQueryTimeoutTimer;
+    QTimer *m_micVolumeQueryTimeoutTimer;
     QProcess *m_lyricsProcess;
     QTimer *m_lyricsRestartTimer;
     double m_maxBrightness;
@@ -108,6 +113,10 @@ private:
     QString m_backlightPath;
     int m_batteryCap;
     QString m_batteryStatus;
+    // Adapter presence: -1 unknown (no AC supply found), 0 unplugged, 1 plugged.
+    // Authoritative for plug/unplug edges; battery status strings oscillate on
+    // their own at the top of the charge and must not drive them.
+    int m_acOnline;
     QString m_upowerBatteryPath;
     bool m_hasBatteryState;
 

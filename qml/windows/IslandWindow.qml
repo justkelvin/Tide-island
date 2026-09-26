@@ -66,13 +66,14 @@ PanelWindow {
         }
     }
 
-    implicitHeight: Math.max(280, Math.ceil(userConfig.islandTopMargin + 260))
+    implicitHeight: Math.max(480, Math.ceil(userConfig.islandTopMargin + 440))
     exclusionMode: ExclusionMode.Ignore
 
     WlrLayershell.namespace: "tide-island"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: {
-        if (islandContainer.expandedPlayerKeyboardFocusRequested)
+        if (islandContainer.expandedPlayerKeyboardFocusRequested
+                || islandContainer.notificationReplyKeyboardFocusRequested)
             return WlrKeyboardFocus.OnDemand;
         return WlrKeyboardFocus.None;
     }
@@ -107,6 +108,8 @@ PanelWindow {
 
     readonly property alias autoHideTargetVisible: autoHide.targetVisible
     readonly property alias autoHideProgress: autoHide.progress
+    readonly property alias autoHideEnabled: autoHide.enabled
+    property alias autoHidePointerInside: autoHide.pointerInside
     readonly property alias autoHideSuppressesTransientReveal: autoHide.suppressesTransientReveal
     readonly property alias topGestureInputX: autoHide.topGestureInputX
     readonly property alias topGestureInputWidth: autoHide.topGestureInputWidth
@@ -119,8 +122,8 @@ PanelWindow {
     function showAutoHiddenIsland(source) { autoHide.show(source); }
     function scheduleAutoHide() { autoHide.scheduleHide(); }
 
-    function showNotification(appName, summary, body) {
-        islandContainer.showNotificationCapsule(appName, summary, body);
+    function showNotification(item) {
+        islandContainer.showNotificationCapsule(item);
     }
 
     function showClockWindow() {
@@ -151,6 +154,10 @@ PanelWindow {
 
     function togglePlayerWindow() {
         islandContainer.togglePlayerWindow();
+    }
+
+    function toggleSecondaryPanelWindow() {
+        islandContainer.toggleSecondaryPanelWindow();
     }
 
     StateMachine {
